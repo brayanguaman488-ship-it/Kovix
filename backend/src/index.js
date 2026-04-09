@@ -12,12 +12,37 @@ import creditRoutes from "./routes/credits.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
-const WEB_ORIGIN = process.env.WEB_ORIGIN || "http://localhost:3000";
+const DEFAULT_WEB_ORIGIN = "http://localhost:3000";
+
+function normalizeOrigin(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
+const ALLOWED_WEB_ORIGINS = (process.env.WEB_ORIGIN || DEFAULT_WEB_ORIGIN)
+  .split(",")
+  .map(normalizeOrigin)
+  .filter(Boolean);
 
 // CORS: permitir cookies desde el frontend
 app.use(
   cors({
-    origin: WEB_ORIGIN,
+    origin(origin, callback) {
+      // Permitir solicitudes sin Origin (healthchecks, server-to-server)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const normalizedOrigin = normalizeOrigin(origin);
+      const isAllowed = ALLOWED_WEB_ORIGINS.includes(normalizedOrigin);
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origen no permitido por CORS: ${origin}`));
+    },
     credentials: true,
   })
 );
