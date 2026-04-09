@@ -425,14 +425,29 @@ export default function Dashboard() {
   }
 
   async function handleLogout() {
+    if (isLoggingOut) {
+      return;
+    }
+
     setIsLoggingOut(true);
+    setStatus("info", "Cerrando sesion...");
+    const loginUrl = `${window.location.origin}/login`;
 
-    // Cierre optimista: redirigir de inmediato y dejar la limpieza remota en background.
-    api.logout().catch((error) => {
+    // Cierre optimista: no bloquear la UI por fallos de red.
+    window.setTimeout(() => {
+      window.location.replace(loginUrl);
+    }, 120);
+
+    try {
+      await Promise.race([
+        api.logout(),
+        new Promise((resolve) => window.setTimeout(resolve, 1200)),
+      ]);
+    } catch (error) {
       console.warn("Logout remoto no disponible:", error);
-    });
-
-    window.location.replace("/login");
+    } finally {
+      window.location.replace(loginUrl);
+    }
   }
 
   async function handleStatusChange(deviceId, status) {
