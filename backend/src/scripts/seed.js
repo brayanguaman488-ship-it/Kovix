@@ -1,24 +1,8 @@
-import bcrypt from "bcryptjs";
-
+import { ensureAdminUser } from "../lib/ensureAdminUser.js";
 import { prisma } from "../lib/prisma.js";
 
 async function main() {
-  const username = process.env.ADMIN_USERNAME || "admin";
-  const password = process.env.ADMIN_PASSWORD || "123456";
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  await prisma.user.upsert({
-    where: { username },
-    update: {
-      passwordHash,
-      fullName: "Administrador KOVIX",
-    },
-    create: {
-      username,
-      passwordHash,
-      fullName: "Administrador KOVIX",
-    },
-  });
+  const username = await ensureAdminUser();
 
   console.log(`Usuario administrador listo: ${username}`);
 }

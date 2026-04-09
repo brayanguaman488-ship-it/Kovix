@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import { sendServerError } from "./lib/http.js";
+import { ensureAdminUser } from "./lib/ensureAdminUser.js";
 import authRoutes from "./routes/auth.js";
 import customerRoutes from "./routes/customers.js";
 import deviceRoutes from "./routes/devices.js";
@@ -45,6 +46,16 @@ app.use((error, req, res, next) => {
   return sendServerError(res);
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend en http://localhost:${PORT}`);
+async function startServer() {
+  const adminUsername = await ensureAdminUser();
+
+  app.listen(PORT, () => {
+    console.log(`Backend en http://localhost:${PORT}`);
+    console.log(`Admin listo: ${adminUsername}`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error("No se pudo iniciar el backend:", error);
+  process.exit(1);
 });
