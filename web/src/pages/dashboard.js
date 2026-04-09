@@ -464,13 +464,13 @@ export default function Dashboard() {
     }
 
     setIsLoggingOut(true);
-    // Navegar inmediatamente para evitar sensacion de bloqueo en la UI.
-    router.replace("/login");
-
-    // Limpiar sesion en backend en segundo plano.
+    // Limpiar sesion en backend en segundo plano (no bloqueante).
     api.logout().catch((error) => {
       console.warn("Logout remoto no disponible:", error);
     });
+
+    // Navegacion dura e inmediata para evitar retrasos del router.
+    window.location.replace("/login");
   }
 
   async function handleStatusChange(deviceId, status) {
