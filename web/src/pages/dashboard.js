@@ -279,12 +279,6 @@ export default function Dashboard() {
   }, [router]);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [loading, user, router]);
-
-  useEffect(() => {
     loadCreditContract(selectedCreditDeviceId).catch(() => {
       setSelectedCreditContract(null);
     });
