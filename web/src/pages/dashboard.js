@@ -239,12 +239,18 @@ export default function Dashboard() {
   useEffect(() => {
     loadDashboard()
       .catch(() => {
-        window.location.href = "/login";
+        router.replace("/login");
       })
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
 
   useEffect(() => {
     loadCreditContract(selectedCreditDeviceId).catch(() => {
