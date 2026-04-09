@@ -195,17 +195,49 @@ export default function Dashboard() {
     }
 
     try {
-      const [meResponse, customersResponse, devicesResponse, paymentsResponse] = await Promise.all([
-        api.me(),
+      // 1) La sesion es la fuente de verdad para mantener al usuario en dashboard.
+      // Solo si /me falla, se debe redirigir a login.
+      const meResponse = await api.me();
+      setUser(meResponse.user);
+
+      // 2) Los modulos de datos se cargan de forma tolerante: si uno falla, no
+      // expulsamos al usuario de su sesion.
+      const [customersResult, devicesResult, paymentsResult] = await Promise.allSettled([
         api.getCustomers(),
         api.getDevices(),
         api.getPayments(),
       ]);
 
-      setUser(meResponse.user);
-      setCustomers(customersResponse.customers);
-      setDevices(devicesResponse.devices);
-      setPayments(paymentsResponse.payments);
+      if (customersResult.status === "fulfilled") {
+        setCustomers(customersResult.value.customers);
+      } else {
+        setCustomers([]);
+      }
+
+      if (devicesResult.status === "fulfilled") {
+        setDevices(devicesResult.value.devices);
+      } else {
+        setDevices([]);
+      }
+
+      if (paymentsResult.status === "fulfilled") {
+        setPayments(paymentsResult.value.payments);
+      } else {
+        setPayments([]);
+      }
+
+      const failedModules = [
+        customersResult.status === "rejected" ? "clientes" : null,
+        devicesResult.status === "rejected" ? "dispositivos" : null,
+        paymentsResult.status === "rejected" ? "pagos" : null,
+      ].filter(Boolean);
+
+      if (failedModules.length > 0) {
+        setStatus(
+          "error",
+          `Sesion activa, pero no se pudieron cargar: ${failedModules.join(", ")}. Revisa backend logs.`
+        );
+      }
     } finally {
       if (options.silent) {
         setIsRefreshing(false);
@@ -436,24 +468,13 @@ export default function Dashboard() {
     }
 
     setIsLoggingOut(true);
-    setStatus("info", "Cerrando sesion...");
-    const loginUrl = `${window.location.origin}/login`;
+    // Navegar inmediatamente para evitar sensacion de bloqueo en la UI.
+    router.replace("/login");
 
-    // Cierre optimista: no bloquear la UI por fallos de red.
-    window.setTimeout(() => {
-      window.location.replace(loginUrl);
-    }, 120);
-
-    try {
-      await Promise.race([
-        api.logout(),
-        new Promise((resolve) => window.setTimeout(resolve, 1200)),
-      ]);
-    } catch (error) {
+    // Limpiar sesion en backend en segundo plano.
+    api.logout().catch((error) => {
       console.warn("Logout remoto no disponible:", error);
-    } finally {
-      window.location.replace(loginUrl);
-    }
+    });
   }
 
   async function handleStatusChange(deviceId, status) {
