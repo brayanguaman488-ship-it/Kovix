@@ -82,7 +82,7 @@ class DeviceSyncService : Service() {
 
     private suspend fun runSyncCycle() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val baseUrl = prefs.getString(PREF_BASE_URL, "").orEmpty().trim()
+        val baseUrl = prefs.getString(PREF_BASE_URL, BuildConfig.DEFAULT_BASE_URL).orEmpty().trim()
         val installCode = prefs.getString(PREF_INSTALL_CODE, "").orEmpty().trim()
         val clientSecret = prefs.getString(PREF_CLIENT_SECRET, "").orEmpty().trim()
 

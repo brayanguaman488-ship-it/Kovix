@@ -1,5 +1,6 @@
 package com.kovix.client.network
 
+import com.kovix.client.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -38,7 +39,7 @@ class KovixRepository(baseUrl: String) {
 
     suspend fun heartbeat(installCode: String, clientSecret: String): Result<DeviceStatusResponse> {
         return runCatching {
-            val body = HeartbeatRequest(appVersion = "1.0.0")
+            val body = HeartbeatRequest(appVersion = BuildConfig.VERSION_NAME)
             val response = api.sendHeartbeat(installCode, clientSecret, body)
             if (!response.isSuccessful) {
                 throw IllegalStateException("Heartbeat HTTP ${response.code()}")

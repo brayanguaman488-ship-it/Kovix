@@ -82,3 +82,56 @@ android-client/app/google-services.json
 4. El backend debe tener variables Firebase configuradas (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`).
 
 Si FCM no esta configurado, el sistema sigue funcionando por polling en segundo plano.
+
+## 7) Build de produccion (APK/AAB firmado)
+
+### 7.1 Crear keystore de release (una sola vez)
+
+En PowerShell, dentro de `android-client`:
+
+```powershell
+keytool -genkeypair -v -keystore release-keystore.jks -alias kovix_release -keyalg RSA -keysize 2048 -validity 10000
+```
+
+### 7.2 Configurar `key.properties`
+
+1. Copia el archivo de ejemplo:
+
+```powershell
+Copy-Item key.properties.example key.properties
+```
+
+2. Edita `key.properties` con tus datos reales:
+
+```properties
+storeFile=release-keystore.jks
+storePassword=TU_PASSWORD
+keyAlias=kovix_release
+keyPassword=TU_PASSWORD
+```
+
+> `key.properties` y el keystore ya quedan ignorados por Git.
+
+### 7.3 Generar artefactos release
+
+```powershell
+.\gradlew.bat clean assembleRelease
+.\gradlew.bat bundleRelease
+```
+
+Salidas:
+
+- APK: `app/build/outputs/apk/release/app-release.apk`
+- AAB (Play Store): `app/build/outputs/bundle/release/app-release.aab`
+
+### 7.4 Default de API en release
+
+En build `release`, la app ya usa por defecto:
+
+- `https://api.kovixec.com`
+
+En `debug` mantiene:
+
+- `http://10.0.2.2:4000`
+
+Si quieres cambiar el dominio productivo, actualiza `DEFAULT_BASE_URL` en `app/build.gradle.kts` (buildType `release`).

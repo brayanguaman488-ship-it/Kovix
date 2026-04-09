@@ -36,6 +36,9 @@ android-client/.kotlin/
 
 # Android secrets
 android-client/app/google-services.json
+android-client/key.properties
+android-client/*.jks
+android-client/*.keystore
 
 # OS / Editor
 .vscode/

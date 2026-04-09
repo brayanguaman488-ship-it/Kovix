@@ -282,7 +282,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadConfigFromPrefs() {
         val prefs = prefs()
-        baseUrlInput.setText(prefs.getString(PREF_BASE_URL, "http://10.0.2.2:4000"))
+        baseUrlInput.setText(prefs.getString(PREF_BASE_URL, BuildConfig.DEFAULT_BASE_URL))
         installCodeInput.setText(prefs.getString(PREF_INSTALL_CODE, ""))
         clientSecretInput.setText(prefs.getString(PREF_CLIENT_SECRET, ""))
         isConfigLocked = prefs.getBoolean(PREF_CONFIG_LOCKED, false)
