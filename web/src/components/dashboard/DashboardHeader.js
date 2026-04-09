@@ -1,6 +1,8 @@
 import { buttonStyle, cardStyle } from "./styles";
 
 export default function DashboardHeader({ user, onLogout, isLoggingOut }) {
+  const displayName = user?.fullName?.trim() || "Administrador";
+
   return (
     <section
       style={{
@@ -13,7 +15,7 @@ export default function DashboardHeader({ user, onLogout, isLoggingOut }) {
       <div>
         <h1 style={{ margin: 0 }}>KOVIX Dashboard</h1>
         <p style={{ marginTop: 8, marginBottom: 0 }}>
-          {user ? `Sesion activa: ${user.username}` : "Sin sesion"}
+          {user ? `Sesion activa: ${displayName}` : "Sin sesion"}
         </p>
       </div>
       <button onClick={onLogout} style={buttonStyle} type="button" disabled={isLoggingOut}>
