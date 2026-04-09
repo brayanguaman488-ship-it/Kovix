@@ -276,7 +276,9 @@ export default function Dashboard() {
       .finally(() => {
         setLoading(false);
       });
-  }, [router]);
+    // Ejecutar solo al montar para evitar ciclos de carga.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadCreditContract(selectedCreditDeviceId).catch(() => {

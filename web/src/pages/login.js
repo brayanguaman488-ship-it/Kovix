@@ -16,7 +16,7 @@ export default function Login() {
 
       if (data.ok) {
         setMessage("Login correcto");
-        window.location.href = "/dashboard";
+        window.location.replace("/dashboard");
       }
     } catch (error) {
       setMessage(error.message || "Error de conexion con el servidor");
