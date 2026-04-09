@@ -27,10 +27,14 @@ export function verifyAuthToken(token) {
 }
 
 export function buildAuthCookieOptions() {
+  const isProduction = process.env.NODE_ENV === "production";
+
   return {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    // En produccion (panel/api en distintos subdominios) el navegador requiere
+    // SameSite=None + Secure para conservar cookie en requests cross-origin.
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     path: "/",
     maxAge: 2 * 60 * 60 * 1000,
   };
