@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="status_active_bg">#E8F5E9</color>
+    <color name="status_pending_bg">#FFF8E1</color>
+    <color name="status_calls_only_bg">#FFF3E0</color>
+    <color name="status_blocked_bg">#FFEBEE</color>
+    <color name="status_text">#1F2937</color>
+</resources>

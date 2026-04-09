@@ -1,0 +1,42 @@
+# Node / Next / general
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Next.js
+.next/
+out/
+
+# Backend build/cache
+backend/node_modules/
+backend/.env
+backend/npm-debug.log*
+
+# Web build/cache
+web/node_modules/
+web/.next/
+web/npm-debug.log*
+
+# Android / Gradle
+android-client/.gradle/
+android-client/.idea/
+android-client/local.properties
+android-client/app/build/
+android-client/build/
+android-client/.kotlin/
+
+# Android secrets
+android-client/app/google-services.json
+
+# OS / Editor
+.vscode/
+.idea/

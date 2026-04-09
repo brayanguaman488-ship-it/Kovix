@@ -1,0 +1,48 @@
+import jwt from "jsonwebtoken";
+
+export const COOKIE_NAME = "kovix_token";
+
+export function getJwtSecret() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not configured");
+  }
+
+  return process.env.JWT_SECRET;
+}
+
+export function signAuthToken(user) {
+  return jwt.sign(
+    {
+      sub: user.id,
+      username: user.username,
+      role: user.role,
+    },
+    getJwtSecret(),
+    { expiresIn: "2h" }
+  );
+}
+
+export function verifyAuthToken(token) {
+  return jwt.verify(token, getJwtSecret());
+}
+
+export function buildAuthCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+    path: "/",
+    maxAge: 2 * 60 * 60 * 1000,
+  };
+}
+
+export function sanitizeUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName,
+    role: user.role,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}

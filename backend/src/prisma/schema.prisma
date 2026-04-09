@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+}
+
+enum DeviceStatus {
+  ACTIVO
+  PAGO_PENDIENTE
+  SOLO_LLAMADAS
+  BLOQUEADO
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PAGADO
+  VENCIDO
+  CANCELADO
+}
+
+enum CreditContractStatus {
+  ACTIVO
+  CERRADO
+  CANCELADO
+}
+
+enum InstallmentStatus {
+  PENDIENTE
+  REPORTADO
+  PAGADO
+  VENCIDO
+  CANCELADO
+}
+
+model User {
+  id            String                @id @default(cuid())
+  username      String                @unique
+  passwordHash  String
+  fullName      String?
+  role          UserRole              @default(ADMIN)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  statusChanges DeviceStatusHistory[]
+}
+
+model Customer {
+  id              String           @id @default(cuid())
+  fullName        String
+  nationalId      String           @unique
+  phone           String
+  address         String?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  devices         Device[]
+  payments        Payment[]
+  creditContracts CreditContract[]
+}
+
+model Device {
+  id                 String              @id @default(cuid())
+  customerId         String
+  customer           Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  brand              String
+  model              String
+  alias              String?
+  imei               String              @unique
+  installCode        String              @unique
+  clientSecret       String              @unique @default(uuid())
+  currentStatus      DeviceStatus        @default(ACTIVO)
+  lastStatusChangeAt DateTime            @default(now())
+  isRegistered       Boolean             @default(false)
+  lastSeenAt         DateTime?
+  pushToken          String?
+  pushTokenUpdatedAt DateTime?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  payments           Payment[]
+  statusHistory      DeviceStatusHistory[]
+  creditContract     CreditContract?
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  customerId String
+  customer   Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deviceId   String
+  device     Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  amount     Decimal       @db.Decimal(10, 2)
+  currency   String        @default("USD")
+  dueDate    DateTime
+  paidAt     DateTime?
+  status     PaymentStatus @default(PENDIENTE)
+  notes      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  installment Installment?
+
+  @@index([deviceId, dueDate])
+  @@index([customerId, dueDate])
+}
+
+model CreditContract {
+  id               String               @id @default(cuid())
+  customerId       String
+  customer         Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deviceId         String               @unique
+  device           Device               @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  principalAmount  Decimal              @db.Decimal(10, 2)
+  downPaymentAmount Decimal             @db.Decimal(10, 2) @default(0)
+  financedAmount   Decimal              @db.Decimal(10, 2) @default(0)
+  installmentCount Int
+  installmentAmount Decimal             @db.Decimal(10, 2)
+  currency         String               @default("USD")
+  startDate        DateTime
+  status           CreditContractStatus @default(ACTIVO)
+  notes            String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  installments     Installment[]
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model Installment {
+  id         String            @id @default(cuid())
+  contractId String
+  contract   CreditContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  sequence   Int
+  dueDate    DateTime
+  amount     Decimal           @db.Decimal(10, 2)
+  status     InstallmentStatus @default(PENDIENTE)
+  reportedAt DateTime?
+  paidAt     DateTime?
+  notes      String?
+  paymentId  String?           @unique
+  payment    Payment?          @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([contractId, sequence])
+  @@index([contractId, dueDate])
+  @@index([status, dueDate])
+}
+
+model DeviceStatusHistory {
+  id              String       @id @default(cuid())
+  deviceId        String
+  device          Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  previousStatus  DeviceStatus?
+  newStatus       DeviceStatus
+  changedByUserId String?
+  changedByUser   User?        @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+  reason          String?
+  createdAt       DateTime     @default(now())
+
+  @@index([deviceId, createdAt])
+}
