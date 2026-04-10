@@ -403,14 +403,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderDeviceStatus(payload: DevicePayload) {
-        currentDeviceStatus = payload.status
-        statusTitle.text = "Estado: ${payload.status}"
-        statusMessage.text = payload.message
-        customerNameText.text = "Cliente: ${payload.customerName}"
-        lastSyncText.text = "Ultima sync: ${formatIso(payload.updatedAt)}"
+        val normalizedStatus = normalizeStatus(payload.status)
+        currentDeviceStatus = normalizedStatus
+        statusTitle.text = "Estado: $normalizedStatus"
+        statusMessage.text = payload.message?.trim().takeUnless { it.isNullOrBlank() }
+            ?: "Sincroniza para obtener estado del servidor."
+        customerNameText.text = "Cliente: ${payload.customerName?.trim().takeUnless { it.isNullOrBlank() } ?: "-"}"
+        lastSyncText.text = "Ultima sync: ${payload.updatedAt?.let { formatIso(it) } ?: "-"}"
         pollingIntervalMs = (payload.policy.nextCheckInSeconds.coerceAtLeast(30) * 1000L)
 
-        val bgColor = when (payload.status) {
+        val bgColor = when (normalizedStatus) {
             "ACTIVO" -> getColor(R.color.status_active_bg)
             "PAGO_PENDIENTE" -> getColor(R.color.status_pending_bg)
             "SOLO_LLAMADAS" -> getColor(R.color.status_calls_only_bg)
@@ -419,7 +421,7 @@ class MainActivity : AppCompatActivity() {
         }
         rootContainer.setBackgroundColor(bgColor)
 
-        when (payload.status) {
+        when (normalizedStatus) {
             "ACTIVO" -> {
                 restrictionCard.setBackgroundColor(getColor(R.color.status_active_bg))
                 restrictionTitle.text = "Modo normal"
@@ -458,12 +460,12 @@ class MainActivity : AppCompatActivity() {
         renderCreditSummary(payload)
         applyRuntimeControlByStatus()
 
-        if (payload.status == "BLOQUEADO") {
+        if (normalizedStatus == "BLOQUEADO") {
             callsOnlyOverlay.visibility = View.GONE
             lockOverlay.visibility = View.VISIBLE
             lockTitle.text = "DISPOSITIVO BLOQUEADO"
             lockDetail.text = "Regulariza tu pago para desbloquear el equipo."
-        } else if (payload.status == "SOLO_LLAMADAS") {
+        } else if (normalizedStatus == "SOLO_LLAMADAS") {
             lockOverlay.visibility = View.GONE
             callsOnlyOverlay.visibility = View.VISIBLE
             callsOnlyTitle.text = "MODO SOLO LLAMADAS"
@@ -599,5 +601,13 @@ class MainActivity : AppCompatActivity() {
         return runCatching {
             String.format("%.2f", value)
         }.getOrDefault(value.toString())
+    }
+
+    private fun normalizeStatus(rawStatus: String?): String {
+        val value = rawStatus?.trim()?.uppercase().orEmpty()
+        return when (value) {
+            "ACTIVO", "PAGO_PENDIENTE", "SOLO_LLAMADAS", "BLOQUEADO" -> value
+            else -> "SIN_DATOS"
+        }
     }
 }

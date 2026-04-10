@@ -110,7 +110,7 @@ class DeviceSyncService : Service() {
             }
 
             val previousStatus = prefs.getString(PREF_LAST_STATUS, null)
-            val currentStatus = payload.status
+            val currentStatus = normalizeStatus(payload.status)
 
             prefs.edit()
                 .putString(PREF_LAST_STATUS, currentStatus)
@@ -175,6 +175,14 @@ class DeviceSyncService : Service() {
 
     private fun isRestricted(status: String?): Boolean {
         return status == "SOLO_LLAMADAS" || status == "BLOQUEADO"
+    }
+
+    private fun normalizeStatus(rawStatus: String?): String {
+        val value = rawStatus?.trim()?.uppercase().orEmpty()
+        return when (value) {
+            "ACTIVO", "PAGO_PENDIENTE", "SOLO_LLAMADAS", "BLOQUEADO" -> value
+            else -> "SIN_DATOS"
+        }
     }
 
     private fun launchControlActivity() {

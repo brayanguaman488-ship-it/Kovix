@@ -35,6 +35,7 @@ function getMobileStatusMessage(status) {
 }
 
 function buildClientDeviceResponse(device) {
+  const safeStatus = device.currentStatus || DeviceStatus.ACTIVO;
   const installments = device.creditContract?.installments || [];
   const creditInstallments = installments.map((entry) => ({
     id: entry.id,
@@ -76,9 +77,9 @@ function buildClientDeviceResponse(device) {
   return {
     id: device.id,
     installCode: device.installCode,
-    status: device.currentStatus,
+    status: safeStatus,
     customerName: device.customer.fullName,
-    message: getMobileStatusMessage(device.currentStatus),
+    message: getMobileStatusMessage(safeStatus),
     updatedAt: device.lastStatusChangeAt,
     policy: {
       nextCheckInSeconds: 300,

@@ -35,10 +35,10 @@ data class DeviceCreditInstallment(
 data class DevicePayload(
     val id: String,
     val installCode: String,
-    val status: String,
-    val customerName: String,
-    val message: String,
-    val updatedAt: String,
+    val status: String? = null,
+    val customerName: String? = null,
+    val message: String? = null,
+    val updatedAt: String? = null,
     val policy: DevicePolicy = DevicePolicy(),
     val credit: DeviceCreditSummary? = null,
 )
