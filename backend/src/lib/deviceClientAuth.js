@@ -2,8 +2,23 @@ import crypto from "crypto";
 
 import { asTrimmedString } from "./validation.js";
 
+const CLIENT_SECRET_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const DEFAULT_CLIENT_SECRET_LENGTH = 10;
+
 export function generateClientSecret() {
-  return crypto.randomBytes(24).toString("hex");
+  const requestedLength = Number.parseInt(process.env.CLIENT_SECRET_LENGTH || "", 10);
+  const length = Number.isFinite(requestedLength) && requestedLength >= 6
+    ? requestedLength
+    : DEFAULT_CLIENT_SECRET_LENGTH;
+
+  const bytes = crypto.randomBytes(length);
+  let secret = "";
+
+  for (let i = 0; i < length; i += 1) {
+    secret += CLIENT_SECRET_ALPHABET[bytes[i] % CLIENT_SECRET_ALPHABET.length];
+  }
+
+  return secret;
 }
 
 function safeStringEquals(left, right) {
