@@ -28,6 +28,7 @@ import kotlin.math.max
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import android.os.UserManager
+import android.graphics.Color
 
 class MainActivity : AppCompatActivity() {
     companion object {
@@ -338,14 +339,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun syncOnce() {
+        val baseUrl = baseUrlInput.text.toString().trim()
         val installCode = installCodeInput.text.toString().trim()
         val clientSecret = clientSecretInput.text.toString().trim()
-        val repo = repository
 
-        if (installCode.isBlank() || clientSecret.isBlank() || repo == null) {
+        if (baseUrl.isBlank() || installCode.isBlank() || clientSecret.isBlank()) {
             setError("Config incompleta: baseUrl, installCode y clientSecret son obligatorios.")
             return
         }
+
+        // Guardamos siempre la configuracion actual para no perderla al cerrar/reabrir la app.
+        saveConfigToPrefs()
+        val repo = KovixRepository(baseUrl)
+        repository = repo
 
         val statusResult = repo.fetchStatus(installCode, clientSecret)
         statusResult.onSuccess { response ->
@@ -420,6 +426,7 @@ class MainActivity : AppCompatActivity() {
             else -> getColor(android.R.color.white)
         }
         rootContainer.setBackgroundColor(bgColor)
+        applyReadableContentColors()
 
         when (normalizedStatus) {
             "ACTIVO" -> {
@@ -546,11 +553,36 @@ class MainActivity : AppCompatActivity() {
         installCodeInput.isEnabled = !isConfigLocked
         clientSecretInput.isEnabled = !isConfigLocked
         saveConfigButton.isEnabled = !isConfigLocked
+        applyConfigFieldReadability(baseUrlInput)
+        applyConfigFieldReadability(installCodeInput)
+        applyConfigFieldReadability(clientSecretInput)
         unlockConfigButton.text = if (isConfigLocked) {
             "Desbloquear config (Admin)"
         } else {
             "Config desbloqueada"
         }
+    }
+
+    private fun applyConfigFieldReadability(field: EditText) {
+        // En algunos equipos el estado disabled deja texto/hint casi blanco.
+        field.alpha = 1.0f
+        field.setTextColor(Color.parseColor("#111827"))
+        field.setHintTextColor(Color.parseColor("#6B7280"))
+    }
+
+    private fun applyReadableContentColors() {
+        val dark = getColor(R.color.status_text)
+        val muted = Color.parseColor("#374151")
+        val accent = Color.parseColor("#1E3A8A")
+
+        statusTitle.setTextColor(dark)
+        statusMessage.setTextColor(muted)
+        customerNameText.setTextColor(muted)
+        lastSyncText.setTextColor(muted)
+        restrictionTitle.setTextColor(dark)
+        restrictionDetail.setTextColor(muted)
+        creditTitle.setTextColor(accent)
+        creditDetail.setTextColor(muted)
     }
 
     private fun lockConfigAfterFirstSuccessfulSync() {

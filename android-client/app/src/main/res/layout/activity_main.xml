@@ -18,6 +18,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="KOVIX Device Client"
+                android:textColor="#0F172A"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -25,7 +26,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Cliente Android para sincronizar estado del equipo" />
+                android:text="Cliente Android para sincronizar estado del equipo"
+                android:textColor="#374151" />
 
             <TextView
                 android:id="@+id/adminModeText"
@@ -42,7 +44,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:hint="Base URL (ej: http://10.0.2.2:4000)"
-                android:inputType="textUri" />
+                android:inputType="textUri"
+                android:textColor="#111827"
+                android:textColorHint="#6B7280" />
 
             <EditText
                 android:id="@+id/installCodeInput"
@@ -50,7 +54,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:hint="Install Code"
-                android:inputType="text" />
+                android:inputType="text"
+                android:textColor="#111827"
+                android:textColorHint="#6B7280" />
 
             <EditText
                 android:id="@+id/clientSecretInput"
@@ -58,7 +64,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:hint="Client Secret"
-                android:inputType="textPassword" />
+                android:inputType="textPassword"
+                android:textColor="#111827"
+                android:textColorHint="#6B7280" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -95,6 +103,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:text="Estado: SIN_DATOS"
+                android:textColor="#111827"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -103,21 +112,24 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
-                android:text="Sincroniza para obtener estado del servidor." />
+                android:text="Sincroniza para obtener estado del servidor."
+                android:textColor="#374151" />
 
             <TextView
                 android:id="@+id/customerNameText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Cliente: -" />
+                android:text="Cliente: -"
+                android:textColor="#1F2937" />
 
             <TextView
                 android:id="@+id/lastSyncText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Ultima sync: -" />
+                android:text="Ultima sync: -"
+                android:textColor="#1F2937" />
 
             <TextView
                 android:id="@+id/errorText"
@@ -150,7 +162,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="Sin restricciones activas." />
+                    android:text="Sin restricciones activas."
+                    android:textColor="#374151" />
             </LinearLayout>
 
             <LinearLayout
@@ -176,7 +189,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="Sin contrato activo." />
+                    android:text="Sin contrato activo."
+                    android:textColor="#374151" />
 
                 <Button
                     android:id="@+id/reportPaymentButton"
