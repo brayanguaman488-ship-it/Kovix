@@ -29,11 +29,34 @@ export default function Login() {
       <div className="aura auraOne" />
       <div className="aura auraTwo" />
       <div className="gridLayer" />
+      <div className="wormShell" aria-hidden="true">
+        <svg className="wormSvg" viewBox="0 0 1440 900" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="wormGradLogin" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgba(56, 189, 248, 0)" />
+              <stop offset="30%" stopColor="rgba(125, 211, 252, 0.95)" />
+              <stop offset="70%" stopColor="rgba(14, 165, 233, 0.92)" />
+              <stop offset="100%" stopColor="rgba(59, 130, 246, 0)" />
+            </linearGradient>
+          </defs>
+          <path
+            className="trailBase"
+            d="M-120 640 C 120 560, 300 720, 520 610 C 760 490, 950 640, 1180 520 C 1330 440, 1450 500, 1560 430"
+          />
+          <path
+            className="trailGlow"
+            d="M-120 640 C 120 560, 300 720, 520 610 C 760 490, 950 640, 1180 520 C 1330 440, 1450 500, 1560 430"
+          />
+        </svg>
+        <div className="wormHead" />
+      </div>
+
+      <div className="cornerBrand">
+        <BrandLogo variant="nova" height={42} maxWidth={42} alt="KOVIX Nova Mark" />
+        <span>KOVIX</span>
+      </div>
 
       <section className="authCardWrap">
-        <div className="topMark">
-          <BrandLogo variant="nova" height={108} maxWidth={108} alt="KOVIX Nova Mark" />
-        </div>
         <div className="brandBlock">
           <p className="kicker">KOVIX Security Console</p>
           <h1>Control Inteligente de Dispositivos</h1>
@@ -108,13 +131,71 @@ export default function Login() {
           background-size: 34px 34px;
         }
 
+        .wormShell {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .wormSvg {
+          width: 100%;
+          height: 100%;
+        }
+
+        .trailBase {
+          fill: none;
+          stroke: rgba(125, 211, 252, 0.17);
+          stroke-width: 2;
+        }
+
+        .trailGlow {
+          fill: none;
+          stroke: url(#wormGradLogin);
+          stroke-width: 4;
+          stroke-linecap: round;
+          stroke-dasharray: 1800;
+          stroke-dashoffset: 1800;
+          filter: drop-shadow(0 0 12px rgba(125, 211, 252, 0.7));
+          animation: drawTrail 2.6s cubic-bezier(0.19, 1, 0.22, 1) forwards,
+            fadeTrail 4.6s ease-out forwards;
+        }
+
+        .wormHead {
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          border-radius: 999px;
+          background: radial-gradient(circle, #ecfeff 0%, #67e8f9 55%, rgba(56, 189, 248, 0) 100%);
+          filter: blur(0.4px);
+          box-shadow: 0 0 20px rgba(103, 232, 249, 0.8);
+          animation: crawlTrail 2.6s cubic-bezier(0.19, 1, 0.22, 1) forwards,
+            fadeTrail 4.6s ease-out forwards;
+        }
+
+        .cornerBrand {
+          position: absolute;
+          top: 22px;
+          left: 24px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          z-index: 2;
+          color: #dbeafe;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          font-size: 0.92rem;
+          text-shadow: 0 8px 20px rgba(2, 6, 23, 0.6);
+          animation: revealBrand 0.7s ease-out;
+        }
+
         .authCardWrap {
           position: relative;
-          z-index: 2;
+          z-index: 3;
           width: 100%;
           max-width: 520px;
           border-radius: 24px;
-          padding: 72px 28px 28px;
+          padding: 28px;
           border: 1px solid rgba(148, 163, 184, 0.36);
           background: linear-gradient(
             145deg,
@@ -126,14 +207,6 @@ export default function Login() {
           display: grid;
           gap: 20px;
           animation: reveal 0.7s ease-out;
-        }
-
-        .topMark {
-          position: absolute;
-          top: -54px;
-          left: 50%;
-          transform: translateX(-50%);
-          pointer-events: none;
         }
 
         .brandBlock h1 {
@@ -226,6 +299,59 @@ export default function Login() {
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes drawTrail {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        @keyframes crawlTrail {
+          0% {
+            opacity: 0;
+            transform: translate(-8%, 71%);
+          }
+          15% {
+            opacity: 1;
+          }
+          30% {
+            transform: translate(24%, 63%);
+          }
+          48% {
+            transform: translate(41%, 76%);
+          }
+          66% {
+            transform: translate(64%, 58%);
+          }
+          84% {
+            transform: translate(83%, 70%);
+          }
+          100% {
+            transform: translate(105%, 50%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes fadeTrail {
+          0%,
+          58% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+          }
+        }
+
+        @keyframes revealBrand {
+          from {
+            opacity: 0;
+            transform: translateY(-6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
       `}</style>
