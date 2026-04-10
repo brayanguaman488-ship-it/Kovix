@@ -23,7 +23,18 @@ export function signAuthToken(user) {
 }
 
 export function verifyAuthToken(token) {
-  return jwt.verify(token, getJwtSecret());
+  const currentSecret = getJwtSecret();
+  const previousSecret = process.env.JWT_SECRET_PREVIOUS;
+
+  try {
+    return jwt.verify(token, currentSecret);
+  } catch (error) {
+    // Permite rotacion de secreto sin cortar sesiones activas inmediatamente.
+    if (previousSecret) {
+      return jwt.verify(token, previousSecret);
+    }
+    throw error;
+  }
 }
 
 export function buildAuthCookieOptions() {
