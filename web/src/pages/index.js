@@ -1,3 +1,5 @@
+import BrandLogo from "../components/BrandLogo";
+
 export default function Home() {
   return (
     <main
@@ -19,7 +21,7 @@ export default function Home() {
           padding: 30,
         }}
       >
-        <h1 style={{ margin: 0, fontSize: 38 }}>KOVIX</h1>
+        <BrandLogo variant="full" height={84} maxWidth={340} alt="KOVIX" />
         <p style={{ marginTop: 10, color: "var(--text-soft)", fontSize: 17 }}>
           Panel administrativo para telefonos vendidos a credito.
         </p>

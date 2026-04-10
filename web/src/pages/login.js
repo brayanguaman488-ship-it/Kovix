@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { api } from "../lib/api";
+import BrandLogo from "../components/BrandLogo";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -47,9 +48,10 @@ export default function Login() {
         }}
       >
         <div>
+          <BrandLogo variant="full" height={72} maxWidth={290} alt="KOVIX" />
           <p
             style={{
-              margin: 0,
+              margin: "12px 0 0",
               color: "#0369a1",
               textTransform: "uppercase",
               fontSize: 12,
