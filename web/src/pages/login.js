@@ -33,7 +33,7 @@ export default function Login() {
       <section className="authCard">
         <div className="brandBlock">
           <div className="logoWrap">
-            <BrandLogo variant="shield" height={84} maxWidth={84} alt="KOVIX Shield" />
+            <BrandLogo variant="nova" height={90} maxWidth={90} alt="KOVIX Nova Mark" />
           </div>
           <p className="kicker">KOVIX Security Console</p>
           <h1>Control Inteligente de Dispositivos</h1>

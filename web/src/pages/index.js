@@ -8,7 +8,7 @@ export default function Home() {
 
       <section className="landingCard">
         <div className="logoFrame">
-          <BrandLogo variant="shield" height={96} maxWidth={96} alt="KOVIX Shield" />
+          <BrandLogo variant="nova" height={106} maxWidth={106} alt="KOVIX Nova Mark" />
         </div>
         <h1>KOVIX</h1>
         <p className="lead">Plataforma inteligente para control y gestion de creditos moviles.</p>
