@@ -126,7 +126,7 @@ export default function Dashboard() {
   const [devicePage, setDevicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
   const [provisioningDeviceId, setProvisioningDeviceId] = useState("");
-  const [provisioningBaseUrl, setProvisioningBaseUrl] = useState("https://api.kovix.app");
+  const [provisioningBaseUrl, setProvisioningBaseUrl] = useState("https://api.kovixec.com");
   const [provisioningApkUrl, setProvisioningApkUrl] = useState("");
   const [provisioningApkChecksum, setProvisioningApkChecksum] = useState("");
   const [provisioningQrJson, setProvisioningQrJson] = useState("");

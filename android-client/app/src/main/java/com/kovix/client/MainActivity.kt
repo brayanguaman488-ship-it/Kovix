@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.text.InputType
 import android.view.View
 import android.widget.Button
@@ -83,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         bindViews()
+        applyProvisioningExtrasIfPresent(intent)
         setupDeviceControlMode()
         loadConfigFromPrefs()
         hookActions()
@@ -297,6 +299,41 @@ class MainActivity : AppCompatActivity() {
             .putString(PREF_INSTALL_CODE, installCodeInput.text.toString().trim())
             .putString(PREF_CLIENT_SECRET, clientSecretInput.text.toString().trim())
             .apply()
+    }
+
+    private fun applyProvisioningExtrasIfPresent(startIntent: Intent?) {
+        val extrasBundle = readProvisioningAdminExtras(startIntent) ?: return
+
+        val baseUrl = extrasBundle.getString("baseUrl")?.trim().orEmpty()
+        val installCode = extrasBundle.getString("installCode")?.trim().orEmpty()
+        val clientSecret = extrasBundle.getString("clientSecret")?.trim().orEmpty()
+
+        if (baseUrl.isBlank() || installCode.isBlank() || clientSecret.isBlank()) {
+            return
+        }
+
+        // Aplica datos provenientes del QR de aprovisionamiento (Device Owner)
+        // para evitar carga manual en el primer arranque.
+        prefs().edit()
+            .putString(PREF_BASE_URL, baseUrl)
+            .putString(PREF_INSTALL_CODE, installCode)
+            .putString(PREF_CLIENT_SECRET, clientSecret)
+            .putBoolean(PREF_CONFIG_LOCKED, true)
+            .apply()
+
+        isConfigLocked = true
+    }
+
+    private fun readProvisioningAdminExtras(startIntent: Intent?): PersistableBundle? {
+        if (startIntent == null) {
+            return null
+        }
+
+        return runCatching {
+            @Suppress("DEPRECATION")
+            startIntent.getParcelableExtra(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE)
+                as? PersistableBundle
+        }.getOrNull()
     }
 
     private fun buildRepository() {
