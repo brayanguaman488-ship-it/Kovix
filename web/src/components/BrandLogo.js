@@ -20,11 +20,9 @@ export default function BrandLogo({
           height,
           width: height,
           maxWidth,
-          borderRadius: 20,
-          background:
-            "radial-gradient(circle at 18% 16%, rgba(56,189,248,0.35), rgba(30,58,138,0.95) 54%, rgba(15,23,42,1) 100%)",
-          border: "1px solid rgba(125, 211, 252, 0.44)",
-          boxShadow: "0 18px 32px rgba(15, 23, 42, 0.46), inset 0 0 0 1px rgba(255,255,255,0.08)",
+          borderRadius: 0,
+          background: "transparent",
+          boxShadow: "0 16px 30px rgba(15, 23, 42, 0.34)",
           display: "grid",
           placeItems: "center",
           overflow: "hidden",
@@ -32,43 +30,53 @@ export default function BrandLogo({
       >
         <svg
           viewBox="0 0 100 100"
-          width="76%"
-          height="76%"
+          width="100%"
+          height="100%"
           aria-hidden="true"
           style={{ display: "block" }}
         >
           <defs>
+            <linearGradient id="novaShield" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1e3a8a" />
+              <stop offset="55%" stopColor="#2563eb" />
+              <stop offset="100%" stopColor="#22d3ee" />
+            </linearGradient>
             <linearGradient id="novaStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#dbeafe" />
-              <stop offset="55%" stopColor="#a5f3fc" />
-              <stop offset="100%" stopColor="#67e8f9" />
+              <stop offset="0%" stopColor="#eef2ff" />
+              <stop offset="55%" stopColor="#e0f2fe" />
+              <stop offset="100%" stopColor="#ccfbf1" />
             </linearGradient>
           </defs>
           <path
-            d="M26 16 L26 84"
+            d="M50 7 C35 8, 23 13, 16 17 V47 C16 67, 30 83, 50 93 C70 83, 84 67, 84 47 V17 C77 13, 65 8, 50 7 Z"
+            fill="url(#novaShield)"
+            opacity="0.94"
+          />
+          <path
+            d="M35 22 L35 74"
             stroke="url(#novaStroke)"
-            strokeWidth="14"
+            strokeWidth="10"
             strokeLinecap="round"
             fill="none"
           />
           <path
-            d="M29 50 L76 16"
+            d="M37 47 L70 22"
             stroke="url(#novaStroke)"
-            strokeWidth="13"
+            strokeWidth="9.6"
             strokeLinecap="round"
             fill="none"
           />
           <path
-            d="M41 50 L76 84"
+            d="M45 47 L70 72"
             stroke="url(#novaStroke)"
-            strokeWidth="13"
+            strokeWidth="9.6"
             strokeLinecap="round"
             fill="none"
           />
           <path
-            d="M14 74 C28 84, 44 89, 66 89"
-            stroke="rgba(219, 234, 254, 0.65)"
-            strokeWidth="4"
+            d="M22 66 C34 75, 48 79, 66 78"
+            stroke="rgba(219, 234, 254, 0.58)"
+            strokeWidth="3"
             strokeLinecap="round"
             fill="none"
           />

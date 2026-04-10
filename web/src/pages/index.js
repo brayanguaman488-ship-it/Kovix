@@ -6,9 +6,9 @@ export default function Home() {
       <div className="orb orbA" />
       <div className="orb orbB" />
 
-      <section className="landingCard">
-        <div className="logoFrame">
-          <BrandLogo variant="nova" height={106} maxWidth={106} alt="KOVIX Nova Mark" />
+      <section className="landingWrap">
+        <div className="centerMark">
+          <BrandLogo variant="nova" height={124} maxWidth={124} alt="KOVIX Nova Mark" />
         </div>
         <h1>KOVIX</h1>
         <p className="lead">Plataforma inteligente para control y gestion de creditos moviles.</p>
@@ -54,7 +54,7 @@ export default function Home() {
           animation: driftB 12s ease-in-out infinite;
         }
 
-        .landingCard {
+        .landingWrap {
           width: 100%;
           max-width: 760px;
           z-index: 1;
@@ -68,18 +68,20 @@ export default function Home() {
           box-shadow: 0 30px 70px rgba(2, 6, 23, 0.55);
           backdrop-filter: blur(12px);
           color: #e2e8f0;
-          padding: 34px;
+          padding: 84px 34px 34px;
           display: grid;
           gap: 16px;
           justify-items: start;
           animation: rise 0.8s ease-out;
+          position: relative;
         }
 
-        .logoFrame {
-          padding: 12px;
-          border-radius: 22px;
-          border: 1px solid rgba(14, 165, 233, 0.4);
-          background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(59, 130, 246, 0.12));
+        .centerMark {
+          position: absolute;
+          top: -62px;
+          left: 50%;
+          transform: translateX(-50%);
+          pointer-events: none;
         }
 
         h1 {
@@ -87,6 +89,7 @@ export default function Home() {
           font-size: clamp(2rem, 5vw, 3.1rem);
           letter-spacing: 0.5px;
           color: #f8fafc;
+          justify-self: center;
         }
 
         .lead {
@@ -94,6 +97,8 @@ export default function Home() {
           font-size: clamp(1rem, 2.3vw, 1.2rem);
           color: #cbd5e1;
           max-width: 630px;
+          text-align: center;
+          justify-self: center;
         }
 
         .entry {
@@ -107,6 +112,7 @@ export default function Home() {
           padding: 12px 16px;
           box-shadow: 0 14px 28px rgba(3, 105, 161, 0.32);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          justify-self: center;
         }
 
         .entry:hover {

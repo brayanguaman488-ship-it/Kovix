@@ -30,11 +30,11 @@ export default function Login() {
       <div className="aura auraTwo" />
       <div className="gridLayer" />
 
-      <section className="authCard">
+      <section className="authCardWrap">
+        <div className="topMark">
+          <BrandLogo variant="nova" height={108} maxWidth={108} alt="KOVIX Nova Mark" />
+        </div>
         <div className="brandBlock">
-          <div className="logoWrap">
-            <BrandLogo variant="nova" height={90} maxWidth={90} alt="KOVIX Nova Mark" />
-          </div>
           <p className="kicker">KOVIX Security Console</p>
           <h1>Control Inteligente de Dispositivos</h1>
           <p className="subtitle">Acceso administrativo protegido para gestion operativa.</p>
@@ -108,13 +108,13 @@ export default function Login() {
           background-size: 34px 34px;
         }
 
-        .authCard {
+        .authCardWrap {
           position: relative;
           z-index: 2;
           width: 100%;
           max-width: 520px;
           border-radius: 24px;
-          padding: 28px;
+          padding: 72px 28px 28px;
           border: 1px solid rgba(148, 163, 184, 0.36);
           background: linear-gradient(
             145deg,
@@ -128,12 +128,12 @@ export default function Login() {
           animation: reveal 0.7s ease-out;
         }
 
-        .logoWrap {
-          width: fit-content;
-          border-radius: 20px;
-          padding: 10px;
-          background: linear-gradient(135deg, rgba(30, 58, 138, 0.1), rgba(14, 165, 233, 0.18));
-          border: 1px solid rgba(14, 165, 233, 0.26);
+        .topMark {
+          position: absolute;
+          top: -54px;
+          left: 50%;
+          transform: translateX(-50%);
+          pointer-events: none;
         }
 
         .brandBlock h1 {
@@ -144,7 +144,7 @@ export default function Login() {
         }
 
         .kicker {
-          margin: 12px 0 0;
+          margin: 0;
           text-transform: uppercase;
           letter-spacing: 1.3px;
           font-weight: 700;
