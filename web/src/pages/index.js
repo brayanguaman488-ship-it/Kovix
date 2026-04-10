@@ -21,7 +21,7 @@ export default function Home() {
           padding: 30,
         }}
       >
-        <BrandLogo variant="full" height={84} maxWidth={340} alt="KOVIX" />
+        <BrandLogo variant="shield" height={82} maxWidth={82} alt="KOVIX Shield" />
         <p style={{ marginTop: 10, color: "var(--text-soft)", fontSize: 17 }}>
           Panel administrativo para telefonos vendidos a credito.
         </p>

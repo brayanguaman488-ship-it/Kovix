@@ -3,16 +3,17 @@ export const pageShellStyle = {
   display: "grid",
   gap: 24,
   minHeight: "100vh",
-  maxWidth: 1240,
+  maxWidth: 1280,
   margin: "0 auto",
 };
 
 export const cardStyle = {
   border: "1px solid var(--line)",
-  borderRadius: 18,
-  padding: 18,
+  borderRadius: 20,
+  padding: 20,
   background: "var(--panel)",
-  boxShadow: "0 20px 45px rgba(15, 23, 42, 0.08)",
+  backdropFilter: "blur(7px)",
+  boxShadow: "0 22px 46px rgba(15, 23, 42, 0.12)",
 };
 
 export const sectionTitleStyle = {
@@ -34,14 +35,14 @@ export const inputStyle = {
 };
 
 export const buttonStyle = {
-  padding: "10px 14px",
+  padding: "11px 15px",
   borderRadius: 10,
-  border: "1px solid #0e7490",
-  background: "linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%)",
+  border: "1px solid #1d4ed8",
+  background: "linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)",
   color: "#f8fafc",
-  fontWeight: 600,
+  fontWeight: 700,
   cursor: "pointer",
-  boxShadow: "0 10px 24px rgba(14, 116, 144, 0.22)",
+  boxShadow: "0 12px 24px rgba(30, 58, 138, 0.3)",
 };
 
 export const secondaryButtonStyle = {

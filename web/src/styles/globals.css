@@ -1,13 +1,13 @@
 :root {
-  --bg-top: #ecfeff;
-  --bg-mid: #eff6ff;
-  --bg-low: #f8fafc;
-  --panel: #ffffff;
+  --bg-top: #dbe8f4;
+  --bg-mid: #e6eef7;
+  --bg-low: #f1f5f9;
+  --panel: rgba(255, 255, 255, 0.88);
   --panel-soft: #f8fbff;
-  --line: #d9e2ec;
-  --line-soft: #cdd9e8;
-  --text-main: #0f172a;
-  --text-soft: #475569;
+  --line: rgba(148, 163, 184, 0.34);
+  --line-soft: rgba(148, 163, 184, 0.5);
+  --text-main: #0b1324;
+  --text-soft: #334155;
 }
 
 * {
@@ -25,8 +25,9 @@ body {
   font-family: "Poppins", "Nunito Sans", "Segoe UI", sans-serif;
   color: var(--text-main);
   background:
-    radial-gradient(circle at 8% 15%, rgba(14, 165, 233, 0.18), transparent 45%),
-    radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.16), transparent 35%),
+    radial-gradient(circle at 10% 8%, rgba(30, 58, 138, 0.2), transparent 36%),
+    radial-gradient(circle at 92% 0%, rgba(14, 165, 233, 0.2), transparent 30%),
+    radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.08), transparent 45%),
     linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 46%, var(--bg-low) 100%);
 }
 

@@ -48,11 +48,11 @@ export default function Login() {
         }}
       >
         <div>
-          <BrandLogo variant="full" height={72} maxWidth={290} alt="KOVIX" />
+          <BrandLogo variant="shield" height={78} maxWidth={78} alt="KOVIX Shield" />
           <p
             style={{
               margin: "12px 0 0",
-              color: "#0369a1",
+              color: "#1e3a8a",
               textTransform: "uppercase",
               fontSize: 12,
               letterSpacing: 1.2,
@@ -61,7 +61,7 @@ export default function Login() {
           >
             KOVIX Platform
           </p>
-          <h1 style={{ margin: "8px 0 0", fontSize: 32 }}>Iniciar sesion</h1>
+          <h1 style={{ margin: "8px 0 0", fontSize: 32 }}>Panel KOVIX</h1>
           <p style={{ margin: "8px 0 0", color: "var(--text-soft)" }}>
             Ingresa con tu usuario y contrasena administrativa.
           </p>
@@ -99,8 +99,8 @@ export default function Login() {
             style={{
               padding: "12px 14px",
               borderRadius: 10,
-              border: "1px solid #0e7490",
-              background: "linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%)",
+              border: "1px solid #1d4ed8",
+              background: "linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)",
               color: "#ffffff",
               fontWeight: 700,
               cursor: "pointer",

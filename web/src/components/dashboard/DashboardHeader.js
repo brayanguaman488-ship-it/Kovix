@@ -15,12 +15,26 @@ export default function DashboardHeader({ user, onLogout, isLoggingOut }) {
         flexWrap: "wrap",
       }}
     >
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <BrandLogo variant="shield" height={58} maxWidth={58} alt="KOVIX Shield" />
-          <h1 style={{ margin: 0, fontSize: 30 }}>KOVIX Dashboard</h1>
+      <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div
+            style={{
+              borderRadius: 18,
+              padding: 10,
+              border: "1px solid rgba(14, 165, 233, 0.25)",
+              background: "linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(14, 165, 233, 0.12))",
+            }}
+          >
+            <BrandLogo variant="shield" height={54} maxWidth={54} alt="KOVIX Shield" />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 32, letterSpacing: 0.2 }}>Panel de Control</h1>
+            <p style={{ margin: "4px 0 0", color: "var(--text-soft)", fontWeight: 500 }}>
+              KOVIX
+            </p>
+          </div>
         </div>
-        <p style={{ marginTop: 8, marginBottom: 0, color: "var(--text-soft)" }}>
+        <p style={{ margin: 0, color: "var(--text-soft)" }}>
           {user ? `Sesion activa: ${displayName}` : "Sin sesion"}
         </p>
       </div>
