@@ -9,6 +9,7 @@ import CustomersList from "../components/dashboard/CustomersList";
 import DevicesList from "../components/dashboard/DevicesList";
 import PaymentsList from "../components/dashboard/PaymentsList";
 import StatusMessage from "../components/dashboard/StatusMessage";
+import { buttonStyle, cardStyle, inputStyle, pageShellStyle, secondaryButtonStyle } from "../components/dashboard/styles";
 import { api } from "../lib/api";
 
 const statuses = ["ACTIVO", "PAGO_PENDIENTE", "SOLO_LLAMADAS", "BLOQUEADO"];
@@ -42,6 +43,12 @@ const initialCreditForm = {
 
 const PAGE_SIZE = 6;
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
+const sectionGridStyle = {
+  display: "grid",
+  gap: 16,
+  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+  alignItems: "start",
+};
 
 function paginate(items, page, pageSize) {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
@@ -772,33 +779,24 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <main style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
+      <main style={pageShellStyle}>
         Cargando dashboard...
       </main>
     );
   }
 
   return (
-    <main
-      style={{
-        padding: 24,
-        fontFamily: "Arial, sans-serif",
-        display: "grid",
-        gap: 24,
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
-        minHeight: "100vh",
-      }}
-    >
+    <main style={pageShellStyle}>
       <DashboardHeader user={user} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
 
       {(isRefreshing || isLoggingOut) && (
         <section
           style={{
             padding: 12,
-            borderRadius: 10,
-            border: "1px solid #cbd5e1",
-            background: "#f8fafc",
-            color: "#334155",
+            borderRadius: 12,
+            border: "1px solid var(--line)",
+            background: "var(--panel)",
+            color: "var(--text-soft)",
           }}
         >
           {isLoggingOut ? "Cerrando sesion..." : "Actualizando datos..."}
@@ -818,57 +816,38 @@ export default function Dashboard() {
           display: "grid",
           gap: 12,
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          background: "#ffffff",
-          border: "1px solid #d8dee9",
-          borderRadius: 12,
-          padding: 16,
+          ...cardStyle,
         }}
       >
         <input
           placeholder="Buscar clientes (nombre, documento, telefono)"
           value={customerQuery}
           onChange={(event) => setCustomerQuery(event.target.value)}
-          style={{ width: "100%", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+          style={inputStyle}
         />
         <input
           placeholder="Buscar dispositivos (marca, modelo, imei, codigo, estado)"
           value={deviceQuery}
           onChange={(event) => setDeviceQuery(event.target.value)}
-          style={{ width: "100%", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+          style={inputStyle}
         />
         <input
           placeholder="Buscar pagos (cliente, codigo, estado, monto)"
           value={paymentQuery}
           onChange={(event) => setPaymentQuery(event.target.value)}
-          style={{ width: "100%", padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }}
+          style={inputStyle}
         />
         <button
           type="button"
           onClick={clearFilters}
-          style={{
-            width: "fit-content",
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #94a3b8",
-            background: "#f8fafc",
-            color: "#0f172a",
-            cursor: "pointer",
-          }}
+          style={{ ...secondaryButtonStyle, width: "fit-content" }}
         >
           Limpiar filtros
         </button>
         <button
           type="button"
           onClick={handleCopyShareLink}
-          style={{
-            width: "fit-content",
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #16a34a",
-            background: "#f0fdf4",
-            color: "#14532d",
-            cursor: "pointer",
-          }}
+          style={{ ...buttonStyle, width: "fit-content" }}
         >
           Copiar enlace
         </button>
@@ -876,35 +855,20 @@ export default function Dashboard() {
           type="button"
           onClick={handleOpenShareLink}
           style={{
+            ...secondaryButtonStyle,
             width: "fit-content",
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #0369a1",
-            background: "#f0f9ff",
-            color: "#0c4a6e",
-            cursor: "pointer",
           }}
         >
           Abrir enlace
         </button>
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gap: 16,
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-          alignItems: "start",
-        }}
-      >
+      <section style={sectionGridStyle}>
         <article
           style={{
-            background: "#ffffff",
-            border: "1px solid #d8dee9",
-            borderRadius: 12,
-            padding: 16,
             display: "grid",
             gap: 10,
+            ...cardStyle,
           }}
         >
           <h3 style={{ margin: 0 }}>QR de aprovisionamiento (Device Owner)</h3>
@@ -915,7 +879,7 @@ export default function Dashboard() {
           <select
             value={provisioningDeviceId}
             onChange={(event) => setProvisioningDeviceId(event.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            style={inputStyle}
           >
             <option value="">Selecciona dispositivo</option>
             {devices.map((device) => (
@@ -929,21 +893,21 @@ export default function Dashboard() {
             value={provisioningBaseUrl}
             onChange={(event) => setProvisioningBaseUrl(event.target.value)}
             placeholder="Base URL API para Android (ej: https://api.tudominio.com)"
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            style={inputStyle}
           />
 
           <input
             value={provisioningApkUrl}
             onChange={(event) => setProvisioningApkUrl(event.target.value)}
             placeholder="URL publica del APK"
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            style={inputStyle}
           />
 
           <input
             value={provisioningApkChecksum}
             onChange={(event) => setProvisioningApkChecksum(event.target.value)}
             placeholder="SHA-256 del APK en Base64"
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            style={inputStyle}
           />
 
           {selectedProvisioningDevice && (
@@ -951,9 +915,9 @@ export default function Dashboard() {
               style={{
                 padding: 10,
                 borderRadius: 8,
-                border: "1px solid #e2e8f0",
-                background: "#f8fafc",
-                color: "#334155",
+                border: "1px solid var(--line)",
+                background: "var(--panel-soft)",
+                color: "var(--text-soft)",
                 fontSize: 14,
               }}
             >
@@ -966,28 +930,14 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={handleGenerateProvisioningQr}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "none",
-                background: "#1d4ed8",
-                color: "#ffffff",
-                cursor: "pointer",
-              }}
+              style={buttonStyle}
             >
               Generar QR
             </button>
             <button
               type="button"
               onClick={handleCopyProvisioningJson}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid #94a3b8",
-                background: "#f8fafc",
-                color: "#0f172a",
-                cursor: "pointer",
-              }}
+              style={secondaryButtonStyle}
             >
               Copiar JSON
             </button>
@@ -996,13 +946,10 @@ export default function Dashboard() {
 
         <article
           style={{
-            background: "#ffffff",
-            border: "1px solid #d8dee9",
-            borderRadius: 12,
-            padding: 16,
             display: "grid",
             gap: 12,
             justifyItems: "start",
+            ...cardStyle,
           }}
         >
           <h3 style={{ margin: 0 }}>Vista previa del QR</h3>
@@ -1023,7 +970,7 @@ export default function Dashboard() {
             value={provisioningQrJson}
             placeholder="Aqui se mostrara el JSON de aprovisionamiento"
             rows={14}
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            style={inputStyle}
           />
         </article>
       </section>
@@ -1045,22 +992,12 @@ export default function Dashboard() {
         />
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gap: 16,
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-          alignItems: "start",
-        }}
-      >
+      <section style={sectionGridStyle}>
         <article
           style={{
-            background: "#ffffff",
-            border: "1px solid #d8dee9",
-            borderRadius: 12,
-            padding: 16,
             display: "grid",
             gap: 12,
+            ...cardStyle,
           }}
         >
           <h3 style={{ margin: 0 }}>Crear contrato de credito</h3>
@@ -1068,7 +1005,7 @@ export default function Dashboard() {
             <select
               value={creditForm.deviceId}
               onChange={(event) => setCreditForm((value) => ({ ...value, deviceId: event.target.value }))}
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              style={inputStyle}
             >
               <option value="">Selecciona dispositivo</option>
               {devices.map((device) => (
@@ -1086,7 +1023,7 @@ export default function Dashboard() {
               onChange={(event) =>
                 setCreditForm((value) => ({ ...value, principalAmount: event.target.value }))
               }
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              style={inputStyle}
             />
             <input
               placeholder="Valor de entrada (USD)"
@@ -1097,7 +1034,7 @@ export default function Dashboard() {
               onChange={(event) =>
                 setCreditForm((value) => ({ ...value, downPaymentAmount: event.target.value }))
               }
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              style={inputStyle}
             />
             <input
               placeholder="Numero de cuotas"
@@ -1108,31 +1045,27 @@ export default function Dashboard() {
               onChange={(event) =>
                 setCreditForm((value) => ({ ...value, installmentCount: event.target.value }))
               }
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              style={inputStyle}
             />
             <input
               type="date"
               value={creditForm.startDate}
               onChange={(event) => setCreditForm((value) => ({ ...value, startDate: event.target.value }))}
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              style={inputStyle}
             />
             <textarea
               placeholder="Notas de contrato (opcional)"
               rows={3}
               value={creditForm.notes}
               onChange={(event) => setCreditForm((value) => ({ ...value, notes: event.target.value }))}
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+              style={inputStyle}
             />
             <button
               type="submit"
               disabled={isSavingCreditContract}
               style={{
                 width: "fit-content",
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "none",
-                background: "#1d4ed8",
-                color: "#ffffff",
+                ...buttonStyle,
                 cursor: isSavingCreditContract ? "not-allowed" : "pointer",
               }}
             >
@@ -1143,19 +1076,16 @@ export default function Dashboard() {
 
         <article
           style={{
-            background: "#ffffff",
-            border: "1px solid #d8dee9",
-            borderRadius: 12,
-            padding: 16,
             display: "grid",
             gap: 12,
+            ...cardStyle,
           }}
         >
           <h3 style={{ margin: 0 }}>Gestion de cuotas</h3>
           <select
             value={selectedCreditDeviceId}
             onChange={(event) => setSelectedCreditDeviceId(event.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #cbd5e1" }}
+            style={inputStyle}
           >
             <option value="">Selecciona dispositivo para revisar credito</option>
             {devices.map((device) => (

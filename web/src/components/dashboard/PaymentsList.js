@@ -1,4 +1,11 @@
-import { buttonStyle, cardStyle, sectionTitleStyle } from "./styles";
+import {
+  buttonStyle,
+  cardStyle,
+  listItemStyle,
+  paginationRowStyle,
+  secondaryButtonStyle,
+  sectionTitleStyle,
+} from "./styles";
 
 export default function PaymentsList({
   payments,
@@ -18,8 +25,12 @@ export default function PaymentsList({
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Pagos</h2>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-        <span>Total: {totalItems}</span>
-        <select value={sortValue} onChange={(event) => onSortChange(event.target.value)}>
+        <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
+        <select
+          value={sortValue}
+          onChange={(event) => onSortChange(event.target.value)}
+          style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "6px 8px" }}
+        >
           <option value="due_asc">Vencimiento proximo</option>
           <option value="due_desc">Vencimiento lejano</option>
           <option value="amount_asc">Monto menor</option>
@@ -29,7 +40,7 @@ export default function PaymentsList({
       </div>
       <div style={{ display: "grid", gap: 10 }}>
         {payments.map((payment) => (
-          <article key={payment.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12 }}>
+          <article key={payment.id} style={listItemStyle}>
             <strong>
               {payment.customer?.fullName} - ${Number(payment.amount).toFixed(2)}
             </strong>
@@ -49,7 +60,8 @@ export default function PaymentsList({
                 onClick={() => onMarkOverdue(payment.id)}
                 style={{
                   ...buttonStyle,
-                  background: "#f59e0b",
+                  background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
+                  border: "1px solid #b45309",
                 }}
                 disabled={markingPaymentId === payment.id || payment.status === "VENCIDO"}
               >
@@ -60,7 +72,8 @@ export default function PaymentsList({
                 onClick={() => onMarkPending(payment.id)}
                 style={{
                   ...buttonStyle,
-                  background: "#64748b",
+                  background: "linear-gradient(135deg, #475569 0%, #64748b 100%)",
+                  border: "1px solid #334155",
                 }}
                 disabled={markingPaymentId === payment.id || payment.status === "PENDIENTE"}
               >
@@ -71,14 +84,14 @@ export default function PaymentsList({
         ))}
         {payments.length === 0 && <p style={{ margin: 0 }}>No hay pagos programados.</p>}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
-        <button type="button" onClick={onPrevPage} disabled={page <= 1}>
+      <div style={paginationRowStyle}>
+        <button type="button" onClick={onPrevPage} disabled={page <= 1} style={secondaryButtonStyle}>
           Anterior
         </button>
-        <span>
+        <span style={{ color: "var(--text-soft)" }}>
           Pagina {page} de {totalPages}
         </span>
-        <button type="button" onClick={onNextPage} disabled={page >= totalPages}>
+        <button type="button" onClick={onNextPage} disabled={page >= totalPages} style={secondaryButtonStyle}>
           Siguiente
         </button>
       </div>

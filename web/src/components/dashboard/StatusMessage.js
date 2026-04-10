@@ -26,11 +26,12 @@ export default function StatusMessage({ message, type = "info" }) {
   return (
     <section
       style={{
-        padding: 12,
-        borderRadius: 10,
+        padding: 13,
+        borderRadius: 12,
         border: palette.border,
         background: palette.background,
         color: palette.color,
+        boxShadow: "0 10px 24px rgba(15, 23, 42, 0.07)",
       }}
     >
       {message}

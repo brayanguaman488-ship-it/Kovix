@@ -1,0 +1,49 @@
+:root {
+  --bg-top: #ecfeff;
+  --bg-mid: #eff6ff;
+  --bg-low: #f8fafc;
+  --panel: #ffffff;
+  --panel-soft: #f8fbff;
+  --line: #d9e2ec;
+  --line-soft: #cdd9e8;
+  --text-main: #0f172a;
+  --text-soft: #475569;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__next {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Poppins", "Nunito Sans", "Segoe UI", sans-serif;
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 8% 15%, rgba(14, 165, 233, 0.18), transparent 45%),
+    radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.16), transparent 35%),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 46%, var(--bg-low) 100%);
+}
+
+a {
+  color: #0369a1;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(14, 165, 233, 0.35);
+  outline-offset: 1px;
+}

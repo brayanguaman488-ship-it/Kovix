@@ -39,7 +39,9 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
           {isSubmitting ? "Guardando cliente..." : "Guardar cliente"}
         </button>
       </form>
-      <p style={{ marginTop: 10, marginBottom: 0 }}>Clientes registrados: {customers}</p>
+      <p style={{ marginTop: 10, marginBottom: 0, color: "var(--text-soft)" }}>
+        Clientes registrados: {customers}
+      </p>
     </section>
   );
 }

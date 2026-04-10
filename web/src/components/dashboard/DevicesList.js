@@ -1,4 +1,11 @@
-import { buttonStyle, cardStyle, sectionTitleStyle } from "./styles";
+import {
+  buttonStyle,
+  cardStyle,
+  listItemStyle,
+  paginationRowStyle,
+  secondaryButtonStyle,
+  sectionTitleStyle,
+} from "./styles";
 
 export default function DevicesList({
   devices,
@@ -19,8 +26,12 @@ export default function DevicesList({
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Dispositivos</h2>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-        <span>Total: {totalItems}</span>
-        <select value={sortValue} onChange={(event) => onSortChange(event.target.value)}>
+        <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
+        <select
+          value={sortValue}
+          onChange={(event) => onSortChange(event.target.value)}
+          style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "6px 8px" }}
+        >
           <option value="updated_desc">Actualizados reciente</option>
           <option value="updated_asc">Actualizados antiguo</option>
           <option value="status_asc">Estado A-Z</option>
@@ -30,7 +41,7 @@ export default function DevicesList({
       </div>
       <div style={{ display: "grid", gap: 10 }}>
         {devices.map((device) => (
-          <article key={device.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12 }}>
+          <article key={device.id} style={listItemStyle}>
             <strong>
               {device.brand} {device.model}
             </strong>
@@ -64,14 +75,14 @@ export default function DevicesList({
         ))}
         {devices.length === 0 && <p style={{ margin: 0 }}>No hay dispositivos registrados.</p>}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
-        <button type="button" onClick={onPrevPage} disabled={page <= 1}>
+      <div style={paginationRowStyle}>
+        <button type="button" onClick={onPrevPage} disabled={page <= 1} style={secondaryButtonStyle}>
           Anterior
         </button>
-        <span>
+        <span style={{ color: "var(--text-soft)" }}>
           Pagina {page} de {totalPages}
         </span>
-        <button type="button" onClick={onNextPage} disabled={page >= totalPages}>
+        <button type="button" onClick={onNextPage} disabled={page >= totalPages} style={secondaryButtonStyle}>
           Siguiente
         </button>
       </div>
