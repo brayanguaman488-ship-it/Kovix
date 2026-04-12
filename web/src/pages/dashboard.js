@@ -1401,7 +1401,7 @@ export default function Dashboard() {
       {activeSummarySection === "payments" && (
         <section style={{ display: "grid", gap: 16 }}>
           <PaymentsList
-            payments={paymentsPageData.items}
+            payments={sortedPayments}
             onMarkPaid={handleMarkPaid}
             onMarkOverdue={handleMarkOverdue}
             onMarkPending={handleMarkPending}
