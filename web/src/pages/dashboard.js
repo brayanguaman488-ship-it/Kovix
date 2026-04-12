@@ -122,6 +122,9 @@ function buildProvisioningPayload({
 export default function Dashboard() {
   const router = useRouter();
   const hasHydratedQueryRef = useRef(false);
+  const customersSectionRef = useRef(null);
+  const devicesSectionRef = useRef(null);
+  const paymentsSectionRef = useRef(null);
   const [user, setUser] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
@@ -159,6 +162,7 @@ export default function Dashboard() {
   const [provisioningApkChecksum, setProvisioningApkChecksum] = useState("");
   const [provisioningQrJson, setProvisioningQrJson] = useState("");
   const [provisioningQrUrl, setProvisioningQrUrl] = useState("");
+  const [activeSummarySection, setActiveSummarySection] = useState("customers");
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -215,6 +219,19 @@ export default function Dashboard() {
   function handleOpenShareLink() {
     const shareUrl = `${window.location.origin}${router.asPath}`;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function handleSelectSummarySection(section) {
+    setActiveSummarySection(section);
+
+    const sectionMap = {
+      customers: customersSectionRef,
+      devices: devicesSectionRef,
+      payments: paymentsSectionRef,
+    };
+
+    const targetRef = sectionMap[section];
+    targetRef?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function loadDashboard(options = { silent: false }) {
@@ -830,6 +847,8 @@ export default function Dashboard() {
         customersCount={customers.length}
         devicesCount={devices.length}
         paymentsCount={payments.length}
+        activeSection={activeSummarySection}
+        onSelectSection={handleSelectSummarySection}
       />
 
       <section
@@ -1302,53 +1321,89 @@ export default function Dashboard() {
       </section>
 
       <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
-        <CustomersList
-          customers={customersPageData.items}
-          totalItems={customersPageData.totalItems}
-          page={customersPageData.page}
-          totalPages={customersPageData.totalPages}
-          sortValue={customerSort}
-          onSortChange={setCustomerSort}
-          onPrevPage={() => setCustomerPage((value) => Math.max(1, value - 1))}
-          onNextPage={() =>
-            setCustomerPage((value) => Math.min(customersPageData.totalPages, value + 1))
-          }
-        />
-        <DevicesList
-          devices={devicesPageData.items}
-          statuses={statuses}
-          onStatusChange={handleStatusChange}
-          updatingDeviceId={updatingDeviceId}
-          rotatingSecretDeviceId={rotatingSecretDeviceId}
-          onRotateSecret={handleRotateSecret}
-          totalItems={devicesPageData.totalItems}
-          page={devicesPageData.page}
-          totalPages={devicesPageData.totalPages}
-          sortValue={deviceSort}
-          onSortChange={setDeviceSort}
-          onPrevPage={() => setDevicePage((value) => Math.max(1, value - 1))}
-          onNextPage={() =>
-            setDevicePage((value) => Math.min(devicesPageData.totalPages, value + 1))
-          }
-        />
+        <div
+          ref={customersSectionRef}
+          style={{
+            borderRadius: 16,
+            boxShadow:
+              activeSummarySection === "customers"
+                ? "0 0 0 2px rgba(59, 130, 246, 0.35), 0 10px 24px rgba(15, 23, 42, 0.12)"
+                : "none",
+            transition: "box-shadow 0.22s ease",
+          }}
+        >
+          <CustomersList
+            customers={customersPageData.items}
+            totalItems={customersPageData.totalItems}
+            page={customersPageData.page}
+            totalPages={customersPageData.totalPages}
+            sortValue={customerSort}
+            onSortChange={setCustomerSort}
+            onPrevPage={() => setCustomerPage((value) => Math.max(1, value - 1))}
+            onNextPage={() =>
+              setCustomerPage((value) => Math.min(customersPageData.totalPages, value + 1))
+            }
+          />
+        </div>
+        <div
+          ref={devicesSectionRef}
+          style={{
+            borderRadius: 16,
+            boxShadow:
+              activeSummarySection === "devices"
+                ? "0 0 0 2px rgba(59, 130, 246, 0.35), 0 10px 24px rgba(15, 23, 42, 0.12)"
+                : "none",
+            transition: "box-shadow 0.22s ease",
+          }}
+        >
+          <DevicesList
+            devices={devicesPageData.items}
+            statuses={statuses}
+            onStatusChange={handleStatusChange}
+            updatingDeviceId={updatingDeviceId}
+            rotatingSecretDeviceId={rotatingSecretDeviceId}
+            onRotateSecret={handleRotateSecret}
+            totalItems={devicesPageData.totalItems}
+            page={devicesPageData.page}
+            totalPages={devicesPageData.totalPages}
+            sortValue={deviceSort}
+            onSortChange={setDeviceSort}
+            onPrevPage={() => setDevicePage((value) => Math.max(1, value - 1))}
+            onNextPage={() =>
+              setDevicePage((value) => Math.min(devicesPageData.totalPages, value + 1))
+            }
+          />
+        </div>
       </section>
 
-      <PaymentsList
-        payments={paymentsPageData.items}
-        onMarkPaid={handleMarkPaid}
-        onMarkOverdue={handleMarkOverdue}
-        onMarkPending={handleMarkPending}
-        markingPaymentId={markingPaymentId}
-        totalItems={paymentsPageData.totalItems}
-        page={paymentsPageData.page}
-        totalPages={paymentsPageData.totalPages}
-        sortValue={paymentSort}
-        onSortChange={setPaymentSort}
-        onPrevPage={() => setPaymentPage((value) => Math.max(1, value - 1))}
-        onNextPage={() =>
-          setPaymentPage((value) => Math.min(paymentsPageData.totalPages, value + 1))
-        }
-      />
+      <div
+        ref={paymentsSectionRef}
+        style={{
+          borderRadius: 16,
+          boxShadow:
+            activeSummarySection === "payments"
+              ? "0 0 0 2px rgba(59, 130, 246, 0.35), 0 10px 24px rgba(15, 23, 42, 0.12)"
+              : "none",
+          transition: "box-shadow 0.22s ease",
+        }}
+      >
+        <PaymentsList
+          payments={paymentsPageData.items}
+          onMarkPaid={handleMarkPaid}
+          onMarkOverdue={handleMarkOverdue}
+          onMarkPending={handleMarkPending}
+          markingPaymentId={markingPaymentId}
+          totalItems={paymentsPageData.totalItems}
+          page={paymentsPageData.page}
+          totalPages={paymentsPageData.totalPages}
+          sortValue={paymentSort}
+          onSortChange={setPaymentSort}
+          onPrevPage={() => setPaymentPage((value) => Math.max(1, value - 1))}
+          onNextPage={() =>
+            setPaymentPage((value) => Math.min(paymentsPageData.totalPages, value + 1))
+          }
+        />
+      </div>
     </main>
   );
 }

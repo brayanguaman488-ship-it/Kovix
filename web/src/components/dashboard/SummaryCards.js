@@ -1,8 +1,15 @@
 import { cardStyle, sectionTitleStyle } from "./styles";
 
-export default function SummaryCards({ customersCount, devicesCount, paymentsCount }) {
+export default function SummaryCards({
+  customersCount,
+  devicesCount,
+  paymentsCount,
+  activeSection,
+  onSelectSection,
+}) {
   const items = [
     {
+      key: "customers",
       label: "Clientes",
       value: customersCount,
       style: {
@@ -12,6 +19,7 @@ export default function SummaryCards({ customersCount, devicesCount, paymentsCou
       },
     },
     {
+      key: "devices",
       label: "Dispositivos",
       value: devicesCount,
       style: {
@@ -21,6 +29,7 @@ export default function SummaryCards({ customersCount, devicesCount, paymentsCou
       },
     },
     {
+      key: "payments",
       label: "Pagos",
       value: paymentsCount,
       style: {
@@ -36,12 +45,20 @@ export default function SummaryCards({ customersCount, devicesCount, paymentsCou
       <h2 style={sectionTitleStyle}>Resumen</h2>
       <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
         {items.map((item) => (
-          <article
-            key={item.label}
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onSelectSection?.(item.key)}
             style={{
+              textAlign: "left",
+              cursor: "pointer",
               borderRadius: 14,
               padding: "13px 14px",
               boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+              transition: "transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
+              transform: activeSection === item.key ? "translateY(-1px)" : "none",
+              borderColor: activeSection === item.key ? "rgba(37, 99, 235, 0.42)" : undefined,
+              boxSizing: "border-box",
               ...item.style,
             }}
           >
@@ -49,7 +66,7 @@ export default function SummaryCards({ customersCount, devicesCount, paymentsCou
               {item.label}
             </div>
             <div style={{ marginTop: 2, fontSize: 23, fontWeight: 700, lineHeight: 1.2 }}>{item.value}</div>
-          </article>
+          </button>
         ))}
       </div>
     </section>
