@@ -98,6 +98,22 @@ function normalizeQueryValue(value) {
   return String(value);
 }
 
+function resolvePaymentStatus(payment) {
+  const status = String(payment?.status || "").toUpperCase();
+  if (status !== "PENDIENTE") {
+    return status;
+  }
+
+  const dueDate = new Date(payment?.dueDate);
+  if (Number.isNaN(dueDate.getTime())) {
+    return status;
+  }
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return dueDate < todayStart ? "VENCIDO" : "PENDIENTE";
+}
+
 function buildProvisioningPayload({
   apkUrl,
   apkChecksum,
@@ -153,6 +169,9 @@ export default function Dashboard() {
   const [customerPage, setCustomerPage] = useState(1);
   const [devicePage, setDevicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
+  const [deviceCustomerFilter, setDeviceCustomerFilter] = useState("all");
+  const [devicePanelQuery, setDevicePanelQuery] = useState("");
+  const [paymentPanelQuery, setPaymentPanelQuery] = useState("");
   const [provisioningDeviceId, setProvisioningDeviceId] = useState("");
   const [provisioningBaseUrl, setProvisioningBaseUrl] = useState("https://api.kovixec.com");
   const [provisioningApkUrl, setProvisioningApkUrl] = useState("");
@@ -175,6 +194,9 @@ export default function Dashboard() {
     setCustomerPage(1);
     setDevicePage(1);
     setPaymentPage(1);
+    setDeviceCustomerFilter("all");
+    setDevicePanelQuery("");
+    setPaymentPanelQuery("");
     setStatus("info", "Filtros reiniciados");
   }
 
@@ -677,6 +699,8 @@ export default function Dashboard() {
   const normalizedCustomerQuery = customerQuery.trim().toLowerCase();
   const normalizedDeviceQuery = deviceQuery.trim().toLowerCase();
   const normalizedPaymentQuery = paymentQuery.trim().toLowerCase();
+  const normalizedDevicePanelQuery = devicePanelQuery.trim().toLowerCase();
+  const normalizedPaymentPanelQuery = paymentPanelQuery.trim().toLowerCase();
 
   const filteredCustomers = customers.filter((customer) => {
     if (!normalizedCustomerQuery) {
@@ -689,28 +713,45 @@ export default function Dashboard() {
   });
 
   const filteredDevices = devices.filter((device) => {
-    if (!normalizedDeviceQuery) {
+    const matchesCustomer =
+      deviceCustomerFilter === "all" || String(device.customer?.id || "") === deviceCustomerFilter;
+
+    if (!matchesCustomer) {
+      return false;
+    }
+
+    const searchTerms = [normalizedDeviceQuery, normalizedDevicePanelQuery].filter(Boolean);
+    if (searchTerms.length === 0) {
       return true;
     }
 
-    return [device.brand, device.model, device.imei, device.installCode, device.currentStatus, device.customer?.fullName]
+    const haystack = [device.brand, device.model, device.imei, device.installCode, device.currentStatus, device.customer?.fullName]
       .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(normalizedDeviceQuery));
+      .map((value) => String(value).toLowerCase())
+      .join(" ");
+
+    return searchTerms.every((term) => haystack.includes(term));
   });
 
   const filteredPayments = payments.filter((payment) => {
-    if (!normalizedPaymentQuery) {
+    const searchTerms = [normalizedPaymentQuery, normalizedPaymentPanelQuery].filter(Boolean);
+    if (searchTerms.length === 0) {
       return true;
     }
 
-    return [
+    const haystack = [
       payment.customer?.fullName,
       payment.device?.installCode,
+      payment.device?.brand,
+      payment.device?.model,
       payment.status,
       String(payment.amount ?? ""),
     ]
       .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(normalizedPaymentQuery));
+      .map((value) => String(value).toLowerCase())
+      .join(" ");
+
+    return searchTerms.every((term) => haystack.includes(term));
   });
 
   const sortedCustomers = [...filteredCustomers].sort((a, b) => {
@@ -763,6 +804,19 @@ export default function Dashboard() {
   const paymentsPageData = paginate(sortedPayments, paymentPage, PAGE_SIZE);
   const selectedCreditDevice = devices.find((entry) => entry.id === selectedCreditDeviceId) || null;
   const selectedProvisioningDevice = devices.find((entry) => entry.id === provisioningDeviceId) || null;
+  const deviceCustomerOptions = customers
+    .map((customer) => ({
+      id: String(customer.id),
+      name: String(customer.fullName || "").trim(),
+    }))
+    .filter((entry) => entry.id && entry.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const overdueDeviceIdSet = new Set(
+    payments
+      .filter((payment) => resolvePaymentStatus(payment) === "VENCIDO")
+      .map((payment) => payment.device?.id)
+      .filter(Boolean)
+  );
   const reportedInstallments = selectedCreditContract?.installments?.filter(
     (installment) => installment.status === "REPORTADO"
   ) || [];
@@ -1394,12 +1448,27 @@ export default function Dashboard() {
             onNextPage={() =>
               setDevicePage((value) => Math.min(devicesPageData.totalPages, value + 1))
             }
+            customerFilter={deviceCustomerFilter}
+            onCustomerFilterChange={setDeviceCustomerFilter}
+            customerOptions={deviceCustomerOptions}
+            searchValue={devicePanelQuery}
+            onSearchChange={setDevicePanelQuery}
+            overdueDeviceIdSet={overdueDeviceIdSet}
           />
         </section>
       )}
 
       {activeSummarySection === "payments" && (
         <section style={{ display: "grid", gap: 16 }}>
+          <div style={{ ...cardStyle, display: "grid", gap: 10 }}>
+            <h3 style={{ margin: 0 }}>Busqueda de pagos</h3>
+            <input
+              value={paymentPanelQuery}
+              onChange={(event) => setPaymentPanelQuery(event.target.value)}
+              placeholder="Buscar por cliente, equipo, codigo o monto"
+              style={filterInputStyle}
+            />
+          </div>
           <PaymentsList
             payments={sortedPayments}
             onMarkPaid={handleMarkPaid}

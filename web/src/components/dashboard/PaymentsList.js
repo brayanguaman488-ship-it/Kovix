@@ -22,6 +22,22 @@ const MONTH_LABELS = [
   "Diciembre",
 ];
 
+function resolvePaymentStatus(payment) {
+  const status = String(payment?.status || "").toUpperCase();
+  if (status !== "PENDIENTE") {
+    return status;
+  }
+
+  const dueDate = new Date(payment?.dueDate);
+  if (Number.isNaN(dueDate.getTime())) {
+    return status;
+  }
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return dueDate < todayStart ? "VENCIDO" : "PENDIENTE";
+}
+
 export default function PaymentsList({
   payments,
   onMarkPaid,
@@ -70,9 +86,9 @@ export default function PaymentsList({
     [clientFilteredPayments, currentMonth, currentYear]
   );
 
-  const pendingPayments = clientFilteredPayments.filter((payment) => payment.status === "PENDIENTE");
-  const overduePayments = clientFilteredPayments.filter((payment) => payment.status === "VENCIDO");
-  const paidPayments = clientFilteredPayments.filter((payment) => payment.status === "PAGADO");
+  const pendingPayments = clientFilteredPayments.filter((payment) => resolvePaymentStatus(payment) === "PENDIENTE");
+  const overduePayments = clientFilteredPayments.filter((payment) => resolvePaymentStatus(payment) === "VENCIDO");
+  const paidPayments = clientFilteredPayments.filter((payment) => resolvePaymentStatus(payment) === "PAGADO");
 
   const activeList =
     activeTab === "pending"
@@ -277,7 +293,12 @@ export default function PaymentsList({
               {payment.customer?.fullName} - ${Number(payment.amount).toFixed(2)}
             </strong>
             <p style={{ margin: "6px 0" }}>Vence: {new Date(payment.dueDate).toLocaleDateString()}</p>
-            <p style={{ margin: "6px 0" }}>Estado: {payment.status}</p>
+            <p style={{ margin: "6px 0" }}>Estado: {resolvePaymentStatus(payment)}</p>
+            {payment.device && (
+              <p style={{ margin: "6px 0", color: "var(--text-soft)" }}>
+                Equipo: {payment.device.brand} {payment.device.model} ({payment.device.installCode})
+              </p>
+            )}
             {renderActions(payment)}
           </article>
         ))}

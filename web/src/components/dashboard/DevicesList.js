@@ -21,12 +21,36 @@ export default function DevicesList({
   onSortChange,
   onPrevPage,
   onNextPage,
+  customerFilter,
+  onCustomerFilterChange,
+  customerOptions,
+  searchValue,
+  onSearchChange,
+  overdueDeviceIdSet,
 }) {
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Dispositivos</h2>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
+        <select
+          value={customerFilter}
+          onChange={(event) => onCustomerFilterChange(event.target.value)}
+          style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "6px 8px", minWidth: 190 }}
+        >
+          <option value="all">Todos los clientes</option>
+          {customerOptions.map((customer) => (
+            <option key={customer.id} value={customer.id}>
+              {customer.name}
+            </option>
+          ))}
+        </select>
+        <input
+          value={searchValue}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Buscar equipo, IMEI o codigo"
+          style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "6px 8px", minWidth: 230 }}
+        />
         <select
           value={sortValue}
           onChange={(event) => onSortChange(event.target.value)}
@@ -41,10 +65,40 @@ export default function DevicesList({
       </div>
       <div style={{ display: "grid", gap: 10 }}>
         {devices.map((device) => (
-          <article key={device.id} style={listItemStyle}>
-            <strong>
-              {device.brand} {device.model}
-            </strong>
+          <article
+            key={device.id}
+            style={{
+              ...listItemStyle,
+              ...(device.currentStatus === "BLOQUEADO"
+                ? {
+                    border: "1px solid rgba(185, 28, 28, 0.34)",
+                    background:
+                      "linear-gradient(180deg, rgba(254, 242, 242, 0.9) 0%, rgba(255, 255, 255, 0.98) 100%)",
+                    boxShadow: "inset 0 0 0 1px rgba(248, 113, 113, 0.2)",
+                  }
+                : {}),
+            }}
+          >
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <strong>
+                {device.brand} {device.model}
+              </strong>
+              {overdueDeviceIdSet?.has(device.id) && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#b45309",
+                    background: "#fef3c7",
+                    border: "1px solid #f59e0b",
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                  }}
+                >
+                  Accion requerida: cuota vencida
+                </span>
+              )}
+            </div>
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
             <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>
             <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
