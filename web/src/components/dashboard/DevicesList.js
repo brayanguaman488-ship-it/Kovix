@@ -48,6 +48,27 @@ export default function DevicesList({
     return null;
   }
 
+  function getAlertGlowStyle(paymentStatus, deviceStatus) {
+    const cuota = String(paymentStatus || "").toUpperCase();
+    const estado = String(deviceStatus || "").toUpperCase();
+
+    const shouldGlow =
+      (cuota === "PENDIENTE" && estado === "BLOQUEADO") ||
+      (cuota === "VENCIDO" && (estado === "ACTIVO" || estado === "PAGO_PENDIENTE"));
+
+    if (!shouldGlow) {
+      return null;
+    }
+
+    return {
+      border: "1px solid rgba(14, 116, 144, 0.5)",
+      boxShadow:
+        "0 0 0 1px rgba(34, 211, 238, 0.2), 0 0 0 5px rgba(34, 211, 238, 0.08), 0 18px 30px rgba(6, 78, 110, 0.18)",
+      background:
+        "linear-gradient(180deg, rgba(236, 254, 255, 0.88) 0%, rgba(248, 250, 252, 0.98) 100%)",
+    };
+  }
+
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Dispositivos</h2>
@@ -84,54 +105,55 @@ export default function DevicesList({
         </select>
       </div>
       <div style={{ display: "grid", gap: 10 }}>
-        {devices.map((device) => (
-          <article
-            key={device.id}
-            style={{
-              ...listItemStyle,
-              ...(device.currentStatus === "BLOQUEADO"
-                ? {
-                    border: "1px solid rgba(185, 28, 28, 0.34)",
-                    background:
-                      "linear-gradient(180deg, rgba(254, 242, 242, 0.9) 0%, rgba(255, 255, 255, 0.98) 100%)",
-                    boxShadow: "inset 0 0 0 1px rgba(248, 113, 113, 0.2)",
-                  }
-                : {}),
-            }}
-          >
-            {(() => {
-              const paymentSignal = getPaymentSignalBadge(devicePaymentSignalMap?.get(device.id));
-              return (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                    justifyContent: "flex-start",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <strong style={{ marginRight: 10 }}>
-                    {device.brand} {device.model}
-                  </strong>
-                  {paymentSignal && (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: paymentSignal.color,
-                        background: paymentSignal.background,
-                        border: `1px solid ${paymentSignal.border}`,
-                        borderRadius: 999,
-                        padding: "2px 8px",
-                      }}
-                    >
-                      {paymentSignal.text}
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
+        {devices.map((device) => {
+          const paymentStatus = devicePaymentSignalMap?.get(device.id);
+          const paymentSignal = getPaymentSignalBadge(paymentStatus);
+          const alertGlowStyle = getAlertGlowStyle(paymentStatus, device.currentStatus);
+
+          return (
+            <article
+              key={device.id}
+              style={{
+                ...listItemStyle,
+                ...(device.currentStatus === "BLOQUEADO"
+                  ? {
+                      border: "1px solid rgba(185, 28, 28, 0.34)",
+                      background:
+                        "linear-gradient(180deg, rgba(254, 242, 242, 0.9) 0%, rgba(255, 255, 255, 0.98) 100%)",
+                      boxShadow: "inset 0 0 0 1px rgba(248, 113, 113, 0.2)",
+                    }
+                  : {}),
+                ...(alertGlowStyle || {}),
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  flexWrap: "wrap",
+                }}
+              >
+                <strong style={{ marginRight: 10 }}>
+                  {device.brand} {device.model}
+                </strong>
+                {paymentSignal && (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: paymentSignal.color,
+                      background: paymentSignal.background,
+                      border: `1px solid ${paymentSignal.border}`,
+                      borderRadius: 999,
+                      padding: "2px 8px",
+                    }}
+                  >
+                    {paymentSignal.text}
+                  </span>
+                )}
+              </div>
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
             <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>
             <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
@@ -164,8 +186,9 @@ export default function DevicesList({
                 </button>
               ))}
             </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
         {devices.length === 0 && <p style={{ margin: 0 }}>No hay dispositivos registrados.</p>}
       </div>
       <div style={paginationRowStyle}>
