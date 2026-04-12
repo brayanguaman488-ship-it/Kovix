@@ -49,6 +49,27 @@ const sectionGridStyle = {
   gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
   alignItems: "start",
 };
+const filterInputStyle = {
+  ...inputStyle,
+  minHeight: 46,
+  borderRadius: 12,
+  border: "1px solid rgba(148, 163, 184, 0.45)",
+  background: "rgba(255, 255, 255, 0.9)",
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.65)",
+};
+const filterPrimaryButtonStyle = {
+  ...buttonStyle,
+  minHeight: 46,
+  minWidth: 170,
+  borderRadius: 12,
+};
+const filterSecondaryButtonStyle = {
+  ...secondaryButtonStyle,
+  minHeight: 46,
+  minWidth: 170,
+  borderRadius: 12,
+  background: "rgba(248, 250, 252, 0.95)",
+};
 
 function paginate(items, page, pageSize) {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
@@ -814,50 +835,50 @@ export default function Dashboard() {
       <section
         style={{
           display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 14,
+          gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
           ...cardStyle,
         }}
       >
+        <div style={{ gridColumn: "1 / -1", color: "var(--text-soft)", fontWeight: 600 }}>
+          Busqueda rapida y acciones
+        </div>
         <input
           placeholder="Buscar clientes (nombre, documento, telefono)"
           value={customerQuery}
           onChange={(event) => setCustomerQuery(event.target.value)}
-          style={inputStyle}
+          style={filterInputStyle}
         />
         <input
           placeholder="Buscar dispositivos (marca, modelo, imei, codigo, estado)"
           value={deviceQuery}
           onChange={(event) => setDeviceQuery(event.target.value)}
-          style={inputStyle}
+          style={filterInputStyle}
         />
         <input
           placeholder="Buscar pagos (cliente, codigo, estado, monto)"
           value={paymentQuery}
           onChange={(event) => setPaymentQuery(event.target.value)}
-          style={inputStyle}
+          style={filterInputStyle}
         />
         <button
           type="button"
           onClick={clearFilters}
-          style={{ ...secondaryButtonStyle, width: "fit-content" }}
+          style={filterSecondaryButtonStyle}
         >
           Limpiar filtros
         </button>
         <button
           type="button"
           onClick={handleCopyShareLink}
-          style={{ ...buttonStyle, width: "fit-content" }}
+          style={filterPrimaryButtonStyle}
         >
           Copiar enlace
         </button>
         <button
           type="button"
           onClick={handleOpenShareLink}
-          style={{
-            ...secondaryButtonStyle,
-            width: "fit-content",
-          }}
+          style={filterSecondaryButtonStyle}
         >
           Abrir enlace
         </button>
