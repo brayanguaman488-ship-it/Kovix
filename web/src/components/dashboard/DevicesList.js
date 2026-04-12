@@ -45,14 +45,6 @@ export default function DevicesList({
         border: "#60a5fa",
       };
     }
-    if (status === "PAGADO") {
-      return {
-        text: "Cuota: PAGADO",
-        color: "#166534",
-        background: "#dcfce7",
-        border: "#4ade80",
-      };
-    }
     return null;
   }
 

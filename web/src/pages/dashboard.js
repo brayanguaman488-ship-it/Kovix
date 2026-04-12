@@ -824,26 +824,17 @@ export default function Dashboard() {
   }
 
   for (const [deviceId, list] of paymentsByDevice.entries()) {
-    const sortedByDueDate = [...list].sort(
-      (a, b) => new Date(b.dueDate || 0) - new Date(a.dueDate || 0)
-    );
-    const hasOverdue = sortedByDueDate.some((payment) => resolvePaymentStatus(payment) === "VENCIDO");
+    const statuses = list.map((payment) => resolvePaymentStatus(payment));
+    const hasOverdue = statuses.includes("VENCIDO");
     if (hasOverdue) {
       devicePaymentSignalMap.set(deviceId, "VENCIDO");
       continue;
     }
 
-    const latest = sortedByDueDate[0];
-    if (!latest) {
-      continue;
-    }
-    const latestStatus = resolvePaymentStatus(latest);
-    if (latestStatus === "PENDIENTE") {
+    const hasPending = statuses.includes("PENDIENTE");
+    if (hasPending) {
       devicePaymentSignalMap.set(deviceId, "PENDIENTE");
       continue;
-    }
-    if (latestStatus === "PAGADO") {
-      devicePaymentSignalMap.set(deviceId, "PAGADO");
     }
   }
   const reportedInstallments = selectedCreditContract?.installments?.filter(
