@@ -11,7 +11,6 @@ import {
   parseDate,
   parsePositiveAmount,
 } from "../lib/validation.js";
-import { syncDeviceStatus } from "../lib/deviceStatus.js";
 import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import authMiddleware from "../middleware/auth.js";
 
@@ -79,9 +78,7 @@ router.post("/", asyncHandler(async (req, res) => {
       },
     });
 
-    const device = await syncDeviceStatus(normalizedDeviceId, req.user.id, "Pago programado");
-
-    return res.status(201).json({ ok: true, payment, device });
+    return res.status(201).json({ ok: true, payment });
   } catch (error) {
     if (error?.code === "P2003") {
       return sendBadRequest(res, "customerId o deviceId invalidos");
@@ -125,9 +122,7 @@ router.patch("/:id/mark-paid", asyncHandler(async (req, res) => {
     });
   }
 
-  const device = await syncDeviceStatus(payment.deviceId, req.user.id, "Pago marcado como pagado");
-
-  return res.json({ ok: true, payment: updatedPayment, device });
+  return res.json({ ok: true, payment: updatedPayment });
 }));
 
 router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
@@ -162,9 +157,7 @@ router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
     });
   }
 
-  const device = await syncDeviceStatus(payment.deviceId, req.user.id, "Pago marcado como vencido");
-
-  return res.json({ ok: true, payment: updatedPayment, device });
+  return res.json({ ok: true, payment: updatedPayment });
 }));
 
 router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
@@ -201,9 +194,7 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
     });
   }
 
-  const device = await syncDeviceStatus(payment.deviceId, req.user.id, "Pago marcado como pendiente");
-
-  return res.json({ ok: true, payment: updatedPayment, device });
+  return res.json({ ok: true, payment: updatedPayment });
 }));
 
 export default router;

@@ -42,6 +42,7 @@ const initialCreditForm = {
 };
 
 const PAGE_SIZE = 6;
+const DEVICE_ACTION_SIGNAL_STORAGE_KEY = "kovix_device_action_required_v1";
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
 const sectionGridStyle = {
   display: "grid",
@@ -172,6 +173,7 @@ export default function Dashboard() {
   const [deviceCustomerFilter, setDeviceCustomerFilter] = useState("all");
   const [devicePanelQuery, setDevicePanelQuery] = useState("");
   const [paymentPanelQuery, setPaymentPanelQuery] = useState("");
+  const [deviceActionSignalMap, setDeviceActionSignalMap] = useState(new Map());
   const [provisioningDeviceId, setProvisioningDeviceId] = useState("");
   const [provisioningBaseUrl, setProvisioningBaseUrl] = useState("https://api.kovixec.com");
   const [provisioningApkUrl, setProvisioningApkUrl] = useState("");
@@ -242,6 +244,57 @@ export default function Dashboard() {
 
   function handleSelectSummarySection(section) {
     setActiveSummarySection(section);
+  }
+
+  function setDeviceActionSignal(deviceId, signal) {
+    const normalizedDeviceId = String(deviceId || "").trim();
+    const normalizedSignal = String(signal || "").trim().toUpperCase();
+    if (!normalizedDeviceId || !normalizedSignal) {
+      return;
+    }
+
+    setDeviceActionSignalMap((previous) => {
+      const next = new Map(previous);
+      next.set(normalizedDeviceId, normalizedSignal);
+
+      try {
+        window.localStorage.setItem(
+          DEVICE_ACTION_SIGNAL_STORAGE_KEY,
+          JSON.stringify(Object.fromEntries(next))
+        );
+      } catch (error) {
+        console.warn("No se pudo guardar senal local de accion requerida", error);
+      }
+
+      return next;
+    });
+  }
+
+  function clearDeviceActionSignal(deviceId) {
+    const normalizedDeviceId = String(deviceId || "").trim();
+    if (!normalizedDeviceId) {
+      return;
+    }
+
+    setDeviceActionSignalMap((previous) => {
+      if (!previous.has(normalizedDeviceId)) {
+        return previous;
+      }
+
+      const next = new Map(previous);
+      next.delete(normalizedDeviceId);
+
+      try {
+        window.localStorage.setItem(
+          DEVICE_ACTION_SIGNAL_STORAGE_KEY,
+          JSON.stringify(Object.fromEntries(next))
+        );
+      } catch (error) {
+        console.warn("No se pudo limpiar senal local de accion requerida", error);
+      }
+
+      return next;
+    });
   }
 
   async function loadDashboard(options = { silent: false }) {
@@ -535,6 +588,7 @@ export default function Dashboard() {
         status,
         reason: "Cambio manual desde dashboard",
       });
+      clearDeviceActionSignal(deviceId);
       setStatus("success", "Estado actualizado");
       await loadDashboard({ silent: true });
     } catch (error) {
@@ -547,7 +601,11 @@ export default function Dashboard() {
   async function handleMarkPaid(paymentId) {
     try {
       setMarkingPaymentId(paymentId);
+      const payment = payments.find((entry) => String(entry.id) === String(paymentId));
       await api.markPaymentPaid(paymentId);
+      if (payment?.device?.id) {
+        setDeviceActionSignal(payment.device.id, "PAGADO");
+      }
       setStatus("success", "Pago marcado como pagado");
       await loadDashboard({ silent: true });
     } catch (error) {
@@ -573,7 +631,11 @@ export default function Dashboard() {
   async function handleMarkOverdue(paymentId) {
     try {
       setMarkingPaymentId(paymentId);
+      const payment = payments.find((entry) => String(entry.id) === String(paymentId));
       await api.markPaymentOverdue(paymentId);
+      if (payment?.device?.id) {
+        setDeviceActionSignal(payment.device.id, "VENCIDO");
+      }
       setStatus("success", "Pago marcado como vencido");
       await loadDashboard({ silent: true });
     } catch (error) {
@@ -586,7 +648,11 @@ export default function Dashboard() {
   async function handleMarkPending(paymentId) {
     try {
       setMarkingPaymentId(paymentId);
+      const payment = payments.find((entry) => String(entry.id) === String(paymentId));
       await api.markPaymentPending(paymentId);
+      if (payment?.device?.id) {
+        setDeviceActionSignal(payment.device.id, "PENDIENTE");
+      }
       setStatus("success", "Pago marcado como pendiente");
       await loadDashboard({ silent: true });
     } catch (error) {
@@ -831,15 +897,48 @@ export default function Dashboard() {
       continue;
     }
 
+    const hasPaid = statuses.includes("PAGADO");
+    if (hasPaid) {
+      devicePaymentSignalMap.set(deviceId, "PAGADO");
+      continue;
+    }
+
     const hasPending = statuses.includes("PENDIENTE");
     if (hasPending) {
       devicePaymentSignalMap.set(deviceId, "PENDIENTE");
       continue;
     }
   }
+  const mergedDevicePaymentSignalMap = new Map(devicePaymentSignalMap);
+  for (const [deviceId, signal] of deviceActionSignalMap.entries()) {
+    mergedDevicePaymentSignalMap.set(deviceId, signal);
+  }
   const reportedInstallments = selectedCreditContract?.installments?.filter(
     (installment) => installment.status === "REPORTADO"
   ) || [];
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DEVICE_ACTION_SIGNAL_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const next = new Map();
+
+      if (parsed && typeof parsed === "object") {
+        for (const [deviceId, signal] of Object.entries(parsed)) {
+          const normalizedDeviceId = String(deviceId || "").trim();
+          const normalizedSignal = String(signal || "").trim().toUpperCase();
+
+          if (normalizedDeviceId && normalizedSignal) {
+            next.set(normalizedDeviceId, normalizedSignal);
+          }
+        }
+      }
+
+      setDeviceActionSignalMap(next);
+    } catch (error) {
+      console.warn("No se pudo cargar senales locales de accion requerida", error);
+    }
+  }, []);
 
   useEffect(() => {
     if (!provisioningDeviceId && devices.length > 0) {
@@ -1473,7 +1572,7 @@ export default function Dashboard() {
             customerOptions={deviceCustomerOptions}
             searchValue={devicePanelQuery}
             onSearchChange={setDevicePanelQuery}
-            devicePaymentSignalMap={devicePaymentSignalMap}
+            devicePaymentSignalMap={mergedDevicePaymentSignalMap}
           />
         </section>
       )}
