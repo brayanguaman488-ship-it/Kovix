@@ -53,17 +53,23 @@ export default function DevicesList({
             <button
               type="button"
               onClick={() => onRotateSecret(device.id)}
-              style={buttonStyle}
+              style={{
+                ...buttonStyle,
+                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)",
+                border: "1px solid #92400e",
+                boxShadow: "0 10px 22px rgba(180, 83, 9, 0.26)",
+                minHeight: 42,
+              }}
               disabled={rotatingSecretDeviceId === device.id}
             >
               {rotatingSecretDeviceId === device.id ? "Rotando..." : "Rotar secret"}
             </button>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
               {statuses.map((status) => (
                 <button
                   key={status}
                   onClick={() => onStatusChange(device.id, status)}
-                  style={buttonStyle}
+                  style={{ ...buttonStyle, minHeight: 42 }}
                   type="button"
                   disabled={updatingDeviceId === device.id}
                 >
