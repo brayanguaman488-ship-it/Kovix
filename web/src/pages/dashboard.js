@@ -841,53 +841,6 @@ export default function Dashboard() {
 
       <section
         style={{
-          ...cardStyle,
-          display: "grid",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <h3 style={{ margin: 0 }}>Centro de gestion</h3>
-          <p style={{ margin: 0, color: "var(--text-soft)" }}>
-            Selecciona un modulo para trabajar con mas espacio.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {[
-            { key: "customers", label: "Clientes" },
-            { key: "devices", label: "Dispositivos" },
-            { key: "payments", label: "Pagos" },
-          ].map((entry) => {
-            const isActive = activeSummarySection === entry.key;
-            return (
-              <button
-                key={entry.key}
-                type="button"
-                onClick={() => setActiveSummarySection(entry.key)}
-                style={{
-                  minWidth: 160,
-                  minHeight: 44,
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  border: isActive ? "1px solid #1d4ed8" : "1px solid var(--line)",
-                  background: isActive
-                    ? "linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)"
-                    : "rgba(248, 250, 252, 0.96)",
-                  color: isActive ? "#f8fafc" : "var(--text-main)",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  boxShadow: isActive ? "0 10px 22px rgba(30, 58, 138, 0.26)" : "none",
-                }}
-              >
-                {entry.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section
-        style={{
           display: "grid",
           gap: 14,
           gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
@@ -1353,6 +1306,57 @@ export default function Dashboard() {
             </div>
           )}
         </article>
+      </section>
+
+      <section
+        style={{
+          ...cardStyle,
+          display: "grid",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <h3 style={{ margin: 0 }}>Centro de gestion</h3>
+          <p style={{ margin: 0, color: "var(--text-soft)" }}>
+            Selecciona un modulo para trabajar con mas espacio.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {[
+            { key: "customers", label: "Clientes" },
+            { key: "devices", label: "Dispositivos" },
+            { key: "payments", label: "Pagos" },
+          ].map((entry) => {
+            const isActive = activeSummarySection === entry.key;
+            return (
+              <button
+                key={entry.key}
+                type="button"
+                onClick={() => setActiveSummarySection(entry.key)}
+                style={{
+                  minWidth: 188,
+                  minHeight: 52,
+                  padding: "12px 18px",
+                  borderRadius: 14,
+                  border: isActive ? "1px solid #0f4cbb" : "1px solid rgba(148, 163, 184, 0.55)",
+                  background: isActive
+                    ? "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)"
+                    : "linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92))",
+                  color: isActive ? "#f8fafc" : "var(--text-main)",
+                  fontWeight: isActive ? 700 : 600,
+                  cursor: "pointer",
+                  boxShadow: isActive
+                    ? "0 12px 26px rgba(30, 64, 175, 0.34), inset 0 1px 0 rgba(255,255,255,0.32)"
+                    : "inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+                  transform: isActive ? "translateY(-1px)" : "none",
+                  transition: "all 0.18s ease",
+                }}
+              >
+                {entry.label}
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       {activeSummarySection === "customers" && (
