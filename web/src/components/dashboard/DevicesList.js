@@ -31,23 +31,15 @@ export default function DevicesList({
   function getPaymentSignalBadge(status) {
     if (status === "VENCIDO") {
       return {
-        text: "Accion requerida: VENCIDO",
+        text: "Cuota: VENCIDO",
         color: "#9a3412",
         background: "#ffedd5",
         border: "#fb923c",
       };
     }
-    if (status === "PAGADO") {
-      return {
-        text: "Accion requerida: PAGADO",
-        color: "#065f46",
-        background: "#d1fae5",
-        border: "#34d399",
-      };
-    }
     if (status === "PENDIENTE") {
       return {
-        text: "Accion requerida: PENDIENTE",
+        text: "Cuota: PENDIENTE",
         color: "#1e3a8a",
         background: "#dbeafe",
         border: "#60a5fa",
@@ -115,7 +107,7 @@ export default function DevicesList({
                     display: "flex",
                     gap: 8,
                     alignItems: "center",
-                    justifyContent: "space-between",
+                    justifyContent: "flex-start",
                     flexWrap: "wrap",
                   }}
                 >
