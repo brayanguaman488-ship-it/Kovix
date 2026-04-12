@@ -8,11 +8,12 @@ import {
 } from "./styles";
 
 const MONTH_OPTIONS = [
+  { value: "all", label: "Todos los meses" },
   { value: "01", label: "Enero" },
   { value: "02", label: "Febrero" },
   { value: "03", label: "Marzo" },
   { value: "04", label: "Abril" },
-  { value: "05", label: "Mayo" },
+  { value: "05", label: "05 - Mayo" },
   { value: "06", label: "Junio" },
   { value: "07", label: "Julio" },
   { value: "08", label: "Agosto" },
@@ -31,8 +32,8 @@ export default function PaymentsList({
 }) {
   const now = new Date();
   const [activeTab, setActiveTab] = useState("monthly");
-  const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"));
-  const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("all");
   const [selectedClient, setSelectedClient] = useState("all");
 
   const yearOptions = useMemo(() => {
@@ -57,27 +58,34 @@ export default function PaymentsList({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [payments]);
 
-  const paymentsInPeriod = useMemo(
+  const clientFilteredPayments = useMemo(
     () =>
       payments.filter((payment) => {
+        const clientName = String(payment.customer?.fullName || "").trim();
+        return selectedClient === "all" || clientName === selectedClient;
+      }),
+    [payments, selectedClient]
+  );
+
+  const monthlyPayments = useMemo(
+    () =>
+      clientFilteredPayments.filter((payment) => {
         const dueDate = new Date(payment.dueDate);
         if (Number.isNaN(dueDate.getTime())) {
           return false;
         }
 
-        const monthMatch = String(dueDate.getMonth() + 1).padStart(2, "0") === selectedMonth;
-        const yearMatch = String(dueDate.getFullYear()) === selectedYear;
-        const clientName = String(payment.customer?.fullName || "").trim();
-        const clientMatch = selectedClient === "all" || clientName === selectedClient;
+        const monthMatch =
+          selectedMonth === "all" || String(dueDate.getMonth() + 1).padStart(2, "0") === selectedMonth;
+        const yearMatch = selectedYear === "all" || String(dueDate.getFullYear()) === selectedYear;
 
-        return monthMatch && yearMatch && clientMatch;
+        return monthMatch && yearMatch;
       }),
-    [payments, selectedMonth, selectedYear, selectedClient]
+    [clientFilteredPayments, selectedMonth, selectedYear]
   );
 
-  const monthlyPayments = paymentsInPeriod;
-  const pendingPayments = paymentsInPeriod.filter((payment) => payment.status === "PENDIENTE");
-  const overduePayments = paymentsInPeriod.filter((payment) => payment.status === "VENCIDO");
+  const pendingPayments = clientFilteredPayments.filter((payment) => payment.status === "PENDIENTE");
+  const overduePayments = clientFilteredPayments.filter((payment) => payment.status === "VENCIDO");
 
   const activeList =
     activeTab === "pending"
@@ -93,6 +101,16 @@ export default function PaymentsList({
         ? "Vencidos"
         : "Activos del mes";
 
+  async function handleMarkPendingFromOverdue(paymentId) {
+    await onMarkPending(paymentId);
+    setActiveTab("pending");
+  }
+
+  async function handleMarkOverdueFromPending(paymentId) {
+    await onMarkOverdue(paymentId);
+    setActiveTab("overdue");
+  }
+
   function renderActions(payment) {
     if (activeTab === "pending") {
       return (
@@ -107,7 +125,7 @@ export default function PaymentsList({
           </button>
           <button
             type="button"
-            onClick={() => onMarkOverdue(payment.id)}
+            onClick={() => handleMarkOverdueFromPending(payment.id)}
             style={{
               ...buttonStyle,
               background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
@@ -134,7 +152,7 @@ export default function PaymentsList({
           </button>
           <button
             type="button"
-            onClick={() => onMarkPending(payment.id)}
+            onClick={() => handleMarkPendingFromOverdue(payment.id)}
             style={{
               ...buttonStyle,
               background: "linear-gradient(135deg, #475569 0%, #64748b 100%)",
@@ -223,28 +241,33 @@ export default function PaymentsList({
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ color: "var(--text-soft)", fontWeight: 600 }}>Filtros:</span>
-          <select
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
-            style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
-          >
-            {MONTH_OPTIONS.map((month) => (
-              <option key={month.value} value={month.value}>
-                {month.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedYear}
-            onChange={(event) => setSelectedYear(event.target.value)}
-            style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
-          >
-            {yearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+          {activeTab === "monthly" && (
+            <>
+              <select
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+                style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
+              >
+                {MONTH_OPTIONS.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+                style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
+              >
+                <option value="all">Todos los anos</option>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <select
             value={selectedClient}
             onChange={(event) => setSelectedClient(event.target.value)}
