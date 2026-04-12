@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   buttonStyle,
@@ -20,6 +20,13 @@ const MONTH_LABELS = [
   "Octubre",
   "Noviembre",
   "Diciembre",
+];
+const MONTH_OPTIONS = [
+  { value: "all", label: "Todos los meses" },
+  ...MONTH_LABELS.map((label, index) => ({
+    value: String(index + 1).padStart(2, "0"),
+    label,
+  })),
 ];
 
 function resolvePaymentStatus(payment) {
@@ -48,8 +55,52 @@ export default function PaymentsList({
   const now = new Date();
   const [activeTab, setActiveTab] = useState("monthly");
   const [selectedClient, setSelectedClient] = useState("all");
+  const [selectedPaidMonth, setSelectedPaidMonth] = useState("all");
+  const [selectedPaidYear, setSelectedPaidYear] = useState("all");
+  const [reopenedPaymentIds, setReopenedPaymentIds] = useState([]);
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
+  const reopenedStorageKey = "kovix_reopened_payments_v1";
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(reopenedStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) {
+        setReopenedPaymentIds(parsed.filter((id) => typeof id === "string"));
+      }
+    } catch (error) {
+      console.warn("No se pudo leer historial local de cuotas reabiertas", error);
+    }
+  }, []);
+
+  function rememberReopenedPayment(paymentId) {
+    const normalizedId = String(paymentId || "");
+    if (!normalizedId) return;
+
+    setReopenedPaymentIds((prev) => {
+      const next = prev.includes(normalizedId) ? prev : [...prev, normalizedId];
+      try {
+        window.localStorage.setItem(reopenedStorageKey, JSON.stringify(next));
+      } catch (error) {
+        console.warn("No se pudo guardar historial local de cuotas reabiertas", error);
+      }
+      return next;
+    });
+  }
+
+  const yearOptions = useMemo(() => {
+    const set = new Set(
+      payments
+        .map((payment) => {
+          const date = new Date(payment.dueDate);
+          return Number.isNaN(date.getTime()) ? null : String(date.getFullYear());
+        })
+        .filter(Boolean)
+    );
+    set.add(String(currentYear));
+    return [...set].sort((a, b) => Number(b) - Number(a));
+  }, [payments, currentYear]);
 
   const clientOptions = useMemo(() => {
     const set = new Set(
@@ -89,6 +140,17 @@ export default function PaymentsList({
   const pendingPayments = clientFilteredPayments.filter((payment) => resolvePaymentStatus(payment) === "PENDIENTE");
   const overduePayments = clientFilteredPayments.filter((payment) => resolvePaymentStatus(payment) === "VENCIDO");
   const paidPayments = clientFilteredPayments.filter((payment) => resolvePaymentStatus(payment) === "PAGADO");
+  const paidPaymentsFiltered = paidPayments.filter((payment) => {
+    const dueDate = new Date(payment.dueDate);
+    if (Number.isNaN(dueDate.getTime())) {
+      return false;
+    }
+
+    const monthMatch =
+      selectedPaidMonth === "all" || String(dueDate.getMonth() + 1).padStart(2, "0") === selectedPaidMonth;
+    const yearMatch = selectedPaidYear === "all" || String(dueDate.getFullYear()) === selectedPaidYear;
+    return monthMatch && yearMatch;
+  });
 
   const activeList =
     activeTab === "pending"
@@ -96,7 +158,7 @@ export default function PaymentsList({
       : activeTab === "overdue"
         ? overduePayments
         : activeTab === "paid"
-          ? paidPayments
+          ? paidPaymentsFiltered
         : monthlyPayments;
 
   const activeLabel =
@@ -116,6 +178,18 @@ export default function PaymentsList({
   async function handleMarkOverdueFromPending(paymentId) {
     await onMarkOverdue(paymentId);
     setActiveTab("overdue");
+  }
+
+  async function handleMarkOverdueFromPaid(paymentId) {
+    await onMarkOverdue(paymentId);
+    rememberReopenedPayment(paymentId);
+    setActiveTab("overdue");
+  }
+
+  async function handleMarkPendingFromPaid(paymentId) {
+    await onMarkPending(paymentId);
+    rememberReopenedPayment(paymentId);
+    setActiveTab("pending");
   }
 
   function renderActions(payment) {
@@ -174,7 +248,34 @@ export default function PaymentsList({
     }
 
     if (activeTab === "paid") {
-      return null;
+      return (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={() => handleMarkOverdueFromPaid(payment.id)}
+            style={{
+              ...buttonStyle,
+              background: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
+              border: "1px solid #b45309",
+            }}
+            disabled={markingPaymentId === payment.id}
+          >
+            {markingPaymentId === payment.id ? "Guardando..." : "Regresar a vencido"}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleMarkPendingFromPaid(payment.id)}
+            style={{
+              ...buttonStyle,
+              background: "linear-gradient(135deg, #475569 0%, #64748b 100%)",
+              border: "1px solid #334155",
+            }}
+            disabled={markingPaymentId === payment.id}
+          >
+            {markingPaymentId === payment.id ? "Guardando..." : "Regresar a pendiente"}
+          </button>
+        </div>
+      );
     }
 
     return (
@@ -224,7 +325,7 @@ export default function PaymentsList({
             { key: "monthly", label: "Activos del mes", count: monthlyPayments.length },
             { key: "pending", label: "Pendientes", count: pendingPayments.length },
             { key: "overdue", label: "Vencidos", count: overduePayments.length },
-            { key: "paid", label: "Pagados", count: paidPayments.length },
+            { key: "paid", label: "Pagados", count: paidPaymentsFiltered.length },
           ].map((entry) => {
             const isActive = activeTab === entry.key;
             return (
@@ -267,6 +368,33 @@ export default function PaymentsList({
               {MONTH_LABELS[currentMonth]} {currentYear}
             </span>
           )}
+          {activeTab === "paid" && (
+            <>
+              <select
+                value={selectedPaidMonth}
+                onChange={(event) => setSelectedPaidMonth(event.target.value)}
+                style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
+              >
+                {MONTH_OPTIONS.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedPaidYear}
+                onChange={(event) => setSelectedPaidYear(event.target.value)}
+                style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
+              >
+                <option value="all">Todos los anos</option>
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <select
             value={selectedClient}
             onChange={(event) => setSelectedClient(event.target.value)}
@@ -287,13 +415,45 @@ export default function PaymentsList({
       </p>
 
       <div style={{ display: "grid", gap: 10 }}>
-        {activeList.map((payment) => (
-          <article key={payment.id} style={listItemStyle}>
+        {activeList.map((payment) => {
+          const paymentId = String(payment.id || "");
+          const effectiveStatus = resolvePaymentStatus(payment);
+          const isReopenedFromPaid =
+            reopenedPaymentIds.includes(paymentId) &&
+            (effectiveStatus === "PENDIENTE" || effectiveStatus === "VENCIDO");
+
+          return (
+          <article
+            key={payment.id}
+            style={{
+              ...listItemStyle,
+              ...(isReopenedFromPaid
+                ? {
+                    border: "1px solid rgba(14, 116, 144, 0.36)",
+                    background:
+                      "linear-gradient(180deg, rgba(236, 254, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%)",
+                    boxShadow: "inset 0 0 0 1px rgba(34, 211, 238, 0.22)",
+                  }
+                : {}),
+            }}
+          >
             <strong>
               {payment.customer?.fullName} - ${Number(payment.amount).toFixed(2)}
             </strong>
             <p style={{ margin: "6px 0" }}>Vence: {new Date(payment.dueDate).toLocaleDateString()}</p>
-            <p style={{ margin: "6px 0" }}>Estado: {resolvePaymentStatus(payment)}</p>
+            <p style={{ margin: "6px 0" }}>Estado: {effectiveStatus}</p>
+            {isReopenedFromPaid && (
+              <p
+                style={{
+                  margin: "6px 0",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#0e7490",
+                }}
+              >
+                Reabierta desde pagados
+              </p>
+            )}
             {payment.device && (
               <p style={{ margin: "6px 0", color: "var(--text-soft)" }}>
                 Equipo: {payment.device.brand} {payment.device.model} ({payment.device.installCode})
@@ -301,7 +461,7 @@ export default function PaymentsList({
             )}
             {renderActions(payment)}
           </article>
-        ))}
+        )})}
         {activeList.length === 0 && (
           <p style={{ margin: 0 }}>
             No hay pagos en esta vista para el periodo/cliente seleccionado.

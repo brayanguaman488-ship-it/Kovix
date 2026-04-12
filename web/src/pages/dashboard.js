@@ -811,12 +811,41 @@ export default function Dashboard() {
     }))
     .filter((entry) => entry.id && entry.name)
     .sort((a, b) => a.name.localeCompare(b.name));
-  const overdueDeviceIdSet = new Set(
-    payments
-      .filter((payment) => resolvePaymentStatus(payment) === "VENCIDO")
-      .map((payment) => payment.device?.id)
-      .filter(Boolean)
-  );
+  const devicePaymentSignalMap = new Map();
+  const paymentsByDevice = new Map();
+  for (const payment of payments) {
+    const deviceId = payment.device?.id;
+    if (!deviceId) {
+      continue;
+    }
+    const list = paymentsByDevice.get(deviceId) || [];
+    list.push(payment);
+    paymentsByDevice.set(deviceId, list);
+  }
+
+  for (const [deviceId, list] of paymentsByDevice.entries()) {
+    const sortedByDueDate = [...list].sort(
+      (a, b) => new Date(b.dueDate || 0) - new Date(a.dueDate || 0)
+    );
+    const hasOverdue = sortedByDueDate.some((payment) => resolvePaymentStatus(payment) === "VENCIDO");
+    if (hasOverdue) {
+      devicePaymentSignalMap.set(deviceId, "VENCIDO");
+      continue;
+    }
+
+    const latest = sortedByDueDate[0];
+    if (!latest) {
+      continue;
+    }
+    const latestStatus = resolvePaymentStatus(latest);
+    if (latestStatus === "PENDIENTE") {
+      devicePaymentSignalMap.set(deviceId, "PENDIENTE");
+      continue;
+    }
+    if (latestStatus === "PAGADO") {
+      devicePaymentSignalMap.set(deviceId, "PAGADO");
+    }
+  }
   const reportedInstallments = selectedCreditContract?.installments?.filter(
     (installment) => installment.status === "REPORTADO"
   ) || [];
@@ -1453,7 +1482,7 @@ export default function Dashboard() {
             customerOptions={deviceCustomerOptions}
             searchValue={devicePanelQuery}
             onSearchChange={setDevicePanelQuery}
-            overdueDeviceIdSet={overdueDeviceIdSet}
+            devicePaymentSignalMap={devicePaymentSignalMap}
           />
         </section>
       )}

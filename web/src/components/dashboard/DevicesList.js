@@ -26,8 +26,36 @@ export default function DevicesList({
   customerOptions,
   searchValue,
   onSearchChange,
-  overdueDeviceIdSet,
+  devicePaymentSignalMap,
 }) {
+  function getPaymentSignalBadge(status) {
+    if (status === "VENCIDO") {
+      return {
+        text: "Cuota: VENCIDO",
+        color: "#9a3412",
+        background: "#ffedd5",
+        border: "#fb923c",
+      };
+    }
+    if (status === "PENDIENTE") {
+      return {
+        text: "Cuota: PENDIENTE",
+        color: "#1e3a8a",
+        background: "#dbeafe",
+        border: "#60a5fa",
+      };
+    }
+    if (status === "PAGADO") {
+      return {
+        text: "Cuota: PAGADO",
+        color: "#166534",
+        background: "#dcfce7",
+        border: "#4ade80",
+      };
+    }
+    return null;
+  }
+
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Dispositivos</h2>
@@ -79,26 +107,39 @@ export default function DevicesList({
                 : {}),
             }}
           >
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <strong>
-                {device.brand} {device.model}
-              </strong>
-              {overdueDeviceIdSet?.has(device.id) && (
-                <span
+            {(() => {
+              const paymentSignal = getPaymentSignalBadge(devicePaymentSignalMap?.get(device.id));
+              return (
+                <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#b45309",
-                    background: "#fef3c7",
-                    border: "1px solid #f59e0b",
-                    borderRadius: 999,
-                    padding: "2px 8px",
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
                   }}
                 >
-                  Accion requerida: cuota vencida
-                </span>
-              )}
-            </div>
+                  <strong style={{ marginRight: 10 }}>
+                    {device.brand} {device.model}
+                  </strong>
+                  {paymentSignal && (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: paymentSignal.color,
+                        background: paymentSignal.background,
+                        border: `1px solid ${paymentSignal.border}`,
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                      }}
+                    >
+                      {paymentSignal.text}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
             <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>
             <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
