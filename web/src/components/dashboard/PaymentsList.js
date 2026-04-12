@@ -7,20 +7,19 @@ import {
   sectionTitleStyle,
 } from "./styles";
 
-const MONTH_OPTIONS = [
-  { value: "all", label: "Todos los meses" },
-  { value: "01", label: "Enero" },
-  { value: "02", label: "Febrero" },
-  { value: "03", label: "Marzo" },
-  { value: "04", label: "Abril" },
-  { value: "05", label: "05 - Mayo" },
-  { value: "06", label: "Junio" },
-  { value: "07", label: "Julio" },
-  { value: "08", label: "Agosto" },
-  { value: "09", label: "Septiembre" },
-  { value: "10", label: "Octubre" },
-  { value: "11", label: "Noviembre" },
-  { value: "12", label: "Diciembre" },
+const MONTH_LABELS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
 
 export default function PaymentsList({
@@ -32,22 +31,9 @@ export default function PaymentsList({
 }) {
   const now = new Date();
   const [activeTab, setActiveTab] = useState("monthly");
-  const [selectedMonth, setSelectedMonth] = useState("all");
-  const [selectedYear, setSelectedYear] = useState("all");
   const [selectedClient, setSelectedClient] = useState("all");
-
-  const yearOptions = useMemo(() => {
-    const set = new Set(
-      payments
-        .map((payment) => {
-          const date = new Date(payment.dueDate);
-          return Number.isNaN(date.getTime()) ? null : String(date.getFullYear());
-        })
-        .filter(Boolean)
-    );
-    set.add(String(now.getFullYear()));
-    return [...set].sort((a, b) => Number(b) - Number(a));
-  }, [payments, now]);
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
   const clientOptions = useMemo(() => {
     const set = new Set(
@@ -75,23 +61,26 @@ export default function PaymentsList({
           return false;
         }
 
-        const monthMatch =
-          selectedMonth === "all" || String(dueDate.getMonth() + 1).padStart(2, "0") === selectedMonth;
-        const yearMatch = selectedYear === "all" || String(dueDate.getFullYear()) === selectedYear;
+        const monthMatch = dueDate.getMonth() === currentMonth;
+        const yearMatch = dueDate.getFullYear() === currentYear;
+        const statusMatch = payment.status === "PENDIENTE";
 
-        return monthMatch && yearMatch;
+        return monthMatch && yearMatch && statusMatch;
       }),
-    [clientFilteredPayments, selectedMonth, selectedYear]
+    [clientFilteredPayments, currentMonth, currentYear]
   );
 
   const pendingPayments = clientFilteredPayments.filter((payment) => payment.status === "PENDIENTE");
   const overduePayments = clientFilteredPayments.filter((payment) => payment.status === "VENCIDO");
+  const paidPayments = clientFilteredPayments.filter((payment) => payment.status === "PAGADO");
 
   const activeList =
     activeTab === "pending"
       ? pendingPayments
       : activeTab === "overdue"
         ? overduePayments
+        : activeTab === "paid"
+          ? paidPayments
         : monthlyPayments;
 
   const activeLabel =
@@ -99,6 +88,8 @@ export default function PaymentsList({
       ? "Pendientes"
       : activeTab === "overdue"
         ? "Vencidos"
+        : activeTab === "paid"
+          ? "Pagados"
         : "Activos del mes";
 
   async function handleMarkPendingFromOverdue(paymentId) {
@@ -166,6 +157,10 @@ export default function PaymentsList({
       );
     }
 
+    if (activeTab === "paid") {
+      return null;
+    }
+
     return (
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
         <button
@@ -213,6 +208,7 @@ export default function PaymentsList({
             { key: "monthly", label: "Activos del mes", count: monthlyPayments.length },
             { key: "pending", label: "Pendientes", count: pendingPayments.length },
             { key: "overdue", label: "Vencidos", count: overduePayments.length },
+            { key: "paid", label: "Pagados", count: paidPayments.length },
           ].map((entry) => {
             const isActive = activeTab === entry.key;
             return (
@@ -242,31 +238,18 @@ export default function PaymentsList({
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ color: "var(--text-soft)", fontWeight: 600 }}>Filtros:</span>
           {activeTab === "monthly" && (
-            <>
-              <select
-                value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
-                style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
-              >
-                {MONTH_OPTIONS.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={selectedYear}
-                onChange={(event) => setSelectedYear(event.target.value)}
-                style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
-              >
-                <option value="all">Todos los anos</option>
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </>
+            <span
+              style={{
+                border: "1px solid var(--line-soft)",
+                borderRadius: 9,
+                padding: "8px 10px",
+                background: "rgba(248,250,252,0.94)",
+                color: "var(--text-main)",
+                fontWeight: 600,
+              }}
+            >
+              {MONTH_LABELS[currentMonth]} {currentYear}
+            </span>
           )}
           <select
             value={selectedClient}
