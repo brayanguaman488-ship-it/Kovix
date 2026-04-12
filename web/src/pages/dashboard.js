@@ -532,12 +532,17 @@ export default function Dashboard() {
 
   async function handleStatusChange(deviceId, status) {
     try {
-      setUpdatingDeviceId(deviceId);
-      await api.updateDeviceStatus(deviceId, {
+      const normalizedDeviceId = String(deviceId);
+      const targetDevice = devices.find((entry) => String(entry.id) === normalizedDeviceId);
+      setUpdatingDeviceId(normalizedDeviceId);
+      await api.updateDeviceStatus(normalizedDeviceId, {
         status,
         reason: "Cambio manual desde dashboard",
       });
-      setStatus("success", "Estado actualizado");
+      setStatus(
+        "success",
+        `Estado actualizado: ${targetDevice ? `${targetDevice.brand} ${targetDevice.model}` : normalizedDeviceId} -> ${status}`
+      );
       await loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo actualizar el estado");

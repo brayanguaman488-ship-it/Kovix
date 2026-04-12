@@ -61,11 +61,8 @@ export default function DevicesList({
     }
 
     return {
-      border: "1px solid rgba(14, 116, 144, 0.5)",
       boxShadow:
-        "0 0 0 1px rgba(34, 211, 238, 0.2), 0 0 0 5px rgba(34, 211, 238, 0.08), 0 18px 30px rgba(6, 78, 110, 0.18)",
-      background:
-        "linear-gradient(180deg, rgba(236, 254, 255, 0.88) 0%, rgba(248, 250, 252, 0.98) 100%)",
+        "0 0 0 1px rgba(34, 211, 238, 0.22), 0 0 0 5px rgba(34, 211, 238, 0.1), 0 18px 30px rgba(6, 78, 110, 0.16)",
     };
   }
 
@@ -112,7 +109,7 @@ export default function DevicesList({
 
           return (
             <article
-              key={device.id}
+              key={String(device.id)}
               style={{
                 ...listItemStyle,
                 ...(device.currentStatus === "BLOQUEADO"
@@ -177,12 +174,12 @@ export default function DevicesList({
               {statuses.map((status) => (
                 <button
                   key={status}
-                  onClick={() => onStatusChange(device.id, status)}
+                  onClick={() => onStatusChange(String(device.id), status)}
                   style={{ ...buttonStyle, minHeight: 42 }}
                   type="button"
-                  disabled={updatingDeviceId === device.id}
+                  disabled={String(updatingDeviceId) === String(device.id)}
                 >
-                  {updatingDeviceId === device.id ? "Actualizando..." : status}
+                  {String(updatingDeviceId) === String(device.id) ? "Actualizando..." : status}
                 </button>
               ))}
             </div>
