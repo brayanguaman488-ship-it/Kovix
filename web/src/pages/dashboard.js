@@ -8,6 +8,7 @@ import DeviceForm from "../components/dashboard/DeviceForm";
 import CustomersList from "../components/dashboard/CustomersList";
 import DevicesList from "../components/dashboard/DevicesList";
 import PaymentsList from "../components/dashboard/PaymentsList";
+import FinancePanel from "../components/dashboard/FinancePanel";
 import StatusMessage from "../components/dashboard/StatusMessage";
 import { buttonStyle, cardStyle, inputStyle, pageShellStyle, secondaryButtonStyle } from "../components/dashboard/styles";
 import { api } from "../lib/api";
@@ -1401,6 +1402,7 @@ export default function Dashboard() {
             { key: "customers", label: "Clientes" },
             { key: "devices", label: "Dispositivos" },
             { key: "payments", label: "Pagos" },
+            { key: "finance", label: "Finanzas" },
           ].map((entry) => {
             const isActive = activeSummarySection === entry.key;
             return (
@@ -1506,6 +1508,12 @@ export default function Dashboard() {
               setPaymentPage((value) => Math.min(paymentsPageData.totalPages, value + 1))
             }
           />
+        </section>
+      )}
+
+      {activeSummarySection === "finance" && (
+        <section style={{ display: "grid", gap: 16 }}>
+          <FinancePanel payments={sortedPayments} />
         </section>
       )}
     </main>
