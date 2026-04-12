@@ -22,10 +22,10 @@ export default function BrandLogo({
           maxWidth,
           borderRadius: 0,
           background: "transparent",
-          boxShadow: "0 16px 30px rgba(15, 23, 42, 0.34)",
+          boxShadow: "none",
           display: "grid",
           placeItems: "center",
-          overflow: "hidden",
+          overflow: "visible",
         }}
       >
         <svg
@@ -33,7 +33,7 @@ export default function BrandLogo({
           width="100%"
           height="100%"
           aria-hidden="true"
-          style={{ display: "block" }}
+          style={{ display: "block", filter: "drop-shadow(0 10px 18px rgba(15, 23, 42, 0.35))" }}
         >
           <defs>
             <linearGradient id="novaShield" x1="0%" y1="0%" x2="100%" y2="100%">

@@ -151,7 +151,8 @@ export default function Home() {
           padding: 34px;
           display: grid;
           gap: 16px;
-          justify-items: start;
+          justify-items: center;
+          text-align: center;
           animation: rise 0.8s ease-out;
           position: relative;
         }
