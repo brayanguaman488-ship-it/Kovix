@@ -145,21 +145,34 @@ function normalizeProvisioningChecksum(rawValue) {
   const compact = raw.replace(/\s+/g, "");
   const hexCandidate = compact.replace(/:/g, "").toLowerCase();
 
+  function toUrlSafeBase64(value) {
+    return String(value || "").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function fromUrlSafeBase64(value) {
+    const normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+    const padding = normalized.length % 4;
+    if (padding === 2) return `${normalized}==`;
+    if (padding === 3) return `${normalized}=`;
+    if (padding === 1) return `${normalized}===`;
+    return normalized;
+  }
+
   if (/^[0-9a-f]{64}$/i.test(hexCandidate)) {
     const bytes = [];
     for (let index = 0; index < hexCandidate.length; index += 2) {
       bytes.push(parseInt(hexCandidate.slice(index, index + 2), 16));
     }
     const binary = String.fromCharCode(...bytes);
-    return { ok: true, value: btoa(binary), reason: "hex_to_base64" };
+    return { ok: true, value: toUrlSafeBase64(btoa(binary)), reason: "hex_to_base64_urlsafe" };
   }
 
   try {
-    const decoded = atob(compact);
+    const decoded = atob(fromUrlSafeBase64(compact));
     if (decoded.length !== 32) {
       return { ok: false, value: "", reason: "base64_longitud_invalida" };
     }
-    return { ok: true, value: compact, reason: "base64_valido" };
+    return { ok: true, value: toUrlSafeBase64(compact), reason: "base64_valido_urlsafe" };
   } catch (error) {
     return { ok: false, value: "", reason: "formato_invalido" };
   }
@@ -745,8 +758,8 @@ export default function Dashboard() {
     setProvisioningQrUrl(qrUrl);
     setStatus(
       "success",
-      normalizedChecksum.reason === "hex_to_base64"
-        ? "QR generado (checksum HEX convertido automaticamente a Base64)"
+      normalizedChecksum.reason === "hex_to_base64_urlsafe"
+        ? "QR generado (checksum HEX convertido automaticamente a Base64 URL-safe)"
         : "QR de aprovisionamiento generado"
     );
   }
