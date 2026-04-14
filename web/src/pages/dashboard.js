@@ -118,11 +118,12 @@ function resolvePaymentStatus(payment) {
 function buildProvisioningPayload({
   apkUrl,
   apkChecksum,
+  signatureChecksum,
   baseUrl,
   installCode,
   clientSecret,
 }) {
-  return {
+  const payload = {
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": DEVICE_OWNER_COMPONENT_NAME,
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": apkUrl,
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM": apkChecksum,
@@ -134,6 +135,12 @@ function buildProvisioningPayload({
       clientSecret,
     },
   };
+
+  if (signatureChecksum) {
+    payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM"] = signatureChecksum;
+  }
+
+  return payload;
 }
 
 function normalizeProvisioningChecksum(rawValue) {
@@ -219,6 +226,7 @@ export default function Dashboard() {
   const [provisioningBaseUrl, setProvisioningBaseUrl] = useState("https://api.kovixec.com");
   const [provisioningApkUrl, setProvisioningApkUrl] = useState("");
   const [provisioningApkChecksum, setProvisioningApkChecksum] = useState("");
+  const [provisioningSignatureChecksum, setProvisioningSignatureChecksum] = useState("");
   const [provisioningQrJson, setProvisioningQrJson] = useState("");
   const [provisioningQrUrl, setProvisioningQrUrl] = useState("");
   const [activeSummarySection, setActiveSummarySection] = useState("customers");
@@ -715,6 +723,7 @@ export default function Dashboard() {
 
     const apkUrl = provisioningApkUrl.trim();
     const apkChecksumInput = provisioningApkChecksum.trim();
+    const signatureChecksumInput = provisioningSignatureChecksum.trim();
     const baseUrl = provisioningBaseUrl.trim();
     const installCode = String(selectedDevice.installCode || "").trim();
     const clientSecret = String(selectedDevice.clientSecret || "").trim();
@@ -738,6 +747,19 @@ export default function Dashboard() {
       return;
     }
 
+    let normalizedSignatureChecksum = "";
+    if (signatureChecksumInput) {
+      const normalized = normalizeProvisioningChecksum(signatureChecksumInput);
+      if (!normalized.ok) {
+        setStatus(
+          "error",
+          "Firma invalida: usa SHA-256 del certificado de firma en Base64 o en HEX de 64 caracteres"
+        );
+        return;
+      }
+      normalizedSignatureChecksum = normalized.value;
+    }
+
     if (!installCode || !clientSecret) {
       setStatus("error", "El dispositivo no tiene installCode/clientSecret disponible");
       return;
@@ -746,6 +768,7 @@ export default function Dashboard() {
     const payload = buildProvisioningPayload({
       apkUrl,
       apkChecksum: normalizedChecksum.value,
+      signatureChecksum: normalizedSignatureChecksum,
       baseUrl,
       installCode,
       clientSecret,
@@ -1077,6 +1100,13 @@ export default function Dashboard() {
             value={provisioningApkChecksum}
             onChange={(event) => setProvisioningApkChecksum(event.target.value)}
             placeholder="SHA-256 del APK en Base64"
+            style={inputStyle}
+          />
+
+          <input
+            value={provisioningSignatureChecksum}
+            onChange={(event) => setProvisioningSignatureChecksum(event.target.value)}
+            placeholder="SHA-256 de firma del APK (opcional, recomendado en Samsung)"
             style={inputStyle}
           />
 
