@@ -44,6 +44,7 @@ const initialCreditForm = {
 
 const PAGE_SIZE = 6;
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
+const DEVICE_OWNER_PACKAGE_NAME = "com.kovix.client";
 const sectionGridStyle = {
   display: "grid",
   gap: 16,
@@ -125,8 +126,8 @@ function buildProvisioningPayload({
 }) {
   const payload = {
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": DEVICE_OWNER_COMPONENT_NAME,
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_NAME": DEVICE_OWNER_PACKAGE_NAME,
     "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": apkUrl,
-    "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM": apkChecksum,
     "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": true,
     "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": true,
     "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": {
@@ -138,6 +139,8 @@ function buildProvisioningPayload({
 
   if (signatureChecksum) {
     payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM"] = signatureChecksum;
+  } else {
+    payload["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM"] = apkChecksum;
   }
 
   return payload;
