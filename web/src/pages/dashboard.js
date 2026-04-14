@@ -136,6 +136,35 @@ function buildProvisioningPayload({
   };
 }
 
+function normalizeProvisioningChecksum(rawValue) {
+  const raw = String(rawValue || "").trim();
+  if (!raw) {
+    return { ok: false, value: "", reason: "checksum_vacio" };
+  }
+
+  const compact = raw.replace(/\s+/g, "");
+  const hexCandidate = compact.replace(/:/g, "").toLowerCase();
+
+  if (/^[0-9a-f]{64}$/i.test(hexCandidate)) {
+    const bytes = [];
+    for (let index = 0; index < hexCandidate.length; index += 2) {
+      bytes.push(parseInt(hexCandidate.slice(index, index + 2), 16));
+    }
+    const binary = String.fromCharCode(...bytes);
+    return { ok: true, value: btoa(binary), reason: "hex_to_base64" };
+  }
+
+  try {
+    const decoded = atob(compact);
+    if (decoded.length !== 32) {
+      return { ok: false, value: "", reason: "base64_longitud_invalida" };
+    }
+    return { ok: true, value: compact, reason: "base64_valido" };
+  } catch (error) {
+    return { ok: false, value: "", reason: "formato_invalido" };
+  }
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const hasHydratedQueryRef = useRef(false);
@@ -672,13 +701,27 @@ export default function Dashboard() {
     }
 
     const apkUrl = provisioningApkUrl.trim();
-    const apkChecksum = provisioningApkChecksum.trim();
+    const apkChecksumInput = provisioningApkChecksum.trim();
     const baseUrl = provisioningBaseUrl.trim();
     const installCode = String(selectedDevice.installCode || "").trim();
     const clientSecret = String(selectedDevice.clientSecret || "").trim();
 
-    if (!apkUrl || !apkChecksum || !baseUrl) {
+    if (!apkUrl || !apkChecksumInput || !baseUrl) {
       setStatus("error", "Completa URL APK, checksum SHA-256 y Base URL");
+      return;
+    }
+
+    if (!/^https:\/\//i.test(apkUrl)) {
+      setStatus("error", "La URL del APK debe iniciar con https:// para aprovisionamiento QR");
+      return;
+    }
+
+    const normalizedChecksum = normalizeProvisioningChecksum(apkChecksumInput);
+    if (!normalizedChecksum.ok) {
+      setStatus(
+        "error",
+        "Checksum invalido: usa SHA-256 del APK en Base64 o en HEX de 64 caracteres"
+      );
       return;
     }
 
@@ -689,7 +732,7 @@ export default function Dashboard() {
 
     const payload = buildProvisioningPayload({
       apkUrl,
-      apkChecksum,
+      apkChecksum: normalizedChecksum.value,
       baseUrl,
       installCode,
       clientSecret,
@@ -700,7 +743,12 @@ export default function Dashboard() {
 
     setProvisioningQrJson(prettyJson);
     setProvisioningQrUrl(qrUrl);
-    setStatus("success", "QR de aprovisionamiento generado");
+    setStatus(
+      "success",
+      normalizedChecksum.reason === "hex_to_base64"
+        ? "QR generado (checksum HEX convertido automaticamente a Base64)"
+        : "QR de aprovisionamiento generado"
+    );
   }
 
   const normalizedCustomerQuery = customerQuery.trim().toLowerCase();
