@@ -18,6 +18,7 @@ import { prisma } from "../lib/prisma.js";
 import { sendDeviceStatusPush } from "../lib/pushNotifications.js";
 import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
 import { syncDeviceStatus } from "../lib/deviceStatus.js";
+import { applyHexnodePolicyForStatus, isHexnodeConfigured } from "../lib/hexnode.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -384,11 +385,32 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
     });
   });
 
+  let hexnode = {
+    ok: false,
+    skipped: "device_not_found",
+  };
+
   if (device) {
     await sendDeviceStatusPush(device);
+
+    if (isHexnodeConfigured()) {
+      try {
+        hexnode = await applyHexnodePolicyForStatus(device, requestedStatus);
+      } catch (error) {
+        hexnode = {
+          ok: false,
+          error: error?.message || "No se pudo sincronizar Hexnode",
+        };
+      }
+    } else {
+      hexnode = {
+        ok: false,
+        skipped: "hexnode_not_configured",
+      };
+    }
   }
 
-  return res.json({ ok: true, device });
+  return res.json({ ok: true, device, hexnode });
 }));
 
 router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
@@ -399,6 +421,27 @@ router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
   }
 
   return res.json({ ok: true, device });
+}));
+
+router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
+  const device = await prisma.device.findUnique({
+    where: { id: req.params.id },
+  });
+
+  if (!device) {
+    return sendNotFound(res, "Dispositivo no encontrado");
+  }
+
+  if (!isHexnodeConfigured()) {
+    return sendBadRequest(res, "Hexnode no esta configurado en el backend");
+  }
+
+  try {
+    const hexnode = await applyHexnodePolicyForStatus(device, device.currentStatus);
+    return res.json({ ok: true, deviceId: device.id, status: device.currentStatus, hexnode });
+  } catch (error) {
+    return sendServerError(res, error?.message || "No se pudo sincronizar con Hexnode");
+  }
 }));
 
 router.post("/:id/rotate-client-secret", asyncHandler(async (req, res) => {

@@ -2,6 +2,7 @@ import prismaPackage from "@prisma/client";
 
 import { prisma } from "./prisma.js";
 import { sendDeviceStatusPush } from "./pushNotifications.js";
+import { applyHexnodePolicyForStatus, isHexnodeConfigured } from "./hexnode.js";
 
 const { DeviceStatus, PaymentStatus } = prismaPackage;
 
@@ -92,6 +93,14 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason) {
 
   if (updated) {
     await sendDeviceStatusPush(updated);
+
+    if (isHexnodeConfigured()) {
+      try {
+        await applyHexnodePolicyForStatus(updated, nextStatus);
+      } catch (error) {
+        console.warn(`[hexnode] sync automatico fallido para device ${updated.id}: ${error?.message || error}`);
+      }
+    }
   }
 
   return updated;
