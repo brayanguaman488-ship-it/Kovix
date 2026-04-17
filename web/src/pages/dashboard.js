@@ -29,7 +29,7 @@ const initialDeviceForm = {
   model: "",
   alias: "",
   imei: "",
-  installCode: "",
+  hexnodeDeviceId: "",
   notes: "",
 };
 
@@ -207,6 +207,8 @@ export default function Dashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState("");
   const [rotatingSecretDeviceId, setRotatingSecretDeviceId] = useState("");
+  const [linkingHexnodeDeviceId, setLinkingHexnodeDeviceId] = useState("");
+  const [isLinkingAllHexnodeDevices, setIsLinkingAllHexnodeDevices] = useState(false);
   const [markingPaymentId, setMarkingPaymentId] = useState("");
   const [processingInstallmentId, setProcessingInstallmentId] = useState("");
   const [isApprovingAllReported, setIsApprovingAllReported] = useState(false);
@@ -486,10 +488,15 @@ export default function Dashboard() {
     const brand = deviceForm.brand.trim();
     const model = deviceForm.model.trim();
     const imei = deviceForm.imei.trim();
-    const installCode = deviceForm.installCode.trim();
+    const rawHexnodeId = String(deviceForm.hexnodeDeviceId || "").trim();
 
-    if (!customerId || !brand || !model || !imei || !installCode) {
-      setStatus("error", "Dispositivo: customerId, brand, model, imei e installCode son obligatorios");
+    if (!customerId || !brand || !model || !imei) {
+      setStatus("error", "Dispositivo: customerId, brand, model e imei son obligatorios");
+      return;
+    }
+
+    if (rawHexnodeId && !/^\d+$/.test(rawHexnodeId)) {
+      setStatus("error", "Dispositivo: Hexnode Device ID debe ser numerico");
       return;
     }
 
@@ -501,7 +508,7 @@ export default function Dashboard() {
         brand,
         model,
         imei,
-        installCode,
+        hexnodeDeviceId: rawHexnodeId || undefined,
       });
       setDeviceForm(initialDeviceForm);
       setStatus("success", "Dispositivo creado correctamente");
@@ -627,6 +634,40 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo rotar el clientSecret");
     } finally {
       setRotatingSecretDeviceId("");
+    }
+  }
+
+  async function handleLinkHexnodeDevice(deviceId) {
+    try {
+      setLinkingHexnodeDeviceId(deviceId);
+      const response = await api.linkDeviceHexnode(deviceId);
+      const hexnodeId = response?.hexnode?.hexnodeDeviceId;
+      setStatus(
+        "success",
+        hexnodeId
+          ? `Dispositivo vinculado con Hexnode ID ${hexnodeId}`
+          : "Dispositivo vinculado con Hexnode"
+      );
+      await loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo vincular el dispositivo con Hexnode");
+    } finally {
+      setLinkingHexnodeDeviceId("");
+    }
+  }
+
+  async function handleLinkAllHexnodeDevices() {
+    try {
+      setIsLinkingAllHexnodeDevices(true);
+      const response = await api.linkAllDevicesHexnode();
+      const linkedCount = Number(response?.linkedCount || 0);
+      const totalPending = Number(response?.totalPending || 0);
+      setStatus("success", `Vinculacion completada: ${linkedCount}/${totalPending} dispositivos vinculados`);
+      await loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo ejecutar la vinculacion masiva");
+    } finally {
+      setIsLinkingAllHexnodeDevices(false);
     }
   }
 
@@ -1561,6 +1602,8 @@ export default function Dashboard() {
             updatingDeviceId={updatingDeviceId}
             rotatingSecretDeviceId={rotatingSecretDeviceId}
             onRotateSecret={handleRotateSecret}
+            linkingHexnodeDeviceId={linkingHexnodeDeviceId}
+            onLinkHexnodeDevice={handleLinkHexnodeDevice}
             totalItems={devicesPageData.totalItems}
             page={devicesPageData.page}
             totalPages={devicesPageData.totalPages}
@@ -1576,6 +1619,8 @@ export default function Dashboard() {
             searchValue={devicePanelQuery}
             onSearchChange={setDevicePanelQuery}
             devicePaymentSignalMap={devicePaymentSignalMap}
+            onLinkAllHexnodeDevices={handleLinkAllHexnodeDevices}
+            isLinkingAllHexnodeDevices={isLinkingAllHexnodeDevices}
           />
         </section>
       )}

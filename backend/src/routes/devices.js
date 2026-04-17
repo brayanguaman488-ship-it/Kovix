@@ -18,7 +18,12 @@ import { prisma } from "../lib/prisma.js";
 import { sendDeviceStatusPush } from "../lib/pushNotifications.js";
 import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
 import { syncDeviceStatus } from "../lib/deviceStatus.js";
-import { applyHexnodePolicyForStatus, isHexnodeConfigured } from "../lib/hexnode.js";
+import {
+  applyHexnodePolicyForStatus,
+  generateInstallCode,
+  isHexnodeConfigured,
+  resolveHexnodeDeviceMatch,
+} from "../lib/hexnode.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -258,30 +263,54 @@ router.get("/", asyncHandler(async (req, res) => {
 }));
 
 router.post("/", asyncHandler(async (req, res) => {
-  const { customerId, brand, model, alias, imei, installCode, notes } = req.body || {};
+  const { customerId, brand, model, alias, imei, installCode, notes, hexnodeDeviceId } = req.body || {};
   const normalizedCustomerId = asTrimmedString(customerId);
   const normalizedBrand = asTrimmedString(brand);
   const normalizedModel = asTrimmedString(model);
   const normalizedImei = asTrimmedString(imei);
-  const normalizedInstallCode = asTrimmedString(installCode);
+  const normalizedInstallCode = asOptionalTrimmedString(installCode);
+  const parsedHexnodeDeviceId = hexnodeDeviceId !== undefined && hexnodeDeviceId !== null && String(hexnodeDeviceId).trim()
+    ? Number.parseInt(String(hexnodeDeviceId).trim(), 10)
+    : null;
 
   const required = assertRequiredFields([
     ["customerId", normalizedCustomerId],
     ["brand", normalizedBrand],
     ["model", normalizedModel],
     ["imei", normalizedImei],
-    ["installCode", normalizedInstallCode],
   ]);
 
   if (!required.ok) {
     return sendBadRequest(
       res,
-      "customerId, brand, model, imei e installCode son obligatorios",
+      "customerId, brand, model e imei son obligatorios",
       `Faltan: ${required.missing.join(", ")}`
     );
   }
 
+  if (parsedHexnodeDeviceId !== null && (!Number.isInteger(parsedHexnodeDeviceId) || parsedHexnodeDeviceId <= 0)) {
+    return sendBadRequest(res, "hexnodeDeviceId invalido");
+  }
+
   try {
+    let finalInstallCode = normalizedInstallCode;
+
+    if (!finalInstallCode) {
+      for (let index = 0; index < 7; index += 1) {
+        const candidate = generateInstallCode();
+        // eslint-disable-next-line no-await-in-loop
+        const exists = await prisma.device.findUnique({ where: { installCode: candidate } });
+        if (!exists) {
+          finalInstallCode = candidate;
+          break;
+        }
+      }
+    }
+
+    if (!finalInstallCode) {
+      return sendServerError(res, "No se pudo generar installCode unico");
+    }
+
     const device = await prisma.device.create({
       data: {
         customerId: normalizedCustomerId,
@@ -289,7 +318,8 @@ router.post("/", asyncHandler(async (req, res) => {
         model: normalizedModel,
         alias: asOptionalTrimmedString(alias),
         imei: normalizedImei,
-        installCode: normalizedInstallCode,
+        installCode: finalInstallCode,
+        hexnodeDeviceId: parsedHexnodeDeviceId,
         clientSecret: generateClientSecret(),
         notes: asOptionalTrimmedString(notes),
       },
@@ -326,6 +356,100 @@ router.post("/", asyncHandler(async (req, res) => {
 
     return sendServerError(res, "No se pudo crear el dispositivo");
   }
+})); 
+
+router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
+  const device = await prisma.device.findUnique({
+    where: { id: req.params.id },
+  });
+
+  if (!device) {
+    return sendNotFound(res, "Dispositivo no encontrado");
+  }
+
+  if (!isHexnodeConfigured()) {
+    return sendBadRequest(res, "Hexnode no esta configurado en el backend");
+  }
+
+  const resolved = await resolveHexnodeDeviceMatch(device, { useDefault: false });
+  if (!resolved?.hexnodeDeviceId) {
+    return sendNotFound(res, "No se pudo vincular con un equipo de Hexnode");
+  }
+
+  const updated = await prisma.device.update({
+    where: { id: device.id },
+    data: {
+      hexnodeDeviceId: resolved.hexnodeDeviceId,
+      notes: device.notes || null,
+    },
+  });
+
+  return res.json({
+    ok: true,
+    device: updated,
+    hexnode: {
+      linked: true,
+      resolvedBy: resolved.source,
+      hexnodeDeviceId: resolved.hexnodeDeviceId,
+    },
+  });
+}));
+
+router.post("/link-hexnode-all", asyncHandler(async (_req, res) => {
+  if (!isHexnodeConfigured()) {
+    return sendBadRequest(res, "Hexnode no esta configurado en el backend");
+  }
+
+  const devices = await prisma.device.findMany({
+    where: {
+      hexnodeDeviceId: null,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const results = [];
+  for (const device of devices) {
+    // eslint-disable-next-line no-await-in-loop
+    const resolved = await resolveHexnodeDeviceMatch(device, { useDefault: false });
+    if (!resolved?.hexnodeDeviceId) {
+      results.push({
+        deviceId: device.id,
+        installCode: device.installCode,
+        linked: false,
+      });
+      continue;
+    }
+
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { hexnodeDeviceId: resolved.hexnodeDeviceId },
+      });
+      results.push({
+        deviceId: device.id,
+        installCode: device.installCode,
+        linked: true,
+        hexnodeDeviceId: resolved.hexnodeDeviceId,
+        resolvedBy: resolved.source,
+      });
+    } catch (error) {
+      results.push({
+        deviceId: device.id,
+        installCode: device.installCode,
+        linked: false,
+        error: error?.message || "no_se_pudo_guardar",
+      });
+    }
+  }
+
+  const linkedCount = results.filter((entry) => entry.linked).length;
+  return res.json({
+    ok: true,
+    totalPending: devices.length,
+    linkedCount,
+    results,
+  });
 }));
 
 router.patch("/:id/status", asyncHandler(async (req, res) => {

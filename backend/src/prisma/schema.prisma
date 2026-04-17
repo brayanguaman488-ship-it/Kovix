@@ -73,6 +73,7 @@ model Device {
   alias              String?
   imei               String              @unique
   installCode        String              @unique
+  hexnodeDeviceId    Int?                @unique
   clientSecret       String              @unique @default(uuid())
   currentStatus      DeviceStatus        @default(ACTIVO)
   lastStatusChangeAt DateTime            @default(now())

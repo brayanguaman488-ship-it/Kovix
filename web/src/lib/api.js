@@ -84,6 +84,16 @@ export const api = {
       method: "POST",
     });
   },
+  linkDeviceHexnode(deviceId) {
+    return request(`/devices/${deviceId}/link-hexnode`, {
+      method: "POST",
+    });
+  },
+  linkAllDevicesHexnode() {
+    return request("/devices/link-hexnode-all", {
+      method: "POST",
+    });
+  },
   getPayments() {
     return request("/payments");
   },

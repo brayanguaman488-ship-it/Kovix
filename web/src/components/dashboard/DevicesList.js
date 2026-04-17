@@ -14,6 +14,8 @@ export default function DevicesList({
   updatingDeviceId,
   rotatingSecretDeviceId,
   onRotateSecret,
+  linkingHexnodeDeviceId,
+  onLinkHexnodeDevice,
   totalItems,
   page,
   totalPages,
@@ -27,6 +29,8 @@ export default function DevicesList({
   searchValue,
   onSearchChange,
   devicePaymentSignalMap,
+  onLinkAllHexnodeDevices,
+  isLinkingAllHexnodeDevices,
 }) {
   function getPaymentSignalBadge(status) {
     if (status === "VENCIDO") {
@@ -100,6 +104,14 @@ export default function DevicesList({
           <option value="status_desc">Estado Z-A</option>
           <option value="brand_asc">Marca A-Z</option>
         </select>
+        <button
+          type="button"
+          onClick={onLinkAllHexnodeDevices}
+          disabled={isLinkingAllHexnodeDevices}
+          style={{ ...secondaryButtonStyle, minHeight: 38, borderRadius: 8 }}
+        >
+          {isLinkingAllHexnodeDevices ? "Vinculando..." : "Vincular todos con Hexnode"}
+        </button>
       </div>
       <div style={{ display: "grid", gap: 10 }}>
         {devices.map((device) => {
@@ -154,6 +166,7 @@ export default function DevicesList({
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
             <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>
             <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
+            <p style={{ margin: "6px 0" }}>Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}</p>
             <p style={{ margin: "6px 0" }}>ClientSecret: {device.clientSecret}</p>
             <p style={{ margin: "6px 0" }}>Estado: {device.currentStatus}</p>
             <button
@@ -169,6 +182,19 @@ export default function DevicesList({
               disabled={rotatingSecretDeviceId === device.id}
             >
               {rotatingSecretDeviceId === device.id ? "Rotando..." : "Rotar secret"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onLinkHexnodeDevice(device.id)}
+              style={{
+                ...secondaryButtonStyle,
+                minHeight: 42,
+                borderRadius: 10,
+                marginTop: 8,
+              }}
+              disabled={linkingHexnodeDeviceId === device.id}
+            >
+              {linkingHexnodeDeviceId === device.id ? "Vinculando..." : "Vincular con Hexnode"}
             </button>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
               {statuses.map((status) => (

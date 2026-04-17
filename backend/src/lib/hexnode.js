@@ -37,17 +37,6 @@ function normalizeDigits(value) {
   return String(value || "").replace(/\D+/g, "");
 }
 
-function parseHexnodeDeviceIdFromNotes(notes) {
-  const content = String(notes || "");
-  const match = content.match(/\bhexnode(?:_device)?_?id\b\s*[:=]\s*(\d+)/i);
-  if (!match) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(match[1], 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function buildBaseUrl(pathname, query = null) {
   const base = `https://${HEXNODE_PORTAL}.hexnodemdm.com`;
   const url = new URL(pathname, base);
@@ -172,9 +161,9 @@ async function listHexnodeDevices() {
 }
 
 async function resolveHexnodeDeviceId(localDevice) {
-  const idFromNotes = parseHexnodeDeviceIdFromNotes(localDevice?.notes);
-  if (idFromNotes) {
-    return idFromNotes;
+  const idFromRecord = Number(localDevice?.hexnodeDeviceId);
+  if (Number.isFinite(idFromRecord) && idFromRecord > 0) {
+    return idFromRecord;
   }
 
   if (Number.isFinite(DEFAULT_DEVICE_ID) && DEFAULT_DEVICE_ID > 0) {
@@ -205,6 +194,65 @@ async function resolveHexnodeDeviceId(localDevice) {
 
       if (localImei && (localImei === remoteImei1 || localImei === remoteImei2)) {
         return remoteId;
+      }
+    } catch {
+      // Si un detalle falla continuamos con el siguiente dispositivo.
+    }
+  }
+
+  return null;
+}
+
+function toResolvedResult(localDevice, hexnodeDeviceId, source) {
+  return {
+    localDeviceId: localDevice?.id || null,
+    hexnodeDeviceId,
+    source,
+    matchedBy: {
+      imei: localDevice?.imei || null,
+      installCode: localDevice?.installCode || null,
+      alias: localDevice?.alias || null,
+      model: localDevice?.model || null,
+    },
+  };
+}
+
+export async function resolveHexnodeDeviceMatch(localDevice, options = {}) {
+  const useDefault = options?.useDefault !== false;
+
+  const explicit = Number(localDevice?.hexnodeDeviceId);
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return toResolvedResult(localDevice, explicit, "stored_device_field");
+  }
+
+  if (useDefault && Number.isFinite(DEFAULT_DEVICE_ID) && DEFAULT_DEVICE_ID > 0) {
+    return toResolvedResult(localDevice, DEFAULT_DEVICE_ID, "default_device_env");
+  }
+
+  const listed = await listHexnodeDevices();
+  const directMatch = listed.find((item) => matchDeviceByListEntry(localDevice, item));
+  if (directMatch?.id) {
+    return toResolvedResult(localDevice, Number(directMatch.id), "devices_list_match");
+  }
+
+  const localImei = normalizeDigits(localDevice?.imei);
+  if (!localImei) {
+    return null;
+  }
+
+  for (const item of listed) {
+    const remoteId = Number(item?.id);
+    if (!Number.isFinite(remoteId)) {
+      continue;
+    }
+
+    try {
+      const details = await hexnodeRequest(`/api/v1/devices/${remoteId}/`, { method: "GET" });
+      const remoteImei1 = normalizeDigits(details?.device?.imei_1);
+      const remoteImei2 = normalizeDigits(details?.device?.imei_2);
+
+      if (localImei && (localImei === remoteImei1 || localImei === remoteImei2)) {
+        return toResolvedResult(localDevice, remoteId, "device_details_imei_match");
       }
     } catch {
       // Si un detalle falla continuamos con el siguiente dispositivo.
@@ -307,7 +355,8 @@ export async function applyHexnodePolicyForStatus(localDevice, nextStatus) {
     };
   }
 
-  const hexnodeDeviceId = await resolveHexnodeDeviceId(localDevice);
+  const resolved = await resolveHexnodeDeviceMatch(localDevice);
+  const hexnodeDeviceId = resolved?.hexnodeDeviceId || null;
   if (!hexnodeDeviceId) {
     throw new Error(`No se pudo resolver el deviceId de Hexnode para ${localDevice?.id || "dispositivo"}`);
   }
@@ -325,8 +374,15 @@ export async function applyHexnodePolicyForStatus(localDevice, nextStatus) {
   return {
     ok: true,
     hexnodeDeviceId,
+    resolvedBy: resolved?.source || "unknown",
     targetPolicyName,
     targetPolicyId,
     removedPolicyIds: policiesToRemove,
   };
+}
+
+export function generateInstallCode() {
+  const year = new Date().getFullYear().toString().slice(-2);
+  const random = Math.floor(100000 + Math.random() * 900000);
+  return `KX${year}${random}`;
 }

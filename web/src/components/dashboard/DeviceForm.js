@@ -46,9 +46,9 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
           style={inputStyle}
         />
         <input
-          placeholder="Codigo de instalacion"
-          value={form.installCode}
-          onChange={(event) => onChange({ ...form, installCode: event.target.value })}
+          placeholder="Hexnode Device ID (opcional)"
+          value={form.hexnodeDeviceId}
+          onChange={(event) => onChange({ ...form, hexnodeDeviceId: event.target.value })}
           style={inputStyle}
         />
         <textarea
