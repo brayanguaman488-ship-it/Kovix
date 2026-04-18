@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.KovixClient" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#2563EB</item>
-        <item name="colorPrimaryVariant">#1D4ED8</item>
+        <item name="colorPrimary">@color/brand_blue</item>
+        <item name="colorPrimaryVariant">@color/brand_blue_dark</item>
         <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:statusBarColor">@color/brand_blue_dark</item>
+        <item name="android:navigationBarColor">@color/brand_blue_dark</item>
     </style>
 </resources>

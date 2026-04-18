@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="splash_blue">#2E57F5</color>
+    <color name="brand_blue">#58A8E6</color>
+    <color name="brand_blue_dark">#3E95DA</color>
+    <color name="brand_blue_deep">#2F7FC0</color>
+    <color name="surface_blue">#2F86CA</color>
+    <color name="surface_blue_soft">#3F96DB</color>
     <color name="status_active_bg">#E8F5E9</color>
     <color name="status_pending_bg">#FFF8E1</color>
     <color name="status_calls_only_bg">#FFF3E0</color>

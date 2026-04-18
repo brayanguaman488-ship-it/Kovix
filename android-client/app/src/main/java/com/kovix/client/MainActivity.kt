@@ -7,25 +7,32 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.PersistableBundle
 import android.text.InputType
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.kovix.client.admin.KovixDeviceAdminReceiver
-import com.kovix.client.network.DevicePayload
 import com.kovix.client.network.DeviceCreditInstallment
+import com.kovix.client.network.DevicePayload
 import com.kovix.client.network.KovixRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.max
+import java.util.Locale
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import android.os.UserManager
@@ -42,6 +49,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var rootContainer: LinearLayout
+    private lateinit var lightTrail: View
+    private lateinit var headerSignalDot: View
+    private lateinit var headerCard: LinearLayout
+    private lateinit var statusCard: LinearLayout
+    private lateinit var configSection: LinearLayout
+    private lateinit var configActionsRow: LinearLayout
     private lateinit var baseUrlInput: EditText
     private lateinit var installCodeInput: EditText
     private lateinit var clientSecretInput: EditText
@@ -50,7 +63,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var unlockConfigButton: Button
     private lateinit var adminModeText: TextView
     private lateinit var statusTitle: TextView
+    private lateinit var statusBadge: TextView
     private lateinit var statusMessage: TextView
+    private lateinit var customerAvatar: TextView
     private lateinit var customerNameText: TextView
     private lateinit var lastSyncText: TextView
     private lateinit var errorText: TextView
@@ -60,20 +75,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var creditCard: LinearLayout
     private lateinit var creditTitle: TextView
     private lateinit var creditDetail: TextView
-    private lateinit var reportPaymentButton: Button
+    private lateinit var creditProgressText: TextView
+    private lateinit var creditProgressBar: ProgressBar
+    private lateinit var totalInstallmentsValueText: TextView
+    private lateinit var paidInstallmentsValueText: TextView
+    private lateinit var pendingInstallmentsValueText: TextView
+    private lateinit var nextPaymentDateValueText: TextView
+    private lateinit var nextPaymentYearValueText: TextView
+    private lateinit var installmentsTitle: TextView
+    private lateinit var installmentsTableContainer: LinearLayout
+    private lateinit var installmentsTableText: TextView
     private lateinit var lockOverlay: LinearLayout
     private lateinit var lockTitle: TextView
     private lateinit var lockDetail: TextView
-    private lateinit var lockRetryButton: Button
     private lateinit var callsOnlyOverlay: LinearLayout
     private lateinit var callsOnlyTitle: TextView
     private lateinit var callsOnlyDetail: TextView
-    private lateinit var callsOnlySyncButton: Button
 
     private var pollingJob: Job? = null
     private var repository: KovixRepository? = null
     private var pollingIntervalMs: Long = 300_000L
-    private var reportableInstallmentId: String? = null
     private lateinit var devicePolicyManager: DevicePolicyManager
     private lateinit var adminComponent: ComponentName
     private var isDeviceOwnerMode: Boolean = false
@@ -106,6 +127,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindViews() {
         rootContainer = findViewById(R.id.rootContainer)
+        lightTrail = findViewById(R.id.lightTrail)
+        headerSignalDot = findViewById(R.id.headerSignalDot)
+        headerCard = findViewById(R.id.headerCard)
+        statusCard = findViewById(R.id.statusCard)
+        configSection = findViewById(R.id.configSection)
+        configActionsRow = findViewById(R.id.configActionsRow)
         baseUrlInput = findViewById(R.id.baseUrlInput)
         installCodeInput = findViewById(R.id.installCodeInput)
         clientSecretInput = findViewById(R.id.clientSecretInput)
@@ -114,7 +141,9 @@ class MainActivity : AppCompatActivity() {
         syncNowButton = findViewById(R.id.syncNowButton)
         unlockConfigButton = findViewById(R.id.unlockConfigButton)
         statusTitle = findViewById(R.id.statusTitle)
+        statusBadge = findViewById(R.id.statusBadge)
         statusMessage = findViewById(R.id.statusMessage)
+        customerAvatar = findViewById(R.id.customerAvatar)
         customerNameText = findViewById(R.id.customerNameText)
         lastSyncText = findViewById(R.id.lastSyncText)
         errorText = findViewById(R.id.errorText)
@@ -124,15 +153,55 @@ class MainActivity : AppCompatActivity() {
         creditCard = findViewById(R.id.creditCard)
         creditTitle = findViewById(R.id.creditTitle)
         creditDetail = findViewById(R.id.creditDetail)
-        reportPaymentButton = findViewById(R.id.reportPaymentButton)
+        creditProgressText = findViewById(R.id.creditProgressText)
+        creditProgressBar = findViewById(R.id.creditProgressBar)
+        totalInstallmentsValueText = findViewById(R.id.totalInstallmentsValueText)
+        paidInstallmentsValueText = findViewById(R.id.paidInstallmentsValueText)
+        pendingInstallmentsValueText = findViewById(R.id.pendingInstallmentsValueText)
+        nextPaymentDateValueText = findViewById(R.id.nextPaymentDateValueText)
+        nextPaymentYearValueText = findViewById(R.id.nextPaymentYearValueText)
+        installmentsTitle = findViewById(R.id.installmentsTitle)
+        installmentsTableContainer = findViewById(R.id.installmentsTableContainer)
+        installmentsTableText = findViewById(R.id.installmentsTableText)
         lockOverlay = findViewById(R.id.lockOverlay)
         lockTitle = findViewById(R.id.lockTitle)
         lockDetail = findViewById(R.id.lockDetail)
-        lockRetryButton = findViewById(R.id.lockRetryButton)
         callsOnlyOverlay = findViewById(R.id.callsOnlyOverlay)
         callsOnlyTitle = findViewById(R.id.callsOnlyTitle)
         callsOnlyDetail = findViewById(R.id.callsOnlyDetail)
-        callsOnlySyncButton = findViewById(R.id.callsOnlySyncButton)
+        runIntroAnimations()
+    }
+
+    private fun runIntroAnimations() {
+        val cards = listOf(headerCard, statusCard, restrictionCard, creditCard)
+        cards.forEachIndexed { index, view ->
+            view.alpha = 0f
+            view.translationY = 28f
+            view.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setStartDelay((index * 90L) + 30L)
+                .setDuration(420L)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+
+        headerSignalDot.animate()
+            .alpha(0.35f)
+            .setDuration(900L)
+            .withEndAction {
+                headerSignalDot.animate().alpha(1f).setDuration(900L).start()
+            }
+            .start()
+
+        lightTrail.alpha = 0.25f
+        lightTrail.animate()
+            .alpha(1f)
+            .setDuration(700L)
+            .withEndAction {
+                lightTrail.animate().alpha(0.35f).setDuration(900L).start()
+            }
+            .start()
     }
 
     private fun setupDeviceControlMode() {
@@ -255,24 +324,6 @@ class MainActivity : AppCompatActivity() {
         syncNowButton.setOnClickListener {
             lifecycleScope.launch {
                 syncOnce()
-            }
-        }
-
-        lockRetryButton.setOnClickListener {
-            lifecycleScope.launch {
-                syncOnce()
-            }
-        }
-
-        callsOnlySyncButton.setOnClickListener {
-            lifecycleScope.launch {
-                syncOnce()
-            }
-        }
-
-        reportPaymentButton.setOnClickListener {
-            lifecycleScope.launch {
-                reportCurrentInstallment()
             }
         }
 
@@ -410,92 +461,53 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun reportCurrentInstallment() {
-        val installCode = installCodeInput.text.toString().trim()
-        val clientSecret = clientSecretInput.text.toString().trim()
-        val repo = repository
-        val installmentId = reportableInstallmentId
-
-        if (installCode.isBlank() || clientSecret.isBlank() || repo == null) {
-            setError("Config incompleta: baseUrl, installCode y clientSecret son obligatorios.")
-            return
-        }
-
-        if (installmentId.isNullOrBlank()) {
-            setError("No hay cuotas pendientes o vencidas para reportar.")
-            return
-        }
-
-        reportPaymentButton.isEnabled = false
-        reportPaymentButton.text = "Reportando..."
-
-        repo.reportInstallmentPayment(
-            installCode = installCode,
-            clientSecret = clientSecret,
-            installmentId = installmentId,
-            note = "Reporte desde app cliente",
-        ).onSuccess { response ->
-            setError(response.message ?: "Pago reportado para validacion del administrador.")
-        }.onFailure { error ->
-            setError("No se pudo reportar pago: ${error.message}")
-        }
-
-        reportPaymentButton.isEnabled = true
-        reportPaymentButton.text = "Reportar pago de cuota"
-        syncOnce()
-    }
-
     private fun renderDeviceStatus(payload: DevicePayload) {
         val normalizedStatus = normalizeStatus(payload.status)
         currentDeviceStatus = normalizedStatus
         statusTitle.text = "Estado: $normalizedStatus"
+        statusBadge.text = normalizedStatus.replace('_', ' ')
+        applyStatusBadge(normalizedStatus)
         statusMessage.text = payload.message?.trim().takeUnless { it.isNullOrBlank() }
             ?: "Sincroniza para obtener estado del servidor."
-        customerNameText.text = "Cliente: ${payload.customerName?.trim().takeUnless { it.isNullOrBlank() } ?: "-"}"
+        val customerName = payload.customerName?.trim().takeUnless { it.isNullOrBlank() } ?: "-"
+        customerNameText.text = "Cliente: $customerName"
+        customerAvatar.text = buildAvatarInitials(customerName)
         lastSyncText.text = "Ultima sync: ${payload.updatedAt?.let { formatIso(it) } ?: "-"}"
         pollingIntervalMs = (payload.policy.nextCheckInSeconds.coerceAtLeast(30) * 1000L)
 
-        val bgColor = when (normalizedStatus) {
-            "ACTIVO" -> getColor(R.color.status_active_bg)
-            "PAGO_PENDIENTE" -> getColor(R.color.status_pending_bg)
-            "SOLO_LLAMADAS" -> getColor(R.color.status_calls_only_bg)
-            "BLOQUEADO" -> getColor(R.color.status_blocked_bg)
-            else -> getColor(android.R.color.white)
-        }
-        rootContainer.setBackgroundColor(bgColor)
         applyReadableContentColors()
 
         when (normalizedStatus) {
             "ACTIVO" -> {
-                restrictionCard.setBackgroundColor(getColor(R.color.status_active_bg))
-                restrictionTitle.text = "Modo normal"
+                tintCard(restrictionCard, "#2A77B8")
+                restrictionTitle.text = "Cuenta al dia"
                 restrictionDetail.text =
-                    "Equipo habilitado. Mantener sincronizacion cada ${payload.policy.nextCheckInSeconds}s."
+                    "Equipo habilitado y sin restricciones."
             }
 
             "PAGO_PENDIENTE" -> {
-                restrictionCard.setBackgroundColor(getColor(R.color.status_pending_bg))
-                restrictionTitle.text = "Advertencia de pago"
+                tintCard(restrictionCard, "#2A77B8")
+                restrictionTitle.text = "Pago pendiente"
                 restrictionDetail.text =
-                    "Notificar al cliente. Si no paga, pasa a SOLO_LLAMADAS en ${payload.policy.callsOnlyAfterDaysLate} dias."
+                    "Tienes cuotas pendientes. Regulariza para evitar bloqueo."
             }
 
             "SOLO_LLAMADAS" -> {
-                restrictionCard.setBackgroundColor(getColor(R.color.status_calls_only_bg))
-                restrictionTitle.text = "Modo restringido: SOLO_LLAMADAS"
+                tintCard(restrictionCard, "#2A77B8")
+                restrictionTitle.text = "Restriccion parcial"
                 restrictionDetail.text =
-                    "Permitir solo funciones basicas y guiar al cliente para regularizacion inmediata."
+                    "Tu dispositivo esta en modo de llamadas por falta de pago."
             }
 
             "BLOQUEADO" -> {
-                restrictionCard.setBackgroundColor(getColor(R.color.status_blocked_bg))
+                tintCard(restrictionCard, "#2A77B8")
                 restrictionTitle.text = "BLOQUEADO"
                 restrictionDetail.text =
                     "Equipo bloqueado por incumplimiento. Mostrar mensaje de pago y contacto de cobranza."
             }
 
             else -> {
-                restrictionCard.setBackgroundColor(getColor(android.R.color.white))
+                tintCard(restrictionCard, "#2A77B8")
                 restrictionTitle.text = "Modo operativo"
                 restrictionDetail.text = "Estado no reconocido."
             }
@@ -520,65 +532,230 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun applyStatusBadge(status: String) {
+        val drawableRes = when (status) {
+            "ACTIVO" -> R.drawable.bg_status_chip_active
+            "PAGO_PENDIENTE" -> R.drawable.bg_status_chip_pending
+            "SOLO_LLAMADAS" -> R.drawable.bg_status_chip_calls
+            "BLOQUEADO" -> R.drawable.bg_status_chip_blocked
+            else -> R.drawable.bg_status_chip_pending
+        }
+        val textColor = when (status) {
+            "ACTIVO" -> Color.parseColor("#1D4ED8")
+            "PAGO_PENDIENTE" -> Color.parseColor("#92400E")
+            "SOLO_LLAMADAS" -> Color.parseColor("#B45309")
+            "BLOQUEADO" -> Color.parseColor("#B91C1C")
+            else -> Color.parseColor("#475569")
+        }
+        statusBadge.background = ContextCompat.getDrawable(this, drawableRes)
+        statusBadge.setTextColor(textColor)
+    }
+
+    private fun buildAvatarInitials(name: String): String {
+        if (name.isBlank() || name == "-") return "--"
+        val parts = name
+            .split(" ")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+        return when {
+            parts.isEmpty() -> "--"
+            parts.size == 1 -> parts.first().take(2).uppercase()
+            else -> (parts[0].take(1) + parts[1].take(1)).uppercase()
+        }
+    }
+
     private fun renderCreditSummary(payload: DevicePayload) {
         val credit = payload.credit
 
         if (credit == null || credit.totalInstallments == null || credit.totalInstallments <= 0) {
-            creditCard.setBackgroundColor(getColor(R.color.status_active_bg))
-            creditTitle.text = "Mi credito"
-            creditDetail.text = "No hay contrato de credito activo para este dispositivo."
-            reportableInstallmentId = null
-            reportPaymentButton.isEnabled = false
+            tintCard(creditCard, "#2A77B8")
+            creditTitle.text = "Mis cuotas"
+            creditDetail.text = "No hay cuotas activas."
+            creditProgressText.text = "Progreso: 0%"
+            creditProgressBar.progress = 0
+            totalInstallmentsValueText.text = "Total de cuotas: -"
+            paidInstallmentsValueText.text = "Cuotas pagadas: -"
+            pendingInstallmentsValueText.text = "Cuotas pendientes: -"
+            nextPaymentDateValueText.text = "-- ---"
+            nextPaymentYearValueText.text = "----"
+            installmentsTitle.text = "Resumen de credito"
+            installmentsTableText.text = "Sin cuotas para mostrar."
+            installmentsTableContainer.removeAllViews()
             return
         }
 
-        val currency = credit.currency ?: "USD"
-        val principal = credit.principalAmount ?: 0.0
-        val downPayment = credit.downPaymentAmount ?: 0.0
-        val financed = credit.financedAmount ?: max(0.0, principal - downPayment)
-        val installmentAmount = credit.installmentAmount ?: 0.0
         val paidInstallments = credit.paidInstallments ?: 0
         val pendingInstallments = credit.pendingInstallments ?: 0
-        val overdueInstallments = credit.overdueInstallments ?: 0
-        val reportedInstallments = credit.reportedInstallments ?: 0
         val totalInstallments = credit.totalInstallments
-        val pendingAmount = credit.pendingAmount ?: 0.0
-        val nextDue = credit.nextDueDate?.let { formatIso(it) } ?: "-"
-        val reportableInstallment = findReportableInstallment(credit.installments)
-        reportableInstallmentId = reportableInstallment?.id
+        val nextDue = credit.nextDueDate?.let { formatIsoDateOnly(it) } ?: "-"
+        val nextDueMain = credit.nextDueDate?.let { formatDueDateMain(it) } ?: "-- ---"
+        val nextDueYear = credit.nextDueDate?.let { formatDueDateYear(it) } ?: "----"
+        val paidPercent = ((paidInstallments * 100.0) / totalInstallments).toInt().coerceIn(0, 100)
+        val currency = credit.currency ?: "USD"
 
-        creditCard.setBackgroundColor(getColor(R.color.status_pending_bg))
-        creditTitle.text = "Mi credito: $paidInstallments / $totalInstallments cuotas pagadas"
+        tintCard(creditCard, "#2A77B8")
+        creditTitle.text = "Mis cuotas"
         creditDetail.text =
-            "Precio: ${formatMoney(principal)} $currency\n" +
-                "Entrada: ${formatMoney(downPayment)} $currency\n" +
-                "Financiado: ${formatMoney(financed)} $currency\n" +
-                "Cuota: ${formatMoney(installmentAmount)} $currency\n" +
-                "Pendientes: $pendingInstallments | Vencidas: $overdueInstallments | Reportadas: $reportedInstallments\n" +
-                "Saldo pendiente: ${formatMoney(pendingAmount)} $currency\n" +
-                "Proxima cuota: $nextDue" +
-                if (reportedInstallments > 0) {
-                    "\nPago reportado en revision por administracion."
-                } else {
-                    ""
-                }
-        reportPaymentButton.isEnabled = reportableInstallment != null
-        reportPaymentButton.text = if (reportableInstallment != null) {
-            "Reportar pago de cuota #${reportableInstallment.sequence ?: "-"}"
-        } else if (reportedInstallments > 0) {
-            "Pago reportado en revision"
-        } else {
-            "Sin cuotas por reportar"
-        }
+            "Resumen: $paidInstallments pagadas de $totalInstallments\n" +
+                "Pendientes: $pendingInstallments\n" +
+                "Proxima fecha de pago: $nextDue"
+        creditProgressText.text = "Progreso: $paidPercent% completado"
+        creditProgressBar.progress = paidPercent
+        totalInstallmentsValueText.text = "Total de cuotas: $totalInstallments"
+        paidInstallmentsValueText.text = "Cuotas pagadas: $paidInstallments"
+        pendingInstallmentsValueText.text = "Cuotas pendientes: $pendingInstallments"
+        nextPaymentDateValueText.text = nextDueMain
+        nextPaymentYearValueText.text = nextDueYear
+
+        installmentsTitle.text = "Resumen de credito"
+        renderInstallmentsTable(credit.installments, currency)
     }
 
-    private fun findReportableInstallment(installments: List<DeviceCreditInstallment>): DeviceCreditInstallment? {
-        val overdue = installments.firstOrNull { it.status == "VENCIDO" }
-        if (overdue != null) {
-            return overdue
+    private fun renderInstallmentsTable(
+        installments: List<DeviceCreditInstallment>,
+        currency: String,
+    ) {
+        installmentsTableContainer.removeAllViews()
+
+        if (installments.isEmpty()) {
+            installmentsTableText.visibility = View.VISIBLE
+            installmentsTableText.text = "Sin cuotas para mostrar."
+            return
         }
 
-        return installments.firstOrNull { it.status == "PENDIENTE" }
+        installmentsTableText.visibility = View.GONE
+        installments
+            .sortedBy { it.sequence ?: Int.MAX_VALUE }
+            .forEachIndexed { index, installment ->
+                val sequence = installment.sequence?.toString() ?: "-"
+                val dueDate = installment.dueDate?.let { formatIsoDateOnly(it) } ?: "-"
+                val amount = installment.amount ?: 0.0
+                val rawStatus = installment.status?.trim()?.uppercase().orEmpty()
+                val clientStatus = if (rawStatus == "PAGADO") "PAGADO" else "PENDIENTE"
+                val card = LinearLayout(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = if (index == 0) 0 else 10
+                    }
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(14, 12, 14, 12)
+                    background = ContextCompat.getDrawable(
+                        this@MainActivity,
+                        R.drawable.bg_installment_item_card
+                    )
+                }
+
+                val topRow = LinearLayout(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                }
+
+                val sequenceView = TextView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    text = "Cuota $sequence"
+                    setTextColor(Color.parseColor("#111827"))
+                    textSize = 16f
+                    setTypeface(typeface, Typeface.BOLD)
+                }
+
+                val statusView = TextView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    text = clientStatus
+                    setPadding(18, 8, 18, 8)
+                    setTextColor(
+                        if (clientStatus == "PAGADO") Color.parseColor("#166534")
+                        else Color.parseColor("#92400E")
+                    )
+                    background = ContextCompat.getDrawable(
+                        this@MainActivity,
+                        if (clientStatus == "PAGADO") R.drawable.bg_chip_paid_light
+                        else R.drawable.bg_chip_pending_light
+                    )
+                    textSize = 12f
+                    setTypeface(typeface, Typeface.BOLD)
+                }
+
+                val dueDateView = TextView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = 8
+                    }
+                    text = "Fecha de pago: $dueDate"
+                    setTextColor(Color.parseColor("#334155"))
+                    textSize = 13f
+                }
+
+                val amountView = TextView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = 3
+                    }
+                    text = "Valor: ${formatMoney(amount)} $currency"
+                    setTextColor(Color.parseColor("#475569"))
+                    textSize = 13f
+                }
+
+                val hintStatusView = TextView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        topMargin = 2
+                    }
+                    text = if (clientStatus == "PAGADO") {
+                        "Estado validado."
+                    } else {
+                        "Pendiente de cancelacion."
+                    }
+                    setTextColor(Color.parseColor("#64748B"))
+                    textSize = 12f
+                }
+
+                val separator = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        1
+                    ).apply {
+                        topMargin = 10
+                    }
+                    setBackgroundColor(Color.parseColor("#E2E8F0"))
+                }
+
+                topRow.addView(sequenceView)
+                topRow.addView(statusView)
+
+                card.addView(topRow)
+                card.addView(dueDateView)
+                card.addView(amountView)
+                card.addView(hintStatusView)
+                if (index != installments.lastIndex) {
+                    card.addView(separator)
+                }
+
+                card.alpha = 0f
+                card.translationY = 22f
+                card.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(260L)
+                    .setStartDelay((index * 35L).coerceAtMost(280L))
+                    .start()
+
+                installmentsTableContainer.addView(card)
+            }
     }
 
     private fun setError(value: String) {
@@ -590,6 +767,10 @@ class MainActivity : AppCompatActivity() {
         installCodeInput.isEnabled = !isConfigLocked
         clientSecretInput.isEnabled = !isConfigLocked
         saveConfigButton.isEnabled = !isConfigLocked
+        syncNowButton.isEnabled = !isConfigLocked
+        configActionsRow.visibility = if (isConfigLocked) View.GONE else View.VISIBLE
+        unlockConfigButton.visibility = if (isConfigLocked) View.GONE else View.VISIBLE
+        configSection.visibility = if (isConfigLocked) View.GONE else View.VISIBLE
         applyConfigFieldReadability(baseUrlInput)
         applyConfigFieldReadability(installCodeInput)
         applyConfigFieldReadability(clientSecretInput)
@@ -601,25 +782,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyConfigFieldReadability(field: EditText) {
-        // En algunos equipos el estado disabled deja texto/hint casi blanco.
         field.alpha = 1.0f
-        field.setTextColor(Color.parseColor("#111827"))
-        field.setHintTextColor(Color.parseColor("#6B7280"))
+        field.setTextColor(Color.parseColor("#102A43"))
+        field.setHintTextColor(Color.parseColor("#829AB1"))
     }
 
     private fun applyReadableContentColors() {
-        val dark = getColor(R.color.status_text)
-        val muted = Color.parseColor("#374151")
-        val accent = Color.parseColor("#1E3A8A")
+        val dark = Color.parseColor("#102A43")
+        val muted = Color.parseColor("#486581")
+        val accent = Color.parseColor("#243B53")
 
         statusTitle.setTextColor(dark)
         statusMessage.setTextColor(muted)
-        customerNameText.setTextColor(muted)
-        lastSyncText.setTextColor(muted)
+        customerNameText.setTextColor(dark)
+        lastSyncText.setTextColor(Color.parseColor("#627D98"))
         restrictionTitle.setTextColor(dark)
         restrictionDetail.setTextColor(muted)
         creditTitle.setTextColor(accent)
         creditDetail.setTextColor(muted)
+        installmentsTitle.setTextColor(accent)
+        installmentsTableText.setTextColor(Color.parseColor("#627D98"))
+    }
+
+    private fun tintCard(card: LinearLayout, colorHex: String) {
+        val base = ContextCompat.getDrawable(this, R.drawable.bg_summary_panel)
+        if (base is GradientDrawable) {
+            base.setStroke(1, Color.parseColor(colorHex))
+            card.background = base
+        } else {
+            card.background = ContextCompat.getDrawable(this, R.drawable.bg_summary_panel)
+        }
     }
 
     private fun lockConfigAfterFirstSuccessfulSync() {
@@ -666,10 +858,37 @@ class MainActivity : AppCompatActivity() {
         }.getOrDefault(value)
     }
 
-    private fun formatMoney(value: Double): String {
+    private fun formatIsoDateOnly(value: String): String {
+        val date = parseFlexibleDate(value) ?: return value
         return runCatching {
-            String.format("%.2f", value)
-        }.getOrDefault(value.toString())
+            date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        }.getOrDefault(value)
+    }
+
+    private fun formatDueDateMain(value: String): String {
+        val date = parseFlexibleDate(value) ?: return "-- ---"
+        return runCatching {
+            date.format(DateTimeFormatter.ofPattern("dd MMM", Locale("es", "EC"))).uppercase(Locale("es", "EC"))
+        }.getOrDefault("-- ---")
+    }
+
+    private fun formatDueDateYear(value: String): String {
+        val date = parseFlexibleDate(value) ?: return "----"
+        return runCatching {
+            date.format(DateTimeFormatter.ofPattern("yyyy"))
+        }.getOrDefault("----")
+    }
+
+    private fun parseFlexibleDate(value: String): LocalDate? {
+        return runCatching { OffsetDateTime.parse(value).toLocalDate() }.getOrNull()
+            ?: runCatching {
+                LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toLocalDate()
+            }.getOrNull()
+            ?: runCatching { LocalDate.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd")) }.getOrNull()
+    }
+
+    private fun formatMoney(value: Double): String {
+        return String.format("%.2f", value)
     }
 
     private fun normalizeStatus(rawStatus: String?): String {

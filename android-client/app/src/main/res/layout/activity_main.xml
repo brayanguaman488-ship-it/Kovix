@@ -1,160 +1,169 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#EEF3FA">
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
             android:id="@+id/rootContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="KOVIX Device Client"
-                android:textColor="#0F172A"
-                android:textSize="22sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Cliente Android para sincronizar estado del equipo"
-                android:textColor="#374151" />
-
-            <TextView
-                android:id="@+id/adminModeText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Modo de control: ESTANDAR"
-                android:textColor="#92400E"
-                android:textStyle="bold" />
-
-            <EditText
-                android:id="@+id/baseUrlInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:hint="Base URL (ej: http://10.0.2.2:4000)"
-                android:inputType="textUri"
-                android:textColor="#111827"
-                android:textColorHint="#6B7280" />
-
-            <EditText
-                android:id="@+id/installCodeInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Install Code"
-                android:inputType="text"
-                android:textColor="#111827"
-                android:textColorHint="#6B7280" />
-
-            <EditText
-                android:id="@+id/clientSecretInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Client Secret"
-                android:inputType="textPassword"
-                android:textColor="#111827"
-                android:textColorHint="#6B7280" />
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="22dp">
 
             <LinearLayout
+                android:id="@+id/headerCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
+                android:background="@drawable/bg_summary_panel"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
 
-                <Button
-                    android:id="@+id/saveConfigButton"
+                <TextView
+                    android:id="@+id/customerAvatar"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:background="@drawable/bg_avatar_badge"
+                    android:gravity="center"
+                    android:text="KV"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
-                    android:text="Guardar config" />
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/syncNowButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:text="Sincronizar" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:letterSpacing="0.05"
+                        android:text="KOVIX"
+                        android:textAllCaps="true"
+                        android:textColor="#102A43"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:fontFamily="sans-serif"
+                        android:text="Estado financiero del dispositivo"
+                        android:textColor="#486581"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/headerSignalDot"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/bg_red_dot" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/unlockConfigButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Desbloquear config (Admin)" />
-
-            <TextView
-                android:id="@+id/statusTitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="Estado: SIN_DATOS"
-                android:textColor="#111827"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/statusMessage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Sincroniza para obtener estado del servidor."
-                android:textColor="#374151" />
-
-            <TextView
-                android:id="@+id/customerNameText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Cliente: -"
-                android:textColor="#1F2937" />
-
-            <TextView
-                android:id="@+id/lastSyncText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Ultima sync: -"
-                android:textColor="#1F2937" />
-
-            <TextView
-                android:id="@+id/errorText"
+            <LinearLayout
+                android:id="@+id/statusCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:textColor="#B91C1C"
-                android:textStyle="bold" />
+                android:background="@drawable/bg_summary_panel"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/statusTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Estado: SIN_DATOS"
+                        android:textColor="#102A43"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/statusBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_status_chip_pending"
+                        android:fontFamily="sans-serif-medium"
+                        android:paddingStart="10dp"
+                        android:paddingTop="4dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="4dp"
+                        android:text="PENDIENTE"
+                        android:textAllCaps="true"
+                        android:textColor="#92400E"
+                        android:textSize="10sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/statusMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="sans-serif"
+                    android:text="Sincroniza para obtener estado del servidor."
+                    android:textColor="#486581"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/customerNameText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Cliente: -"
+                    android:textColor="#243B53"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/lastSyncText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="sans-serif"
+                    android:text="Ultima sync: -"
+                    android:textColor="#627D98"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/restrictionCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="#F8FAFC"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_summary_panel"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="14dp">
 
                 <TextView
                     android:id="@+id/restrictionTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Modo operativo"
-                    android:textColor="#0F172A"
-                    android:textSize="18sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Resumen operativo"
+                    android:textColor="#102A43"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -162,51 +171,290 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif"
                     android:text="Sin restricciones activas."
-                    android:textColor="#374151" />
+                    android:textColor="#486581"
+                    android:textSize="13sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/creditCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="#EFF6FF"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_summary_panel"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="14dp">
 
-                <TextView
-                    android:id="@+id/creditTitle"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Mi credito"
-                    android:textColor="#1E3A8A"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/creditTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Mis cuotas"
+                        android:textColor="#102A43"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@drawable/ic_finance_coin" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/creditDetail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="Sin contrato activo."
-                    android:textColor="#374151" />
+                    android:fontFamily="sans-serif"
+                    android:text="Sin cuotas activas."
+                    android:textColor="#486581"
+                    android:textSize="13sp" />
 
-                <Button
-                    android:id="@+id/reportPaymentButton"
+                <TextView
+                    android:id="@+id/creditProgressText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Progreso: 0%"
+                    android:textColor="#2F86CA"
+                    android:textSize="12sp" />
+
+                <ProgressBar
+                    android:id="@+id/creditProgressBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="4dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="#2EA5FF"
+                    android:progressBackgroundTint="#D9E2EC" />
+
+                <TextView
+                    android:id="@+id/installmentsTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Resumen de credito"
+                    android:textColor="#243B53"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_summary_panel"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:id="@+id/totalInstallmentsValueText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Total de cuotas: -"
+                            android:textColor="#243B53"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/paidInstallmentsValueText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="Cuotas pagadas: -"
+                            android:textColor="#2F855A"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/pendingInstallmentsValueText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="Cuotas pendientes: -"
+                            android:textColor="#B7791F"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="0.95"
+                        android:background="@drawable/bg_summary_next_panel"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="PROXIMO PAGO"
+                            android:textColor="#486581"
+                            android:textSize="10sp" />
+
+                        <TextView
+                            android:id="@+id/nextPaymentDateValueText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:gravity="center"
+                            android:maxLines="2"
+                            android:text="-- ---"
+                            android:textColor="#102A43"
+                            android:textSize="24sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/nextPaymentYearValueText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="----"
+                            android:textColor="#486581"
+                            android:textSize="14sp"
+                            android:fontFamily="sans-serif-medium" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Detalle de cuotas"
+                    android:textColor="#243B53"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/installmentsTableContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/installmentsTableText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Reportar pago de cuota" />
+                    android:text="Sin cuotas para mostrar."
+                    android:textColor="#627D98"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/errorText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="#F87171"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/configSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_summary_panel"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:id="@+id/adminModeText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Modo tecnico"
+                    android:textColor="#243B53"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/baseUrlInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Base URL"
+                    android:inputType="textUri" />
+
+                <EditText
+                    android:id="@+id/installCodeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Install Code"
+                    android:inputType="text" />
+
+                <EditText
+                    android:id="@+id/clientSecretInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Client Secret"
+                    android:inputType="textPassword" />
+
+                <LinearLayout
+                    android:id="@+id/configActionsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/saveConfigButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Guardar" />
+
+                    <Button
+                        android:id="@+id/syncNowButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:text="Sincronizar" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/unlockConfigButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Desbloquear config (Admin)" />
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
+
+    <View
+        android:id="@+id/lightTrail"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_gravity="top"
+        android:layout_marginTop="0dp"
+        android:background="#4CB8F8" />
 
     <LinearLayout
         android:id="@+id/callsOnlyOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FEF3C7"
+        android:background="#D9FFF7ED"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="24dp"
@@ -218,7 +466,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="MODO SOLO LLAMADAS"
-            android:textColor="#92400E"
+            android:textColor="#B45309"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -228,23 +476,16 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:gravity="center"
-            android:text="Tu equipo esta restringido. Regulariza tu pago para volver al modo normal."
-            android:textColor="#78350F"
+            android:text="Regulariza tu cuota para restaurar el servicio completo."
+            android:textColor="#92400E"
             android:textSize="18sp" />
-
-        <Button
-            android:id="@+id/callsOnlySyncButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Sincronizar ahora" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/lockOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FEE2E2"
+        android:background="#D9FEF2F2"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="24dp"
@@ -256,7 +497,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="DISPOSITIVO BLOQUEADO"
-            android:textColor="#991B1B"
+            android:textColor="#B91C1C"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -267,14 +508,7 @@
             android:layout_marginTop="12dp"
             android:gravity="center"
             android:text="Regulariza pagos para restablecer el servicio."
-            android:textColor="#7F1D1D"
+            android:textColor="#991B1B"
             android:textSize="18sp" />
-
-        <Button
-            android:id="@+id/lockRetryButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Reintentar sincronizacion" />
     </LinearLayout>
 </FrameLayout>
