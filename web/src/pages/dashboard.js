@@ -72,6 +72,40 @@ const filterSecondaryButtonStyle = {
   borderRadius: 12,
   background: "rgba(248, 250, 252, 0.95)",
 };
+const dashboardFrameStyle = {
+  minHeight: "100vh",
+  display: "grid",
+  gridTemplateColumns: "290px minmax(0, 1fr)",
+  background: "#f4f6f8",
+};
+const sidebarStyle = {
+  background: "radial-gradient(circle at top left, #1f4f93, #0b1220 48%, #05070d 100%)",
+  color: "#ffffff",
+  padding: "26px 18px",
+  display: "grid",
+  alignContent: "start",
+  gap: 18,
+  borderRight: "1px solid rgba(255,255,255,0.08)",
+};
+const sidebarBrandStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "2px 8px",
+};
+const sidebarNavButton = (active) => ({
+  width: "100%",
+  borderRadius: 16,
+  border: active ? "1px solid rgba(255,255,255,0.26)" : "1px solid transparent",
+  background: active ? "rgba(255,255,255,0.14)" : "transparent",
+  color: active ? "#ffffff" : "rgba(255,255,255,0.82)",
+  padding: "12px 14px",
+  textAlign: "left",
+  fontWeight: active ? 700 : 500,
+  fontSize: 17,
+  cursor: "pointer",
+  transition: "all 0.18s ease",
+});
 
 function paginate(items, page, pageSize) {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
@@ -191,6 +225,7 @@ function normalizeProvisioningChecksum(rawValue) {
 export default function Dashboard() {
   const router = useRouter();
   const hasHydratedQueryRef = useRef(false);
+  const advancedToolsRef = useRef(null);
   const [user, setUser] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
@@ -240,6 +275,7 @@ export default function Dashboard() {
   const [provisioningMode, setProvisioningMode] = useState("device_owner");
   const [hexnodeProvisioning, setHexnodeProvisioning] = useState(null);
   const [activeSummarySection, setActiveSummarySection] = useState("customers");
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -339,6 +375,13 @@ export default function Dashboard() {
 
   function handleSelectSummarySection(section) {
     setActiveSummarySection(section);
+  }
+
+  function handleOpenAdvancedTools() {
+    setIsAdvancedOpen(true);
+    requestAnimationFrame(() => {
+      advancedToolsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
 
@@ -1158,14 +1201,93 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <main style={pageShellStyle}>
-        Cargando dashboard...
-      </main>
+      <div style={dashboardFrameStyle}>
+        <aside style={sidebarStyle}>
+          <div style={sidebarBrandStyle}>
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)",
+                display: "grid",
+                placeItems: "center",
+                fontWeight: 800,
+                fontSize: 22,
+              }}
+            >
+              K
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: 0.6 }}>KOVIX</div>
+          </div>
+        </aside>
+        <main style={{ ...pageShellStyle, alignContent: "center", justifyItems: "start" }}>
+          Cargando dashboard...
+        </main>
+      </div>
     );
   }
 
   return (
-    <main style={pageShellStyle}>
+    <div style={dashboardFrameStyle}>
+      <aside style={sidebarStyle}>
+        <div style={sidebarBrandStyle}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 800,
+              fontSize: 22,
+              boxShadow: "0 10px 20px rgba(30, 64, 175, 0.42)",
+            }}
+          >
+            K
+          </div>
+          <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: 0.4 }}>KOVIX</div>
+        </div>
+
+        <nav style={{ display: "grid", gap: 8 }}>
+          <button type="button" style={sidebarNavButton(false)} onClick={() => setActiveSummarySection("customers")}>
+            Dashboard
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeSummarySection === "customers")}
+            onClick={() => setActiveSummarySection("customers")}
+          >
+            Clientes
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeSummarySection === "devices")}
+            onClick={() => setActiveSummarySection("devices")}
+          >
+            Dispositivos
+          </button>
+          <button type="button" style={sidebarNavButton(false)} onClick={handleOpenAdvancedTools}>
+            Contratos
+          </button>
+          <button type="button" style={sidebarNavButton(false)} onClick={handleOpenAdvancedTools}>
+            Aprovisionamiento QR
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeSummarySection === "finance")}
+            onClick={() => setActiveSummarySection("finance")}
+          >
+            Finanzas
+          </button>
+          <button type="button" style={sidebarNavButton(false)} onClick={handleOpenAdvancedTools}>
+            Papelera
+          </button>
+        </nav>
+      </aside>
+
+      <main style={pageShellStyle}>
       <DashboardHeader user={user} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
 
       {(isRefreshing || isLoggingOut) && (
@@ -1247,6 +1369,9 @@ export default function Dashboard() {
       </section>
 
       <details
+        ref={advancedToolsRef}
+        open={isAdvancedOpen}
+        onToggle={(event) => setIsAdvancedOpen(event.currentTarget.open)}
         style={{
           ...cardStyle,
           borderStyle: "dashed",
@@ -1868,6 +1993,7 @@ export default function Dashboard() {
           <FinancePanel payments={sortedPayments} />
         </section>
       )}
-    </main>
+      </main>
+    </div>
   );
 }

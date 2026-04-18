@@ -1,26 +1,25 @@
 export const pageShellStyle = {
-  padding: "32px 20px 42px",
+  padding: "28px 28px 42px",
   display: "grid",
-  gap: 24,
-  minHeight: "100vh",
-  maxWidth: 1280,
-  margin: "0 auto",
+  gap: 20,
+  minHeight: "100%",
+  maxWidth: "none",
+  margin: 0,
   overflowX: "clip",
 };
 
 export const cardStyle = {
-  border: "1px solid var(--line)",
-  borderRadius: 20,
+  border: "1px solid rgba(203, 213, 225, 0.8)",
+  borderRadius: 24,
   padding: 20,
-  background: "var(--panel)",
-  backdropFilter: "blur(7px)",
-  boxShadow: "0 22px 46px rgba(15, 23, 42, 0.12)",
+  background: "#ffffff",
+  boxShadow: "0 8px 26px rgba(15, 23, 42, 0.06)",
 };
 
 export const sectionTitleStyle = {
   marginTop: 0,
   marginBottom: 14,
-  fontSize: 21,
+  fontSize: 34,
   letterSpacing: 0.2,
   color: "var(--text-main)",
 };
@@ -37,7 +36,7 @@ export const inputStyle = {
 
 export const buttonStyle = {
   padding: "11px 15px",
-  borderRadius: 10,
+  borderRadius: 14,
   border: "1px solid #1d4ed8",
   background: "linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)",
   color: "#f8fafc",
@@ -48,19 +47,19 @@ export const buttonStyle = {
 
 export const secondaryButtonStyle = {
   padding: "10px 14px",
-  borderRadius: 10,
-  border: "1px solid var(--line)",
-  background: "#f8fafc",
+  borderRadius: 14,
+  border: "1px solid rgba(203, 213, 225, 0.95)",
+  background: "#ffffff",
   color: "var(--text-main)",
   fontWeight: 600,
   cursor: "pointer",
 };
 
 export const listItemStyle = {
-  border: "1px solid var(--line-soft)",
-  borderRadius: 12,
+  border: "1px solid rgba(203, 213, 225, 0.9)",
+  borderRadius: 14,
   padding: 12,
-  background: "var(--panel-soft)",
+  background: "#f8fafc",
 };
 
 export const paginationRowStyle = {
