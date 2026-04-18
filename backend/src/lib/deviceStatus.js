@@ -5,35 +5,53 @@ import { sendDeviceStatusPush } from "./pushNotifications.js";
 import { applyHexnodePolicyForStatus, isHexnodeConfigured } from "./hexnode.js";
 
 const { DeviceStatus, PaymentStatus } = prismaPackage;
+const DAY_MS = 1000 * 60 * 60 * 24;
+const WARNING_DAYS_BEFORE_DUE = 5;
+const CALLS_ONLY_DAYS_OVERDUE = 1;
+const BLOCKED_DAYS_OVERDUE = 3;
 
 function normalizeDate(value) {
   return new Date(value);
 }
 
+function startOfDay(value) {
+  const date = normalizeDate(value);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 export function getDerivedDeviceStatus(payments, now = new Date()) {
-  const currentDate = normalizeDate(now);
-  const overduePayments = payments
+  const today = startOfDay(now);
+  const activeDebtPayments = payments
     .filter((payment) => payment.status !== PaymentStatus.PAGADO && payment.status !== PaymentStatus.CANCELADO)
-    .filter((payment) => normalizeDate(payment.dueDate) < currentDate)
     .sort((a, b) => normalizeDate(a.dueDate) - normalizeDate(b.dueDate));
 
-  if (overduePayments.length === 0) {
+  if (activeDebtPayments.length === 0) {
     return DeviceStatus.ACTIVO;
   }
 
-  const oldestOverdue = overduePayments[0];
-  const msLate = currentDate.getTime() - normalizeDate(oldestOverdue.dueDate).getTime();
-  const lateDays = Math.floor(msLate / (1000 * 60 * 60 * 24));
+  const nextDuePayment = activeDebtPayments[0];
+  const dueDate = startOfDay(nextDuePayment.dueDate);
 
-  if (lateDays >= 30) {
-    return DeviceStatus.BLOQUEADO;
+  if (dueDate < today) {
+    const overdueDays = Math.floor((today.getTime() - dueDate.getTime()) / DAY_MS);
+
+    if (overdueDays >= BLOCKED_DAYS_OVERDUE) {
+      return DeviceStatus.BLOQUEADO;
+    }
+
+    if (overdueDays >= CALLS_ONLY_DAYS_OVERDUE) {
+      return DeviceStatus.SOLO_LLAMADAS;
+    }
+
+    return DeviceStatus.PAGO_PENDIENTE;
   }
 
-  if (lateDays >= 7) {
-    return DeviceStatus.SOLO_LLAMADAS;
+  const daysUntilDue = Math.floor((dueDate.getTime() - today.getTime()) / DAY_MS);
+  if (daysUntilDue <= WARNING_DAYS_BEFORE_DUE) {
+    return DeviceStatus.PAGO_PENDIENTE;
   }
 
-  return DeviceStatus.PAGO_PENDIENTE;
+  return DeviceStatus.ACTIVO;
 }
 
 export async function syncDeviceStatus(deviceId, changedByUserId, reason) {
@@ -104,4 +122,15 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason) {
   }
 
   return updated;
+}
+
+export async function syncAllDeviceStatuses(changedByUserId = null, reason = "Sincronizacion automatica por fechas de pago") {
+  const devices = await prisma.device.findMany({
+    select: { id: true },
+  });
+
+  for (const device of devices) {
+    // eslint-disable-next-line no-await-in-loop
+    await syncDeviceStatus(device.id, changedByUserId, reason);
+  }
 }

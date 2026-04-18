@@ -13,6 +13,7 @@ import {
   parsePositiveAmount,
 } from "../lib/validation.js";
 import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
+import { syncDeviceStatus } from "../lib/deviceStatus.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -79,6 +80,8 @@ router.post("/", asyncHandler(async (req, res) => {
       },
     });
 
+    await syncDeviceStatus(normalizedDeviceId, req.user.id, "Pago creado");
+
     return res.status(201).json({ ok: true, payment });
   } catch (error) {
     if (error?.code === "P2003") {
@@ -123,6 +126,8 @@ router.patch("/:id/mark-paid", asyncHandler(async (req, res) => {
     });
   }
 
+  await syncDeviceStatus(payment.deviceId, req.user.id, "Pago marcado como pagado");
+
   return res.json({ ok: true, payment: updatedPayment });
 }));
 
@@ -157,6 +162,8 @@ router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
       },
     });
   }
+
+  await syncDeviceStatus(payment.deviceId, req.user.id, "Pago marcado como vencido");
 
   return res.json({ ok: true, payment: updatedPayment });
 }));
@@ -194,6 +201,8 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
       },
     });
   }
+
+  await syncDeviceStatus(payment.deviceId, req.user.id, "Pago marcado como pendiente");
 
   return res.json({ ok: true, payment: updatedPayment });
 }));
@@ -237,6 +246,8 @@ router.delete("/:id", asyncHandler(async (req, res) => {
       where: { id: current.id },
     });
   });
+
+  await syncDeviceStatus(current.deviceId, req.user.id, "Pago eliminado");
 
   return res.json({
     ok: true,

@@ -4,20 +4,25 @@ import { prisma } from "./prisma.js";
 
 const { PaymentStatus, InstallmentStatus } = prismaPackage;
 
-function buildDueDateFilter(now) {
+function startOfDay(value) {
+  const date = new Date(value);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function buildDueDateFilter(todayStart) {
   return {
-    lt: now,
+    lt: todayStart,
   };
 }
 
-function buildNotDueDateFilter(now) {
+function buildNotDueDateFilter(todayStart) {
   return {
-    gte: now,
+    gte: todayStart,
   };
 }
 
 export async function syncAutomaticAgingStatuses(deviceId = null) {
-  const now = new Date();
+  const todayStart = startOfDay(new Date());
   const paymentWhere = deviceId ? { deviceId } : {};
   const installmentWhere = deviceId ? { contract: { deviceId } } : {};
 
@@ -25,7 +30,7 @@ export async function syncAutomaticAgingStatuses(deviceId = null) {
     where: {
       ...paymentWhere,
       status: PaymentStatus.PENDIENTE,
-      dueDate: buildDueDateFilter(now),
+      dueDate: buildDueDateFilter(todayStart),
     },
     data: {
       status: PaymentStatus.VENCIDO,
@@ -36,7 +41,7 @@ export async function syncAutomaticAgingStatuses(deviceId = null) {
     where: {
       ...paymentWhere,
       status: PaymentStatus.VENCIDO,
-      dueDate: buildNotDueDateFilter(now),
+      dueDate: buildNotDueDateFilter(todayStart),
     },
     data: {
       status: PaymentStatus.PENDIENTE,
@@ -47,7 +52,7 @@ export async function syncAutomaticAgingStatuses(deviceId = null) {
     where: {
       ...installmentWhere,
       status: InstallmentStatus.PENDIENTE,
-      dueDate: buildDueDateFilter(now),
+      dueDate: buildDueDateFilter(todayStart),
     },
     data: {
       status: InstallmentStatus.VENCIDO,
@@ -58,7 +63,7 @@ export async function syncAutomaticAgingStatuses(deviceId = null) {
     where: {
       ...installmentWhere,
       status: InstallmentStatus.VENCIDO,
-      dueDate: buildNotDueDateFilter(now),
+      dueDate: buildNotDueDateFilter(todayStart),
     },
     data: {
       status: InstallmentStatus.PENDIENTE,

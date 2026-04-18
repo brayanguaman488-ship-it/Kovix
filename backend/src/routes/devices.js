@@ -17,7 +17,7 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { sendDeviceStatusPush } from "../lib/pushNotifications.js";
 import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
-import { syncDeviceStatus } from "../lib/deviceStatus.js";
+import { syncAllDeviceStatuses, syncDeviceStatus } from "../lib/deviceStatus.js";
 import {
   applyHexnodePolicyForStatus,
   generateInstallCode,
@@ -25,6 +25,7 @@ import {
   isHexnodeConfigured,
   resolveHexnodeDeviceMatch,
 } from "../lib/hexnode.js";
+import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import { registerTrashEntry } from "../lib/trash.js";
 import authMiddleware from "../middleware/auth.js";
 
@@ -125,9 +126,9 @@ function buildClientDeviceResponse(device) {
     updatedAt: device.lastStatusChangeAt,
     policy: {
       nextCheckInSeconds: 300,
-      warningAfterDaysLate: 1,
-      callsOnlyAfterDaysLate: 7,
-      blockedAfterDaysLate: 30,
+      warningBeforeDueDays: 5,
+      callsOnlyAfterDaysLate: 1,
+      blockedAfterDaysLate: 3,
     },
     credit: creditSummary,
   };
@@ -162,6 +163,9 @@ router.get("/client/:installCode/status", asyncHandler(async (req, res) => {
     return sendUnauthorized(res, "Credenciales de dispositivo invalidas");
   }
 
+  await syncAutomaticAgingStatuses(device.id);
+  await syncDeviceStatus(device.id, null, "Recalculo automatico por consulta de estado");
+
   await prisma.device.update({
     where: { id: device.id },
     data: {
@@ -170,9 +174,23 @@ router.get("/client/:installCode/status", asyncHandler(async (req, res) => {
     },
   });
 
+  const refreshedDevice = await prisma.device.findUnique({
+    where: { id: device.id },
+    include: {
+      customer: true,
+      creditContract: {
+        include: {
+          installments: {
+            orderBy: { sequence: "asc" },
+          },
+        },
+      },
+    },
+  });
+
   return res.json({
     ok: true,
-    device: buildClientDeviceResponse(device),
+    device: buildClientDeviceResponse(refreshedDevice || device),
   });
 }));
 
@@ -204,6 +222,9 @@ router.post("/client/:installCode/heartbeat", asyncHandler(async (req, res) => {
   if (!isValidClientSecret(device, providedSecret)) {
     return sendUnauthorized(res, "Credenciales de dispositivo invalidas");
   }
+
+  await syncAutomaticAgingStatuses(device.id);
+  await syncDeviceStatus(device.id, null, "Recalculo automatico por heartbeat");
 
   const updated = await prisma.device.update({
     where: { id: device.id },
@@ -279,6 +300,9 @@ router.get("/provisioning/hexnode-qr", asyncHandler(async (_req, res) => {
 }));
 
 router.get("/", asyncHandler(async (req, res) => {
+  await syncAutomaticAgingStatuses();
+  await syncAllDeviceStatuses(null, "Sincronizacion automatica al cargar dispositivos");
+
   const devices = await prisma.device.findMany({
     orderBy: { createdAt: "desc" },
     include: {

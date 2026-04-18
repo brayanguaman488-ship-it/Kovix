@@ -559,13 +559,17 @@ export default function Dashboard() {
 
     try {
       setIsSavingCustomer(true);
-      await api.createCustomer({
+      const response = await api.createCustomer({
         ...customerForm,
         fullName,
         nationalId,
         phone,
       });
+      const createdCustomerId = String(response?.customer?.id || "").trim();
       setCustomerForm(initialCustomerForm);
+      if (createdCustomerId) {
+        setDeviceForm((value) => ({ ...value, customerId: createdCustomerId }));
+      }
       setStatus("success", "Cliente creado correctamente");
       await loadDashboard({ silent: true });
     } catch (error) {
@@ -604,10 +608,15 @@ export default function Dashboard() {
         hexnodeDeviceId: rawHexnodeId || undefined,
       });
       const createdId = String(response?.device?.id || "").trim();
+      const createdCustomerId = String(response?.device?.customerId || customerId).trim();
       setDeviceForm(initialDeviceForm);
       if (createdId) {
         setSelectedCreditDeviceId(createdId);
         setProvisioningDeviceId(createdId);
+        setCreditForm((value) => ({ ...value, deviceId: createdId }));
+      }
+      if (createdCustomerId) {
+        setDeviceForm((value) => ({ ...value, customerId: createdCustomerId }));
       }
       const createdCode = String(response?.device?.installCode || "").trim();
       const createdSecret = String(response?.device?.clientSecret || "").trim();
@@ -1152,6 +1161,13 @@ export default function Dashboard() {
   const latestCreatedDevice = [...devices].sort(
     (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
   )[0] || null;
+  const sortedDevicesByCustomer = [...devices].sort((a, b) => {
+    const customerCompare = String(a.customer?.fullName || "").localeCompare(String(b.customer?.fullName || ""));
+    if (customerCompare !== 0) {
+      return customerCompare;
+    }
+    return String(a.installCode || "").localeCompare(String(b.installCode || ""));
+  });
   const selectedCreditDevice = devices.find((entry) => entry.id === selectedCreditDeviceId) || null;
   const selectedProvisioningDevice = devices.find((entry) => entry.id === provisioningDeviceId) || null;
   const deviceCustomerOptions = customers
@@ -1204,10 +1220,18 @@ export default function Dashboard() {
   }, [selectedCreditDeviceId, latestCreatedDevice]);
 
   useEffect(() => {
-    if (latestCreatedDevice?.id) {
+    if (latestCreatedDevice?.id && !creditForm.deviceId) {
       setCreditForm((value) => ({ ...value, deviceId: latestCreatedDevice.id }));
     }
-  }, [latestCreatedDevice]);
+  }, [creditForm.deviceId, latestCreatedDevice]);
+
+  useEffect(() => {
+    if (!creditForm.deviceId) {
+      return;
+    }
+
+    setSelectedCreditDeviceId(creditForm.deviceId);
+  }, [creditForm.deviceId]);
 
   useEffect(() => {
     if (provisioningMode === "hexnode" && !hexnodeProvisioning) {
@@ -1715,17 +1739,21 @@ export default function Dashboard() {
           <form onSubmit={handleCreateCreditContract} style={{ display: "grid", gap: 10 }}>
             <select
               value={creditForm.deviceId}
-              onChange={(event) => setCreditForm((value) => ({ ...value, deviceId: event.target.value }))}
+              onChange={(event) => {
+                const selectedDeviceId = event.target.value;
+                setCreditForm((value) => ({ ...value, deviceId: selectedDeviceId }));
+                setSelectedCreditDeviceId(selectedDeviceId);
+              }}
               style={inputStyle}
             >
               <option value="">
-                {latestCreatedDevice ? "Usar ultimo dispositivo registrado" : "Primero registra un dispositivo"}
+                {latestCreatedDevice ? "Selecciona cliente y dispositivo" : "Primero registra un dispositivo"}
               </option>
-              {latestCreatedDevice ? (
-                <option key={latestCreatedDevice.id} value={latestCreatedDevice.id}>
-                  {latestCreatedDevice.installCode} - {latestCreatedDevice.customer?.fullName || "Sin cliente"}
+              {sortedDevicesByCustomer.map((device) => (
+                <option key={device.id} value={device.id}>
+                  {(device.customer?.fullName || "Sin cliente")} - {device.brand} {device.model} ({device.installCode})
                 </option>
-              ) : null}
+              ))}
             </select>
             <input
               placeholder="Monto total (USD)"
@@ -1797,13 +1825,17 @@ export default function Dashboard() {
           <h3 style={{ margin: 0 }}>Gestion de cuotas</h3>
           <select
             value={selectedCreditDeviceId}
-            onChange={(event) => setSelectedCreditDeviceId(event.target.value)}
+            onChange={(event) => {
+              const selectedDeviceId = event.target.value;
+              setSelectedCreditDeviceId(selectedDeviceId);
+              setCreditForm((value) => ({ ...value, deviceId: selectedDeviceId }));
+            }}
             style={inputStyle}
           >
             <option value="">Selecciona dispositivo para revisar credito</option>
-            {devices.map((device) => (
+            {sortedDevicesByCustomer.map((device) => (
               <option key={device.id} value={device.id}>
-                {device.installCode} - {device.customer?.fullName || "Sin cliente"}
+                {(device.customer?.fullName || "Sin cliente")} - {device.brand} {device.model} ({device.installCode})
               </option>
             ))}
           </select>
@@ -1818,6 +1850,8 @@ export default function Dashboard() {
                 color: "#334155",
               }}
             >
+              Cliente: <strong>{selectedCreditDevice.customer?.fullName || "Sin cliente"}</strong>
+              <br />
               Equipo: <strong>{selectedCreditDevice.brand} {selectedCreditDevice.model}</strong> ({selectedCreditDevice.installCode})
             </div>
           )}
