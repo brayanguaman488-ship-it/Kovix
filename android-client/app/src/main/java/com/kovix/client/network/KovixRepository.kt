@@ -88,6 +88,19 @@ class KovixRepository(baseUrl: String) {
 
     private fun normalizeBaseUrl(value: String): String {
         val trimmed = value.trim()
-        return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
+        if (trimmed.isBlank()) {
+            return trimmed
+        }
+
+        val withScheme = if (
+            trimmed.startsWith("http://", ignoreCase = true) ||
+            trimmed.startsWith("https://", ignoreCase = true)
+        ) {
+            trimmed
+        } else {
+            "https://$trimmed"
+        }
+
+        return if (withScheme.endsWith("/")) withScheme else "$withScheme/"
     }
 }

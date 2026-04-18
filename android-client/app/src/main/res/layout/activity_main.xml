@@ -67,6 +67,17 @@
                         android:textSize="12sp" />
                 </LinearLayout>
 
+                <ImageButton
+                    android:id="@+id/adminMenuButton"
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="Menu administrador"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_more"
+                    android:tint="#627D98" />
+
                 <View
                     android:id="@+id/headerSignalDot"
                     android:layout_width="10dp"
@@ -314,10 +325,10 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="6dp"
                             android:gravity="center"
-                            android:maxLines="2"
+                            android:maxLines="1"
                             android:text="-- ---"
                             android:textColor="#102A43"
-                            android:textSize="24sp"
+                            android:textSize="21sp"
                             android:fontFamily="sans-serif-medium"
                             android:textStyle="bold" />
 
@@ -329,7 +340,8 @@
                             android:text="----"
                             android:textColor="#486581"
                             android:textSize="14sp"
-                            android:fontFamily="sans-serif-medium" />
+                            android:fontFamily="sans-serif-medium"
+                            android:visibility="gone" />
                     </LinearLayout>
                 </LinearLayout>
 

@@ -42,7 +42,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "DEFAULT_BASE_URL", "\"http://10.0.2.2:4000\"")
+            buildConfigField("String", "DEFAULT_BASE_URL", "\"https://api.kovixec.com\"")
         }
 
         release {

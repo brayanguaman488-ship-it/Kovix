@@ -17,7 +17,9 @@ import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -45,12 +47,13 @@ class MainActivity : AppCompatActivity() {
         private const val PREF_INSTALL_CODE = "installCode"
         private const val PREF_CLIENT_SECRET = "clientSecret"
         private const val PREF_CONFIG_LOCKED = "configLocked"
-        private const val ADMIN_UNLOCK_PIN = "7429"
+        private const val ADMIN_UNLOCK_PIN = "189902"
     }
 
     private lateinit var rootContainer: LinearLayout
     private lateinit var lightTrail: View
     private lateinit var headerSignalDot: View
+    private lateinit var adminMenuButton: ImageButton
     private lateinit var headerCard: LinearLayout
     private lateinit var statusCard: LinearLayout
     private lateinit var configSection: LinearLayout
@@ -129,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         rootContainer = findViewById(R.id.rootContainer)
         lightTrail = findViewById(R.id.lightTrail)
         headerSignalDot = findViewById(R.id.headerSignalDot)
+        adminMenuButton = findViewById(R.id.adminMenuButton)
         headerCard = findViewById(R.id.headerCard)
         statusCard = findViewById(R.id.statusCard)
         configSection = findViewById(R.id.configSection)
@@ -330,13 +334,41 @@ class MainActivity : AppCompatActivity() {
         unlockConfigButton.setOnClickListener {
             promptUnlockConfig()
         }
+
+        adminMenuButton.setOnClickListener { anchor ->
+            showAdminMenu(anchor)
+        }
+    }
+
+    private fun showAdminMenu(anchor: View) {
+        val popup = PopupMenu(this, anchor)
+        popup.menu.add(0, 1, 0, "Administrador")
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> {
+                    promptUnlockConfig()
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
     }
 
     private fun prefs() = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun loadConfigFromPrefs() {
         val prefs = prefs()
-        baseUrlInput.setText(prefs.getString(PREF_BASE_URL, BuildConfig.DEFAULT_BASE_URL))
+        val storedBaseUrl = prefs.getString(PREF_BASE_URL, BuildConfig.DEFAULT_BASE_URL).orEmpty().trim()
+        val migratedBaseUrl = if (storedBaseUrl.equals("http://10.0.2.2:4000", ignoreCase = true)) {
+            BuildConfig.DEFAULT_BASE_URL
+        } else {
+            storedBaseUrl.ifBlank { BuildConfig.DEFAULT_BASE_URL }
+        }
+        if (migratedBaseUrl != storedBaseUrl) {
+            prefs.edit().putString(PREF_BASE_URL, migratedBaseUrl).apply()
+        }
+        baseUrlInput.setText(migratedBaseUrl)
         installCodeInput.setText(prefs.getString(PREF_INSTALL_CODE, ""))
         clientSecretInput.setText(prefs.getString(PREF_CLIENT_SECRET, ""))
         isConfigLocked = prefs.getBoolean(PREF_CONFIG_LOCKED, false)
@@ -588,8 +620,7 @@ class MainActivity : AppCompatActivity() {
         val pendingInstallments = credit.pendingInstallments ?: 0
         val totalInstallments = credit.totalInstallments
         val nextDue = credit.nextDueDate?.let { formatIsoDateOnly(it) } ?: "-"
-        val nextDueMain = credit.nextDueDate?.let { formatDueDateMain(it) } ?: "-- ---"
-        val nextDueYear = credit.nextDueDate?.let { formatDueDateYear(it) } ?: "----"
+        val nextDueMain = credit.nextDueDate?.let { formatDueDateFull(it) } ?: "-- --- ----"
         val paidPercent = ((paidInstallments * 100.0) / totalInstallments).toInt().coerceIn(0, 100)
         val currency = credit.currency ?: "USD"
 
@@ -605,7 +636,7 @@ class MainActivity : AppCompatActivity() {
         paidInstallmentsValueText.text = "Cuotas pagadas: $paidInstallments"
         pendingInstallmentsValueText.text = "Cuotas pendientes: $pendingInstallments"
         nextPaymentDateValueText.text = nextDueMain
-        nextPaymentYearValueText.text = nextDueYear
+        nextPaymentYearValueText.text = ""
 
         installmentsTitle.text = "Resumen de credito"
         renderInstallmentsTable(credit.installments, currency)
@@ -822,11 +853,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun promptUnlockConfig() {
-        if (!isConfigLocked) {
-            setError("La configuracion ya esta desbloqueada.")
-            return
-        }
-
         val pinInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
             hint = "PIN admin"
@@ -842,7 +868,7 @@ class MainActivity : AppCompatActivity() {
                     isConfigLocked = false
                     prefs().edit().putBoolean(PREF_CONFIG_LOCKED, false).apply()
                     applyConfigLockState()
-                    setError("Configuracion desbloqueada por admin.")
+                    setError("Configuracion desbloqueada por administrador.")
                 } else {
                     setError("PIN admin incorrecto.")
                 }
@@ -870,6 +896,13 @@ class MainActivity : AppCompatActivity() {
         return runCatching {
             date.format(DateTimeFormatter.ofPattern("dd MMM", Locale("es", "EC"))).uppercase(Locale("es", "EC"))
         }.getOrDefault("-- ---")
+    }
+
+    private fun formatDueDateFull(value: String): String {
+        val date = parseFlexibleDate(value) ?: return "-- --- ----"
+        return runCatching {
+            date.format(DateTimeFormatter.ofPattern("dd MMM yyyy", Locale("es", "EC"))).uppercase(Locale("es", "EC"))
+        }.getOrDefault("-- --- ----")
     }
 
     private fun formatDueDateYear(value: String): String {
