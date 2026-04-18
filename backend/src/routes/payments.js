@@ -4,6 +4,7 @@ import prismaPackage from "@prisma/client";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { sendBadRequest, sendNotFound, sendServerError } from "../lib/http.js";
 import { prisma } from "../lib/prisma.js";
+import { registerTrashEntry } from "../lib/trash.js";
 import {
   asOptionalTrimmedString,
   asTrimmedString,
@@ -195,6 +196,53 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
   }
 
   return res.json({ ok: true, payment: updatedPayment });
+}));
+
+router.delete("/:id", asyncHandler(async (req, res) => {
+  const current = await prisma.payment.findUnique({
+    where: { id: req.params.id },
+    include: {
+      customer: {
+        select: { id: true, fullName: true, nationalId: true },
+      },
+      device: {
+        select: { id: true, installCode: true, brand: true, model: true },
+      },
+    },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Pago no encontrado");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await registerTrashEntry({
+      client: tx,
+      entityType: "payment",
+      entityId: current.id,
+      summary: `${current.customer?.fullName || "Cliente"} - ${Number(current.amount).toFixed(2)} ${current.currency}`,
+      payload: {
+        id: current.id,
+        amount: Number(current.amount),
+        currency: current.currency,
+        dueDate: current.dueDate,
+        status: current.status,
+        customer: current.customer,
+        device: current.device,
+      },
+      deletedByUserId: req.user.id,
+    });
+
+    await tx.payment.delete({
+      where: { id: current.id },
+    });
+  });
+
+  return res.json({
+    ok: true,
+    message: "Pago enviado a papelera (purga automatica en 30 dias)",
+    paymentId: current.id,
+  });
 }));
 
 export default router;

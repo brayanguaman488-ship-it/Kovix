@@ -166,3 +166,17 @@ model DeviceStatusHistory {
 
   @@index([deviceId, createdAt])
 }
+
+model TrashEntry {
+  id              String   @id @default(cuid())
+  entityType      String
+  entityId        String
+  summary         String?
+  payload         Json?
+  deletedByUserId String?
+  deleteAfter     DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([deleteAfter])
+  @@index([entityType, entityId])
+}

@@ -31,6 +31,8 @@ export default function DevicesList({
   devicePaymentSignalMap,
   onLinkAllHexnodeDevices,
   isLinkingAllHexnodeDevices,
+  onDeleteDevice,
+  deletingDeviceId,
 }) {
   function getPaymentSignalBadge(status) {
     if (status === "VENCIDO") {
@@ -162,6 +164,22 @@ export default function DevicesList({
                     {paymentSignal.text}
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => onDeleteDevice(device)}
+                  disabled={deletingDeviceId === device.id}
+                  style={{
+                    ...secondaryButtonStyle,
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(220, 38, 38, 0.4)",
+                    color: "#991b1b",
+                    background: "rgba(254, 242, 242, 0.95)",
+                    minWidth: 92,
+                  }}
+                >
+                  {deletingDeviceId === device.id ? "Borrando..." : "🗑 Papelera"}
+                </button>
               </div>
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
             <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>

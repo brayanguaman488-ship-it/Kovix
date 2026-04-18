@@ -51,6 +51,8 @@ export default function PaymentsList({
   onMarkOverdue,
   onMarkPending,
   markingPaymentId,
+  onDeletePayment,
+  deletingPaymentId,
 }) {
   const now = new Date();
   const [activeTab, setActiveTab] = useState("monthly");
@@ -460,6 +462,24 @@ export default function PaymentsList({
               </p>
             )}
             {renderActions(payment)}
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => onDeletePayment(payment)}
+                disabled={deletingPaymentId === payment.id}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(220, 38, 38, 0.4)",
+                  color: "#991b1b",
+                  background: "rgba(254, 242, 242, 0.95)",
+                  fontWeight: 700,
+                  cursor: deletingPaymentId === payment.id ? "not-allowed" : "pointer",
+                }}
+              >
+                {deletingPaymentId === payment.id ? "Borrando..." : "🗑 Enviar a papelera"}
+              </button>
+            </div>
           </article>
         )})}
         {activeList.length === 0 && (

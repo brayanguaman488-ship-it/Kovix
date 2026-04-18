@@ -21,13 +21,49 @@ import { syncDeviceStatus } from "../lib/deviceStatus.js";
 import {
   applyHexnodePolicyForStatus,
   generateInstallCode,
+  getHexnodeProvisioningQr,
   isHexnodeConfigured,
   resolveHexnodeDeviceMatch,
 } from "../lib/hexnode.js";
+import { registerTrashEntry } from "../lib/trash.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
 const { DeviceStatus, InstallmentStatus } = prismaPackage;
+
+async function buildClientSecretFromCustomer(tx, customerId, installCode) {
+  const customer = await tx.customer.findUnique({
+    where: { id: String(customerId || "").trim() },
+    select: { nationalId: true },
+  });
+
+  const nationalId = String(customer?.nationalId || "").trim();
+  if (!nationalId) {
+    return generateClientSecret();
+  }
+
+  const existing = await tx.device.findFirst({
+    where: { clientSecret: nationalId },
+    select: { id: true },
+  });
+
+  if (!existing) {
+    return nationalId;
+  }
+
+  const suffix = String(installCode || "").trim() || generateInstallCode();
+  const derived = `${nationalId}-${suffix}`;
+  const existingDerived = await tx.device.findFirst({
+    where: { clientSecret: derived },
+    select: { id: true },
+  });
+
+  if (!existingDerived) {
+    return derived;
+  }
+
+  return generateClientSecret();
+}
 
 function getMobileStatusMessage(status) {
   const messages = {
@@ -237,6 +273,11 @@ router.post("/client/:installCode/push-token", asyncHandler(async (req, res) => 
 
 router.use(authMiddleware);
 
+router.get("/provisioning/hexnode-qr", asyncHandler(async (_req, res) => {
+  const provisioning = getHexnodeProvisioningQr();
+  return res.json({ ok: true, provisioning });
+}));
+
 router.get("/", asyncHandler(async (req, res) => {
   const devices = await prisma.device.findMany({
     orderBy: { createdAt: "desc" },
@@ -310,38 +351,42 @@ router.post("/", asyncHandler(async (req, res) => {
     if (!finalInstallCode) {
       return sendServerError(res, "No se pudo generar installCode unico");
     }
-
-    const device = await prisma.device.create({
-      data: {
-        customerId: normalizedCustomerId,
-        brand: normalizedBrand,
-        model: normalizedModel,
-        alias: asOptionalTrimmedString(alias),
-        imei: normalizedImei,
-        installCode: finalInstallCode,
-        hexnodeDeviceId: parsedHexnodeDeviceId,
-        clientSecret: generateClientSecret(),
-        notes: asOptionalTrimmedString(notes),
-      },
-      include: {
-        customer: true,
-        creditContract: {
-          include: {
-            installments: {
-              orderBy: { sequence: "asc" },
+    const device = await prisma.$transaction(async (tx) => {
+      const clientSecret = await buildClientSecretFromCustomer(tx, normalizedCustomerId, finalInstallCode);
+      const created = await tx.device.create({
+        data: {
+          customerId: normalizedCustomerId,
+          brand: normalizedBrand,
+          model: normalizedModel,
+          alias: asOptionalTrimmedString(alias),
+          imei: normalizedImei,
+          installCode: finalInstallCode,
+          hexnodeDeviceId: parsedHexnodeDeviceId,
+          clientSecret,
+          notes: asOptionalTrimmedString(notes),
+        },
+        include: {
+          customer: true,
+          creditContract: {
+            include: {
+              installments: {
+                orderBy: { sequence: "asc" },
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    await prisma.deviceStatusHistory.create({
-      data: {
-        deviceId: device.id,
-        newStatus: DeviceStatus.ACTIVO,
-        changedByUserId: req.user.id,
-        reason: "Dispositivo registrado",
-      },
+      await tx.deviceStatusHistory.create({
+        data: {
+          deviceId: created.id,
+          newStatus: DeviceStatus.ACTIVO,
+          changedByUserId: req.user.id,
+          reason: "Dispositivo registrado",
+        },
+      });
+
+      return created;
     });
 
     return res.status(201).json({ ok: true, device });
@@ -357,6 +402,53 @@ router.post("/", asyncHandler(async (req, res) => {
     return sendServerError(res, "No se pudo crear el dispositivo");
   }
 })); 
+
+router.delete("/:id", asyncHandler(async (req, res) => {
+  const current = await prisma.device.findUnique({
+    where: { id: req.params.id },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          fullName: true,
+          nationalId: true,
+        },
+      },
+    },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Dispositivo no encontrado");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await registerTrashEntry({
+      client: tx,
+      entityType: "device",
+      entityId: current.id,
+      summary: `${current.brand} ${current.model} (${current.installCode})`,
+      payload: {
+        id: current.id,
+        brand: current.brand,
+        model: current.model,
+        imei: current.imei,
+        installCode: current.installCode,
+        customer: current.customer,
+      },
+      deletedByUserId: req.user.id,
+    });
+
+    await tx.device.delete({
+      where: { id: current.id },
+    });
+  });
+
+  return res.json({
+    ok: true,
+    message: "Dispositivo enviado a papelera (purga automatica en 30 dias)",
+    deviceId: current.id,
+  });
+}));
 
 router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
   const device = await prisma.device.findUnique({
@@ -571,34 +663,43 @@ router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
 router.post("/:id/rotate-client-secret", asyncHandler(async (req, res) => {
   const device = await prisma.device.findUnique({
     where: { id: req.params.id },
+    include: {
+      customer: {
+        select: {
+          id: true,
+        },
+      },
+    },
   });
 
   if (!device) {
     return sendNotFound(res, "Dispositivo no encontrado");
   }
-
-  const updated = await prisma.device.update({
-    where: { id: req.params.id },
-    data: {
-      clientSecret: generateClientSecret(),
-    },
-    include: {
-      customer: true,
-      creditContract: {
-        include: {
-          installments: {
-            orderBy: { sequence: "asc" },
+  const updated = await prisma.$transaction(async (tx) => {
+    const rotatedSecret = await buildClientSecretFromCustomer(tx, device.customerId, device.installCode);
+    return tx.device.update({
+      where: { id: req.params.id },
+      data: {
+        clientSecret: rotatedSecret,
+      },
+      include: {
+        customer: true,
+        creditContract: {
+          include: {
+            installments: {
+              orderBy: { sequence: "asc" },
+            },
           },
         },
+        payments: {
+          orderBy: { dueDate: "asc" },
+        },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
       },
-      payments: {
-        orderBy: { dueDate: "asc" },
-      },
-      statusHistory: {
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      },
-    },
+    });
   });
 
   return res.json({

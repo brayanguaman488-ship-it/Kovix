@@ -15,6 +15,8 @@ export default function CustomersList({
   onSortChange,
   onPrevPage,
   onNextPage,
+  onDeleteCustomer,
+  deletingCustomerId,
 }) {
   return (
     <section style={cardStyle}>
@@ -35,7 +37,25 @@ export default function CustomersList({
       <div style={{ display: "grid", gap: 10 }}>
         {customers.map((customer) => (
           <article key={customer.id} style={listItemStyle}>
-            <strong>{customer.fullName}</strong>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <strong>{customer.fullName}</strong>
+              <button
+                type="button"
+                onClick={() => onDeleteCustomer(customer)}
+                disabled={deletingCustomerId === customer.id}
+                style={{
+                  ...secondaryButtonStyle,
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(220, 38, 38, 0.4)",
+                  color: "#991b1b",
+                  background: "rgba(254, 242, 242, 0.95)",
+                  minWidth: 92,
+                }}
+              >
+                {deletingCustomerId === customer.id ? "Borrando..." : "🗑 Papelera"}
+              </button>
+            </div>
             <p style={{ margin: "6px 0" }}>Documento: {customer.nationalId}</p>
             <p style={{ margin: "6px 0" }}>Telefono: {customer.phone}</p>
             <p style={{ margin: "6px 0" }}>Dispositivos: {customer.devices.length}</p>

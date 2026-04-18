@@ -3,6 +3,7 @@ import { Router } from "express";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { isPrismaUniqueConstraintError, sendBadRequest, sendNotFound, sendServerError } from "../lib/http.js";
 import { prisma } from "../lib/prisma.js";
+import { registerTrashEntry } from "../lib/trash.js";
 import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
 import authMiddleware from "../middleware/auth.js";
 
@@ -157,12 +158,50 @@ router.put("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
+  const current = await prisma.customer.findUnique({
+    where: { id: req.params.id },
+    include: {
+      devices: {
+        select: { id: true, installCode: true },
+      },
+      payments: {
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Cliente no encontrado");
+  }
+
   try {
-    await prisma.customer.delete({
-      where: { id: req.params.id },
+    await prisma.$transaction(async (tx) => {
+      await registerTrashEntry({
+        client: tx,
+        entityType: "customer",
+        entityId: current.id,
+        summary: `${current.fullName} (${current.nationalId})`,
+        payload: {
+          id: current.id,
+          fullName: current.fullName,
+          nationalId: current.nationalId,
+          phone: current.phone,
+          devicesCount: current.devices.length,
+          paymentsCount: current.payments.length,
+        },
+        deletedByUserId: req.user.id,
+      });
+
+      await tx.customer.delete({
+        where: { id: req.params.id },
+      });
     });
 
-    return res.json({ ok: true, message: "Cliente eliminado" });
+    return res.json({
+      ok: true,
+      message: "Cliente enviado a papelera (purga automatica en 30 dias)",
+      customerId: current.id,
+    });
   } catch (error) {
     if (error?.code === "P2025") {
       return sendNotFound(res, "Cliente no encontrado");

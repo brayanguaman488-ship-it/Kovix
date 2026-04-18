@@ -5,6 +5,8 @@ const { DeviceStatus } = prismaPackage;
 const HEXNODE_PORTAL = (process.env.HEXNODE_PORTAL || "").trim();
 const HEXNODE_API_KEY = (process.env.HEXNODE_API_KEY || "").trim();
 const HEXNODE_ENABLED = Boolean(HEXNODE_PORTAL && HEXNODE_API_KEY);
+const HEXNODE_ENROLLMENT_QR_IMAGE_URL = (process.env.HEXNODE_ENROLLMENT_QR_IMAGE_URL || "").trim();
+const HEXNODE_ENROLLMENT_QR_VALUE = (process.env.HEXNODE_ENROLLMENT_QR_VALUE || "").trim();
 
 const POLICY_NAME_BY_STATUS = {
   [DeviceStatus.ACTIVO]: (process.env.HEXNODE_POLICY_ACTIVO || "KOVIX_ACTIVO").trim(),
@@ -336,6 +338,38 @@ async function requestScanDevice(deviceId) {
 
 export function isHexnodeConfigured() {
   return HEXNODE_ENABLED;
+}
+
+export function getHexnodeProvisioningQr() {
+  const portalUrl = HEXNODE_PORTAL ? `https://${HEXNODE_PORTAL}.hexnodemdm.com` : "";
+
+  if (HEXNODE_ENROLLMENT_QR_IMAGE_URL) {
+    return {
+      configured: true,
+      mode: "image_url",
+      portalUrl,
+      qrUrl: HEXNODE_ENROLLMENT_QR_IMAGE_URL,
+      qrValue: HEXNODE_ENROLLMENT_QR_VALUE || null,
+    };
+  }
+
+  if (HEXNODE_ENROLLMENT_QR_VALUE) {
+    return {
+      configured: true,
+      mode: "value_encoded",
+      portalUrl,
+      qrUrl: `https://quickchart.io/qr?size=320&text=${encodeURIComponent(HEXNODE_ENROLLMENT_QR_VALUE)}`,
+      qrValue: HEXNODE_ENROLLMENT_QR_VALUE,
+    };
+  }
+
+  return {
+    configured: false,
+    mode: "not_configured",
+    portalUrl,
+    qrUrl: "",
+    qrValue: "",
+  };
 }
 
 export async function applyHexnodePolicyForStatus(localDevice, nextStatus) {

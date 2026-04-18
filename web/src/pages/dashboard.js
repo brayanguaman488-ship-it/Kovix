@@ -212,6 +212,9 @@ export default function Dashboard() {
   const [markingPaymentId, setMarkingPaymentId] = useState("");
   const [processingInstallmentId, setProcessingInstallmentId] = useState("");
   const [isApprovingAllReported, setIsApprovingAllReported] = useState(false);
+  const [deletingCustomerId, setDeletingCustomerId] = useState("");
+  const [deletingDeviceId, setDeletingDeviceId] = useState("");
+  const [deletingPaymentId, setDeletingPaymentId] = useState("");
   const [selectedCreditDeviceId, setSelectedCreditDeviceId] = useState("");
   const [selectedCreditContract, setSelectedCreditContract] = useState(null);
   const [isLoadingCreditContract, setIsLoadingCreditContract] = useState(false);
@@ -234,10 +237,48 @@ export default function Dashboard() {
   const [provisioningSignatureChecksum, setProvisioningSignatureChecksum] = useState("");
   const [provisioningQrJson, setProvisioningQrJson] = useState("");
   const [provisioningQrUrl, setProvisioningQrUrl] = useState("");
+  const [provisioningMode, setProvisioningMode] = useState("device_owner");
+  const [hexnodeProvisioning, setHexnodeProvisioning] = useState(null);
   const [activeSummarySection, setActiveSummarySection] = useState("customers");
 
   function setStatus(type, message) {
     setStatusState({ type, message });
+  }
+
+  function updateDeviceInState(updatedDevice) {
+    if (!updatedDevice?.id) {
+      return;
+    }
+
+    setDevices((prev) =>
+      prev.map((entry) => (entry.id === updatedDevice.id ? { ...entry, ...updatedDevice } : entry))
+    );
+  }
+
+  function updatePaymentInState(updatedPayment) {
+    if (!updatedPayment?.id) {
+      return;
+    }
+
+    setPayments((prev) =>
+      prev.map((entry) => (entry.id === updatedPayment.id ? { ...entry, ...updatedPayment } : entry))
+    );
+  }
+
+  async function loadHexnodeProvisioningQr(options = { silent: false }) {
+    try {
+      const response = await api.getHexnodeProvisioningQr();
+      setHexnodeProvisioning(response?.provisioning || null);
+
+      if (!options.silent && response?.provisioning?.configured) {
+        setStatus("success", "QR de Hexnode cargado");
+      }
+    } catch (error) {
+      setHexnodeProvisioning(null);
+      if (!options.silent) {
+        setStatus("error", error.message || "No se pudo cargar el QR de Hexnode");
+      }
+    }
   }
 
   function clearFilters() {
@@ -388,6 +429,7 @@ export default function Dashboard() {
       .finally(() => {
         setLoading(false);
       });
+    loadHexnodeProvisioningQr({ silent: true });
     // Ejecutar solo al montar para evitar ciclos de carga.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -595,15 +637,16 @@ export default function Dashboard() {
       const normalizedDeviceId = String(deviceId);
       const targetDevice = devices.find((entry) => String(entry.id) === normalizedDeviceId);
       setUpdatingDeviceId(normalizedDeviceId);
-      await api.updateDeviceStatus(normalizedDeviceId, {
+      const response = await api.updateDeviceStatus(normalizedDeviceId, {
         status,
         reason: "Cambio manual desde dashboard",
       });
+      updateDeviceInState(response?.device);
       setStatus(
         "success",
         `Estado actualizado: ${targetDevice ? `${targetDevice.brand} ${targetDevice.model}` : normalizedDeviceId} -> ${status}`
       );
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo actualizar el estado");
     } finally {
@@ -614,9 +657,10 @@ export default function Dashboard() {
   async function handleMarkPaid(paymentId) {
     try {
       setMarkingPaymentId(paymentId);
-      await api.markPaymentPaid(paymentId);
+      const response = await api.markPaymentPaid(paymentId);
+      updatePaymentInState(response?.payment);
       setStatus("success", "Pago marcado como pagado");
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo marcar el pago");
     } finally {
@@ -627,9 +671,10 @@ export default function Dashboard() {
   async function handleRotateSecret(deviceId) {
     try {
       setRotatingSecretDeviceId(deviceId);
-      await api.rotateDeviceSecret(deviceId);
+      const response = await api.rotateDeviceSecret(deviceId);
+      updateDeviceInState(response?.device);
       setStatus("success", "ClientSecret rotado correctamente");
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo rotar el clientSecret");
     } finally {
@@ -641,6 +686,7 @@ export default function Dashboard() {
     try {
       setLinkingHexnodeDeviceId(deviceId);
       const response = await api.linkDeviceHexnode(deviceId);
+      updateDeviceInState(response?.device);
       const hexnodeId = response?.hexnode?.hexnodeDeviceId;
       setStatus(
         "success",
@@ -648,7 +694,7 @@ export default function Dashboard() {
           ? `Dispositivo vinculado con Hexnode ID ${hexnodeId}`
           : "Dispositivo vinculado con Hexnode"
       );
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo vincular el dispositivo con Hexnode");
     } finally {
@@ -663,7 +709,7 @@ export default function Dashboard() {
       const linkedCount = Number(response?.linkedCount || 0);
       const totalPending = Number(response?.totalPending || 0);
       setStatus("success", `Vinculacion completada: ${linkedCount}/${totalPending} dispositivos vinculados`);
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo ejecutar la vinculacion masiva");
     } finally {
@@ -674,9 +720,10 @@ export default function Dashboard() {
   async function handleMarkOverdue(paymentId) {
     try {
       setMarkingPaymentId(paymentId);
-      await api.markPaymentOverdue(paymentId);
+      const response = await api.markPaymentOverdue(paymentId);
+      updatePaymentInState(response?.payment);
       setStatus("success", "Pago marcado como vencido");
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo marcar el pago como vencido");
     } finally {
@@ -687,13 +734,81 @@ export default function Dashboard() {
   async function handleMarkPending(paymentId) {
     try {
       setMarkingPaymentId(paymentId);
-      await api.markPaymentPending(paymentId);
+      const response = await api.markPaymentPending(paymentId);
+      updatePaymentInState(response?.payment);
       setStatus("success", "Pago marcado como pendiente");
-      await loadDashboard({ silent: true });
+      loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo marcar el pago como pendiente");
     } finally {
       setMarkingPaymentId("");
+    }
+  }
+
+  async function handleDeleteCustomer(customer) {
+    const confirmed = window.confirm(
+      `Enviar cliente "${customer?.fullName || ""}" a papelera?\nSe purgara automaticamente en 30 dias.`
+    );
+
+    if (!confirmed || !customer?.id) {
+      return;
+    }
+
+    try {
+      setDeletingCustomerId(customer.id);
+      await api.deleteCustomer(customer.id);
+      setCustomers((prev) => prev.filter((entry) => entry.id !== customer.id));
+      setDevices((prev) => prev.filter((entry) => entry.customerId !== customer.id));
+      setPayments((prev) => prev.filter((entry) => entry.customerId !== customer.id));
+      setStatus("success", "Cliente enviado a papelera");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo eliminar el cliente");
+    } finally {
+      setDeletingCustomerId("");
+    }
+  }
+
+  async function handleDeleteDevice(device) {
+    const title = `${device?.brand || ""} ${device?.model || ""}`.trim();
+    const confirmed = window.confirm(
+      `Enviar dispositivo "${title}" a papelera?\nSe purgara automaticamente en 30 dias.`
+    );
+
+    if (!confirmed || !device?.id) {
+      return;
+    }
+
+    try {
+      setDeletingDeviceId(device.id);
+      await api.deleteDevice(device.id);
+      setDevices((prev) => prev.filter((entry) => entry.id !== device.id));
+      setPayments((prev) => prev.filter((entry) => entry.deviceId !== device.id));
+      setStatus("success", "Dispositivo enviado a papelera");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo eliminar el dispositivo");
+    } finally {
+      setDeletingDeviceId("");
+    }
+  }
+
+  async function handleDeletePayment(payment) {
+    const confirmed = window.confirm(
+      `Enviar este pago de ${payment?.customer?.fullName || "cliente"} a papelera?\nSe purgara automaticamente en 30 dias.`
+    );
+
+    if (!confirmed || !payment?.id) {
+      return;
+    }
+
+    try {
+      setDeletingPaymentId(payment.id);
+      await api.deletePayment(payment.id);
+      setPayments((prev) => prev.filter((entry) => entry.id !== payment.id));
+      setStatus("success", "Pago enviado a papelera");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo eliminar el pago");
+    } finally {
+      setDeletingPaymentId("");
     }
   }
 
@@ -758,6 +873,29 @@ export default function Dashboard() {
   }
 
   function handleGenerateProvisioningQr() {
+    if (provisioningMode === "hexnode") {
+      if (!hexnodeProvisioning?.configured || !hexnodeProvisioning?.qrUrl) {
+        setStatus(
+          "error",
+          "Configura HEXNODE_ENROLLMENT_QR_IMAGE_URL o HEXNODE_ENROLLMENT_QR_VALUE en backend"
+        );
+        return;
+      }
+
+      const payload = {
+        source: "hexnode",
+        configured: true,
+        portalUrl: hexnodeProvisioning.portalUrl || "",
+        qrUrl: hexnodeProvisioning.qrUrl,
+        qrValue: hexnodeProvisioning.qrValue || "",
+      };
+
+      setProvisioningQrJson(JSON.stringify(payload, null, 2));
+      setProvisioningQrUrl(hexnodeProvisioning.qrUrl);
+      setStatus("success", "QR de Hexnode generado");
+      return;
+    }
+
     const selectedDevice = devices.find((entry) => entry.id === provisioningDeviceId);
 
     if (!selectedDevice) {
@@ -983,16 +1121,22 @@ export default function Dashboard() {
   }, [devices, provisioningDeviceId]);
 
   useEffect(() => {
+    if (provisioningMode === "hexnode" && !hexnodeProvisioning) {
+      loadHexnodeProvisioningQr({ silent: true });
+    }
+  }, [provisioningMode, hexnodeProvisioning]);
+
+  useEffect(() => {
     setCustomerPage(1);
   }, [customerQuery, customerSort]);
 
   useEffect(() => {
     setDevicePage(1);
-  }, [deviceQuery, deviceSort]);
+  }, [deviceQuery, deviceSort, devicePanelQuery, deviceCustomerFilter]);
 
   useEffect(() => {
     setPaymentPage(1);
-  }, [paymentQuery, paymentSort]);
+  }, [paymentQuery, paymentSort, paymentPanelQuery]);
 
   useEffect(() => {
     if (customerPage !== customersPageData.page) {
@@ -1110,64 +1254,97 @@ export default function Dashboard() {
         >
           <h3 style={{ margin: 0 }}>QR de aprovisionamiento (Device Owner)</h3>
           <p style={{ margin: 0, color: "#475569", fontSize: 14 }}>
-            Usa este QR en el primer encendido del telefono para configurar KOVIX como Device Owner.
+            Genera QR directo desde KOVIX (Device Owner) o usa el QR oficial de Hexnode.
           </p>
 
           <select
-            value={provisioningDeviceId}
-            onChange={(event) => setProvisioningDeviceId(event.target.value)}
+            value={provisioningMode}
+            onChange={(event) => setProvisioningMode(event.target.value)}
             style={inputStyle}
           >
-            <option value="">Selecciona dispositivo</option>
-            {devices.map((device) => (
-              <option key={`qr-${device.id}`} value={device.id}>
-                {device.installCode} - {device.customer?.fullName || "Sin cliente"}
-              </option>
-            ))}
+            <option value="device_owner">QR KOVIX (Device Owner)</option>
+            <option value="hexnode">QR Hexnode Enrollment</option>
           </select>
 
-          <input
-            value={provisioningBaseUrl}
-            onChange={(event) => setProvisioningBaseUrl(event.target.value)}
-            placeholder="Base URL API para Android (ej: https://api.tudominio.com)"
-            style={inputStyle}
-          />
+          {provisioningMode === "hexnode" ? (
+            <>
+              <button type="button" onClick={() => loadHexnodeProvisioningQr()} style={secondaryButtonStyle}>
+                Recargar QR Hexnode
+              </button>
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "1px solid var(--line)",
+                  background: "var(--panel-soft)",
+                  color: "var(--text-soft)",
+                  fontSize: 14,
+                }}
+              >
+                Portal: <strong>{hexnodeProvisioning?.portalUrl || "No configurado"}</strong><br />
+                Estado:{" "}
+                <strong>{hexnodeProvisioning?.configured ? "Configurado" : "Falta configurar variable en backend"}</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              <select
+                value={provisioningDeviceId}
+                onChange={(event) => setProvisioningDeviceId(event.target.value)}
+                style={inputStyle}
+              >
+                <option value="">Selecciona dispositivo</option>
+                {devices.map((device) => (
+                  <option key={`qr-${device.id}`} value={device.id}>
+                    {device.installCode} - {device.customer?.fullName || "Sin cliente"}
+                  </option>
+                ))}
+              </select>
 
-          <input
-            value={provisioningApkUrl}
-            onChange={(event) => setProvisioningApkUrl(event.target.value)}
-            placeholder="URL publica del APK"
-            style={inputStyle}
-          />
+              <input
+                value={provisioningBaseUrl}
+                onChange={(event) => setProvisioningBaseUrl(event.target.value)}
+                placeholder="Base URL API para Android (ej: https://api.tudominio.com)"
+                style={inputStyle}
+              />
 
-          <input
-            value={provisioningApkChecksum}
-            onChange={(event) => setProvisioningApkChecksum(event.target.value)}
-            placeholder="SHA-256 del APK en Base64"
-            style={inputStyle}
-          />
+              <input
+                value={provisioningApkUrl}
+                onChange={(event) => setProvisioningApkUrl(event.target.value)}
+                placeholder="URL publica del APK"
+                style={inputStyle}
+              />
 
-          <input
-            value={provisioningSignatureChecksum}
-            onChange={(event) => setProvisioningSignatureChecksum(event.target.value)}
-            placeholder="SHA-256 de firma del APK (opcional, recomendado en Samsung)"
-            style={inputStyle}
-          />
+              <input
+                value={provisioningApkChecksum}
+                onChange={(event) => setProvisioningApkChecksum(event.target.value)}
+                placeholder="SHA-256 del APK en Base64"
+                style={inputStyle}
+              />
 
-          {selectedProvisioningDevice && (
-            <div
-              style={{
-                padding: 10,
-                borderRadius: 8,
-                border: "1px solid var(--line)",
-                background: "var(--panel-soft)",
-                color: "var(--text-soft)",
-                fontSize: 14,
-              }}
-            >
-              InstallCode: <strong>{selectedProvisioningDevice.installCode}</strong><br />
-              ClientSecret: <strong>{selectedProvisioningDevice.clientSecret || "No disponible"}</strong>
-            </div>
+              <input
+                value={provisioningSignatureChecksum}
+                onChange={(event) => setProvisioningSignatureChecksum(event.target.value)}
+                placeholder="SHA-256 de firma del APK (opcional, recomendado en Samsung)"
+                style={inputStyle}
+              />
+
+              {selectedProvisioningDevice && (
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid var(--line)",
+                    background: "var(--panel-soft)",
+                    color: "var(--text-soft)",
+                    fontSize: 14,
+                  }}
+                >
+                  InstallCode: <strong>{selectedProvisioningDevice.installCode}</strong><br />
+                  ClientSecret: <strong>{selectedProvisioningDevice.clientSecret || "No disponible"}</strong>
+                </div>
+              )}
+            </>
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1589,6 +1766,8 @@ export default function Dashboard() {
             onNextPage={() =>
               setCustomerPage((value) => Math.min(customersPageData.totalPages, value + 1))
             }
+            onDeleteCustomer={handleDeleteCustomer}
+            deletingCustomerId={deletingCustomerId}
           />
         </section>
       )}
@@ -1621,6 +1800,8 @@ export default function Dashboard() {
             devicePaymentSignalMap={devicePaymentSignalMap}
             onLinkAllHexnodeDevices={handleLinkAllHexnodeDevices}
             isLinkingAllHexnodeDevices={isLinkingAllHexnodeDevices}
+            onDeleteDevice={handleDeleteDevice}
+            deletingDeviceId={deletingDeviceId}
           />
         </section>
       )}
@@ -1642,6 +1823,8 @@ export default function Dashboard() {
             onMarkOverdue={handleMarkOverdue}
             onMarkPending={handleMarkPending}
             markingPaymentId={markingPaymentId}
+            onDeletePayment={handleDeletePayment}
+            deletingPaymentId={deletingPaymentId}
             totalItems={paymentsPageData.totalItems}
             page={paymentsPageData.page}
             totalPages={paymentsPageData.totalPages}

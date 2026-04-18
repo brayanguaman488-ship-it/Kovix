@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 
 import { sendServerError } from "./lib/http.js";
 import { ensureAdminUser } from "./lib/ensureAdminUser.js";
+import { startTrashRetentionJob } from "./lib/trash.js";
 import authRoutes from "./routes/auth.js";
 import customerRoutes from "./routes/customers.js";
 import deviceRoutes from "./routes/devices.js";
@@ -73,6 +74,7 @@ app.use((error, req, res, next) => {
 
 async function startServer() {
   const adminUsername = await ensureAdminUser();
+  startTrashRetentionJob();
 
   app.listen(PORT, () => {
     console.log(`Backend en http://localhost:${PORT}`);

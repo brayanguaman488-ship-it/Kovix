@@ -64,6 +64,11 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  deleteCustomer(customerId) {
+    return request(`/customers/${customerId}`, {
+      method: "DELETE",
+    });
+  },
   getDevices() {
     return request("/devices");
   },
@@ -71,6 +76,11 @@ export const api = {
     return request("/devices", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+  deleteDevice(deviceId) {
+    return request(`/devices/${deviceId}`, {
+      method: "DELETE",
     });
   },
   updateDeviceStatus(deviceId, payload) {
@@ -94,6 +104,9 @@ export const api = {
       method: "POST",
     });
   },
+  getHexnodeProvisioningQr() {
+    return request("/devices/provisioning/hexnode-qr");
+  },
   getPayments() {
     return request("/payments");
   },
@@ -101,6 +114,11 @@ export const api = {
     return request("/payments", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+  deletePayment(paymentId) {
+    return request(`/payments/${paymentId}`, {
+      method: "DELETE",
     });
   },
   markPaymentPaid(paymentId) {

@@ -5,6 +5,7 @@ export const pageShellStyle = {
   minHeight: "100vh",
   maxWidth: 1280,
   margin: "0 auto",
+  overflowX: "clip",
 };
 
 export const cardStyle = {
