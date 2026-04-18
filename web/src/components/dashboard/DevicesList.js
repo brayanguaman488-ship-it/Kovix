@@ -15,7 +15,7 @@ export default function DevicesList({
   rotatingSecretDeviceId,
   onRotateSecret,
   linkingHexnodeDeviceId,
-  onLinkHexnodeDevice,
+  onToggleHexnodeDeviceLink,
   totalItems,
   page,
   totalPages,
@@ -178,14 +178,32 @@ export default function DevicesList({
                     minWidth: 92,
                   }}
                 >
-                  {deletingDeviceId === device.id ? "Borrando..." : "🗑 Papelera"}
+                  {deletingDeviceId === device.id ? "Borrando..." : "Papelera"}
                 </button>
               </div>
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
             <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>
             <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
-            <p style={{ margin: "6px 0" }}>Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}</p>
-            <p style={{ margin: "6px 0" }}>ClientSecret: {device.clientSecret}</p>
+            <p style={{ margin: "6px 0" }}>
+              Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}{" "}
+              {device.hexnodeDeviceId ? (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#065f46",
+                    background: "#d1fae5",
+                    border: "1px solid #34d399",
+                  }}
+                >
+                  Vinculado
+                </span>
+              ) : null}
+            </p>
+            <p style={{ margin: "6px 0" }}>Secreto del cliente: {device.clientSecret}</p>
             <p style={{ margin: "6px 0" }}>Estado: {device.currentStatus}</p>
             <button
               type="button"
@@ -203,7 +221,7 @@ export default function DevicesList({
             </button>
             <button
               type="button"
-              onClick={() => onLinkHexnodeDevice(device.id)}
+              onClick={() => onToggleHexnodeDeviceLink(device)}
               style={{
                 ...secondaryButtonStyle,
                 minHeight: 42,
@@ -212,7 +230,9 @@ export default function DevicesList({
               }}
               disabled={linkingHexnodeDeviceId === device.id}
             >
-              {linkingHexnodeDeviceId === device.id ? "Vinculando..." : "Vincular con Hexnode"}
+              {linkingHexnodeDeviceId === device.id
+                ? (device.hexnodeDeviceId ? "Desvinculando..." : "Vinculando...")
+                : (device.hexnodeDeviceId ? "Desvincular de Hexnode" : "Vincular con Hexnode")}
             </button>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
               {statuses.map((status) => (
@@ -246,3 +266,4 @@ export default function DevicesList({
     </section>
   );
 }
+

@@ -351,7 +351,7 @@ router.post("/", asyncHandler(async (req, res) => {
     if (!finalInstallCode) {
       return sendServerError(res, "No se pudo generar installCode unico");
     }
-    const device = await prisma.$transaction(async (tx) => {
+    let device = await prisma.$transaction(async (tx) => {
       const clientSecret = await buildClientSecretFromCustomer(tx, normalizedCustomerId, finalInstallCode);
       const created = await tx.device.create({
         data: {
@@ -388,6 +388,31 @@ router.post("/", asyncHandler(async (req, res) => {
 
       return created;
     });
+
+    // Intento de vinculacion automatica con Hexnode (no bloquea el registro si falla).
+    if (isHexnodeConfigured() && !device.hexnodeDeviceId) {
+      try {
+        const resolved = await resolveHexnodeDeviceMatch(device, { useDefault: false });
+        if (resolved?.hexnodeDeviceId) {
+          device = await prisma.device.update({
+            where: { id: device.id },
+            data: { hexnodeDeviceId: resolved.hexnodeDeviceId },
+            include: {
+              customer: true,
+              creditContract: {
+                include: {
+                  installments: {
+                    orderBy: { sequence: "asc" },
+                  },
+                },
+              },
+            },
+          });
+        }
+      } catch {
+        // Se ignora para no interrumpir el alta.
+      }
+    }
 
     return res.status(201).json({ ok: true, device });
   } catch (error) {
@@ -483,6 +508,31 @@ router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
       linked: true,
       resolvedBy: resolved.source,
       hexnodeDeviceId: resolved.hexnodeDeviceId,
+    },
+  });
+}));
+
+router.post("/:id/unlink-hexnode", asyncHandler(async (req, res) => {
+  const device = await prisma.device.findUnique({
+    where: { id: req.params.id },
+  });
+
+  if (!device) {
+    return sendNotFound(res, "Dispositivo no encontrado");
+  }
+
+  const updated = await prisma.device.update({
+    where: { id: device.id },
+    data: {
+      hexnodeDeviceId: null,
+    },
+  });
+
+  return res.json({
+    ok: true,
+    device: updated,
+    hexnode: {
+      linked: false,
     },
   });
 }));

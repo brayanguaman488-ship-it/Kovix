@@ -275,6 +275,7 @@ export default function Dashboard() {
   const [provisioningMode, setProvisioningMode] = useState("device_owner");
   const [hexnodeProvisioning, setHexnodeProvisioning] = useState(null);
   const [activeSummarySection, setActiveSummarySection] = useState("customers");
+  const [activeMainView, setActiveMainView] = useState("control");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   function setStatus(type, message) {
@@ -375,6 +376,13 @@ export default function Dashboard() {
 
   function handleSelectSummarySection(section) {
     setActiveSummarySection(section);
+  }
+
+  function openControlSection(sectionKey) {
+    setActiveMainView("control");
+    if (sectionKey) {
+      setActiveSummarySection(sectionKey);
+    }
   }
 
   function handleOpenAdvancedTools() {
@@ -587,7 +595,7 @@ export default function Dashboard() {
 
     try {
       setIsSavingDevice(true);
-      await api.createDevice({
+      const response = await api.createDevice({
         ...deviceForm,
         customerId,
         brand,
@@ -595,8 +603,20 @@ export default function Dashboard() {
         imei,
         hexnodeDeviceId: rawHexnodeId || undefined,
       });
+      const createdId = String(response?.device?.id || "").trim();
       setDeviceForm(initialDeviceForm);
-      setStatus("success", "Dispositivo creado correctamente");
+      if (createdId) {
+        setSelectedCreditDeviceId(createdId);
+        setProvisioningDeviceId(createdId);
+      }
+      const createdCode = String(response?.device?.installCode || "").trim();
+      const createdSecret = String(response?.device?.clientSecret || "").trim();
+      setStatus(
+        "success",
+        createdCode
+          ? `Dispositivo creado. Codigo: ${createdCode}${createdSecret ? ` | Secreto cliente: ${createdSecret}` : ""}`
+          : "Dispositivo creado correctamente"
+      );
       await loadDashboard({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo crear el dispositivo");
@@ -725,21 +745,32 @@ export default function Dashboard() {
     }
   }
 
-  async function handleLinkHexnodeDevice(deviceId) {
+  async function handleToggleHexnodeDeviceLink(device) {
     try {
+      const deviceId = String(device?.id || "");
+      if (!deviceId) {
+        return;
+      }
+
       setLinkingHexnodeDeviceId(deviceId);
-      const response = await api.linkDeviceHexnode(deviceId);
-      updateDeviceInState(response?.device);
-      const hexnodeId = response?.hexnode?.hexnodeDeviceId;
-      setStatus(
-        "success",
-        hexnodeId
-          ? `Dispositivo vinculado con Hexnode ID ${hexnodeId}`
-          : "Dispositivo vinculado con Hexnode"
-      );
+      if (device?.hexnodeDeviceId) {
+        const response = await api.unlinkDeviceHexnode(deviceId);
+        updateDeviceInState(response?.device);
+        setStatus("success", "Dispositivo desvinculado de Hexnode");
+      } else {
+        const response = await api.linkDeviceHexnode(deviceId);
+        updateDeviceInState(response?.device);
+        const hexnodeId = response?.hexnode?.hexnodeDeviceId;
+        setStatus(
+          "success",
+          hexnodeId
+            ? `Dispositivo vinculado con Hexnode ID ${hexnodeId}`
+            : "Dispositivo vinculado con Hexnode"
+        );
+      }
       loadDashboard({ silent: true });
     } catch (error) {
-      setStatus("error", error.message || "No se pudo vincular el dispositivo con Hexnode");
+      setStatus("error", error.message || "No se pudo actualizar la vinculacion con Hexnode");
     } finally {
       setLinkingHexnodeDeviceId("");
     }
@@ -1118,6 +1149,9 @@ export default function Dashboard() {
   const customersPageData = paginate(sortedCustomers, customerPage, PAGE_SIZE);
   const devicesPageData = paginate(sortedDevices, devicePage, PAGE_SIZE);
   const paymentsPageData = paginate(sortedPayments, paymentPage, PAGE_SIZE);
+  const latestCreatedDevice = [...devices].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  )[0] || null;
   const selectedCreditDevice = devices.find((entry) => entry.id === selectedCreditDeviceId) || null;
   const selectedProvisioningDevice = devices.find((entry) => entry.id === provisioningDeviceId) || null;
   const deviceCustomerOptions = customers
@@ -1164,10 +1198,28 @@ export default function Dashboard() {
   }, [devices, provisioningDeviceId]);
 
   useEffect(() => {
+    if (!selectedCreditDeviceId && latestCreatedDevice?.id) {
+      setSelectedCreditDeviceId(latestCreatedDevice.id);
+    }
+  }, [selectedCreditDeviceId, latestCreatedDevice]);
+
+  useEffect(() => {
+    if (latestCreatedDevice?.id) {
+      setCreditForm((value) => ({ ...value, deviceId: latestCreatedDevice.id }));
+    }
+  }, [latestCreatedDevice]);
+
+  useEffect(() => {
     if (provisioningMode === "hexnode" && !hexnodeProvisioning) {
       loadHexnodeProvisioningQr({ silent: true });
     }
   }, [provisioningMode, hexnodeProvisioning]);
+
+  useEffect(() => {
+    if (activeMainView === "credit_new" && provisioningMode !== "hexnode") {
+      setProvisioningMode("hexnode");
+    }
+  }, [activeMainView, provisioningMode]);
 
   useEffect(() => {
     setCustomerPage(1);
@@ -1251,37 +1303,56 @@ export default function Dashboard() {
         </div>
 
         <nav style={{ display: "grid", gap: 8 }}>
-          <button type="button" style={sidebarNavButton(false)} onClick={() => setActiveSummarySection("customers")}>
-            Dashboard
+          <button
+            type="button"
+            style={sidebarNavButton(activeMainView === "credit_new")}
+            onClick={() => {
+              setActiveMainView("credit_new");
+              setIsAdvancedOpen(true);
+            }}
+          >
+            Credito nuevo
           </button>
           <button
             type="button"
-            style={sidebarNavButton(activeSummarySection === "customers")}
-            onClick={() => setActiveSummarySection("customers")}
+            style={sidebarNavButton(activeMainView === "control")}
+            onClick={() => setActiveMainView("control")}
+          >
+            Centro de control
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "customers")}
+            onClick={() => openControlSection("customers")}
           >
             Clientes
           </button>
           <button
             type="button"
-            style={sidebarNavButton(activeSummarySection === "devices")}
-            onClick={() => setActiveSummarySection("devices")}
+            style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "devices")}
+            onClick={() => openControlSection("devices")}
           >
-            Dispositivos
-          </button>
-          <button type="button" style={sidebarNavButton(false)} onClick={handleOpenAdvancedTools}>
-            Contratos
-          </button>
-          <button type="button" style={sidebarNavButton(false)} onClick={handleOpenAdvancedTools}>
-            Aprovisionamiento QR
+            Celulares
           </button>
           <button
             type="button"
-            style={sidebarNavButton(activeSummarySection === "finance")}
-            onClick={() => setActiveSummarySection("finance")}
+            style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "payments")}
+            onClick={() => openControlSection("payments")}
+          >
+            Pagos
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeMainView === "finance")}
+            onClick={() => setActiveMainView("finance")}
           >
             Finanzas
           </button>
-          <button type="button" style={sidebarNavButton(false)} onClick={handleOpenAdvancedTools}>
+          <button
+            type="button"
+            style={sidebarNavButton(activeMainView === "trash")}
+            onClick={() => setActiveMainView("trash")}
+          >
             Papelera
           </button>
         </nav>
@@ -1306,68 +1377,72 @@ export default function Dashboard() {
 
       <StatusMessage message={statusState.message} type={statusState.type} />
 
-      <SummaryCards
-        customersCount={customers.length}
-        devicesCount={devices.length}
-        paymentsCount={payments.length}
-        activeSection={activeSummarySection}
-        onSelectSection={handleSelectSummarySection}
-      />
+      {activeMainView === "control" && (
+        <>
+          <SummaryCards
+            customersCount={customers.length}
+            devicesCount={devices.length}
+            paymentsCount={payments.length}
+            activeSection={activeSummarySection}
+            onSelectSection={handleSelectSummarySection}
+          />
 
-      <section
-        style={{
-          ...cardStyle,
-          display: "grid",
-          gap: 12,
-          border: "1px solid rgba(37, 99, 235, 0.22)",
-          background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.9))",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <h3 style={{ margin: 0 }}>Centro de gestion</h3>
-          <p style={{ margin: 0, color: "var(--text-soft)" }}>
-            Trabaja por modulo para mantener el flujo limpio y ordenado.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {[
-            { key: "customers", label: "Clientes" },
-            { key: "devices", label: "Dispositivos" },
-            { key: "payments", label: "Pagos" },
-            { key: "finance", label: "Finanzas" },
-          ].map((entry) => {
-            const isActive = activeSummarySection === entry.key;
-            return (
-              <button
-                key={entry.key}
-                type="button"
-                onClick={() => setActiveSummarySection(entry.key)}
-                style={{
-                  minWidth: 188,
-                  minHeight: 52,
-                  padding: "12px 18px",
-                  borderRadius: 14,
-                  border: isActive ? "1px solid #0f4cbb" : "1px solid rgba(148, 163, 184, 0.55)",
-                  background: isActive
-                    ? "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)"
-                    : "linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92))",
-                  color: isActive ? "#f8fafc" : "var(--text-main)",
-                  fontWeight: isActive ? 700 : 600,
-                  cursor: "pointer",
-                  boxShadow: isActive
-                    ? "0 12px 26px rgba(30, 64, 175, 0.34), inset 0 1px 0 rgba(255,255,255,0.32)"
-                    : "inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-                  transform: isActive ? "translateY(-1px)" : "none",
-                  transition: "all 0.18s ease",
-                }}
-              >
-                {entry.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+          <section
+            style={{
+              ...cardStyle,
+              display: "grid",
+              gap: 12,
+              border: "1px solid rgba(37, 99, 235, 0.22)",
+              background: "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.9))",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <h3 style={{ margin: 0 }}>Centro de control</h3>
+              <p style={{ margin: 0, color: "var(--text-soft)" }}>
+                Trabaja por modulo para mantener el flujo limpio y ordenado.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {[
+                { key: "customers", label: "Clientes" },
+                { key: "devices", label: "Celulares" },
+                { key: "payments", label: "Pagos" },
+              ].map((entry) => {
+                const isActive = activeSummarySection === entry.key;
+                return (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    onClick={() => setActiveSummarySection(entry.key)}
+                    style={{
+                      minWidth: 188,
+                      minHeight: 52,
+                      padding: "12px 18px",
+                      borderRadius: 14,
+                      border: isActive ? "1px solid #0f4cbb" : "1px solid rgba(148, 163, 184, 0.55)",
+                      background: isActive
+                        ? "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)"
+                        : "linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92))",
+                      color: isActive ? "#f8fafc" : "var(--text-main)",
+                      fontWeight: isActive ? 700 : 600,
+                      cursor: "pointer",
+                      boxShadow: isActive
+                        ? "0 12px 26px rgba(30, 64, 175, 0.34), inset 0 1px 0 rgba(255,255,255,0.32)"
+                        : "inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+                      transform: isActive ? "translateY(-1px)" : "none",
+                      transition: "all 0.18s ease",
+                    }}
+                  >
+                    {entry.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </>
+      )}
 
+      {activeMainView === "credit_new" && (
       <details
         ref={advancedToolsRef}
         open={isAdvancedOpen}
@@ -1388,7 +1463,7 @@ export default function Dashboard() {
             outline: "none",
           }}
         >
-          Herramientas avanzadas (provisionamiento, formularios, contratos)
+          Credito nuevo: cliente, celular, cuotas y QR Hexnode
         </summary>
         <div style={{ display: "grid", gap: 24, marginTop: 18 }}>
 
@@ -1457,14 +1532,29 @@ export default function Dashboard() {
             Genera QR directo desde KOVIX (Device Owner) o usa el QR oficial de Hexnode.
           </p>
 
-          <select
-            value={provisioningMode}
-            onChange={(event) => setProvisioningMode(event.target.value)}
-            style={inputStyle}
-          >
-            <option value="device_owner">QR KOVIX (Device Owner)</option>
-            <option value="hexnode">QR Hexnode Enrollment</option>
-          </select>
+          {activeMainView === "credit_new" ? (
+            <div
+              style={{
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid var(--line)",
+                background: "var(--panel-soft)",
+                color: "var(--text-soft)",
+                fontSize: 14,
+              }}
+            >
+              Modo activo: <strong>QR Hexnode Enrollment</strong>
+            </div>
+          ) : (
+            <select
+              value={provisioningMode}
+              onChange={(event) => setProvisioningMode(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="device_owner">QR KOVIX (Device Owner)</option>
+              <option value="hexnode">QR Hexnode Enrollment</option>
+            </select>
+          )}
 
           {provisioningMode === "hexnode" ? (
             <>
@@ -1628,12 +1718,14 @@ export default function Dashboard() {
               onChange={(event) => setCreditForm((value) => ({ ...value, deviceId: event.target.value }))}
               style={inputStyle}
             >
-              <option value="">Selecciona dispositivo</option>
-              {devices.map((device) => (
-                <option key={device.id} value={device.id}>
-                  {device.installCode} - {device.customer?.fullName || "Sin cliente"}
+              <option value="">
+                {latestCreatedDevice ? "Usar ultimo dispositivo registrado" : "Primero registra un dispositivo"}
+              </option>
+              {latestCreatedDevice ? (
+                <option key={latestCreatedDevice.id} value={latestCreatedDevice.id}>
+                  {latestCreatedDevice.installCode} - {latestCreatedDevice.customer?.fullName || "Sin cliente"}
                 </option>
-              ))}
+              ) : null}
             </select>
             <input
               placeholder="Monto total (USD)"
@@ -1902,8 +1994,9 @@ export default function Dashboard() {
       </section>
         </div>
       </details>
+      )}
 
-      {activeSummarySection === "customers" && (
+      {activeMainView === "control" && activeSummarySection === "customers" && (
         <section style={{ display: "grid", gap: 16 }}>
           <CustomersList
             customers={customersPageData.items}
@@ -1922,7 +2015,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      {activeSummarySection === "devices" && (
+      {activeMainView === "control" && activeSummarySection === "devices" && (
         <section style={{ display: "grid", gap: 16 }}>
           <DevicesList
             devices={devicesPageData.items}
@@ -1932,7 +2025,7 @@ export default function Dashboard() {
             rotatingSecretDeviceId={rotatingSecretDeviceId}
             onRotateSecret={handleRotateSecret}
             linkingHexnodeDeviceId={linkingHexnodeDeviceId}
-            onLinkHexnodeDevice={handleLinkHexnodeDevice}
+            onToggleHexnodeDeviceLink={handleToggleHexnodeDeviceLink}
             totalItems={devicesPageData.totalItems}
             page={devicesPageData.page}
             totalPages={devicesPageData.totalPages}
@@ -1956,7 +2049,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      {activeSummarySection === "payments" && (
+      {activeMainView === "control" && activeSummarySection === "payments" && (
         <section style={{ display: "grid", gap: 16 }}>
           <div style={{ ...cardStyle, display: "grid", gap: 10 }}>
             <h3 style={{ margin: 0 }}>Busqueda de pagos</h3>
@@ -1988,9 +2081,28 @@ export default function Dashboard() {
         </section>
       )}
 
-      {activeSummarySection === "finance" && (
+      {activeMainView === "finance" && (
         <section style={{ display: "grid", gap: 16 }}>
+          <SummaryCards
+            customersCount={customers.length}
+            devicesCount={devices.length}
+            paymentsCount={payments.length}
+            activeSection="payments"
+            onSelectSection={() => {}}
+          />
           <FinancePanel payments={sortedPayments} />
+        </section>
+      )}
+
+      {activeMainView === "trash" && (
+        <section style={{ ...cardStyle, display: "grid", gap: 10 }}>
+          <h2 style={{ margin: 0 }}>Papelera</h2>
+          <p style={{ margin: 0, color: "var(--text-soft)" }}>
+            Los elementos eliminados se envian a papelera y se purgan automaticamente cada 30 dias.
+          </p>
+          <p style={{ margin: 0, color: "var(--text-soft)" }}>
+            Por ahora la papelera funciona con retencion automatica en backend.
+          </p>
         </section>
       )}
       </main>

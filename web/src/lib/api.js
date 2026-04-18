@@ -99,6 +99,11 @@ export const api = {
       method: "POST",
     });
   },
+  unlinkDeviceHexnode(deviceId) {
+    return request(`/devices/${deviceId}/unlink-hexnode`, {
+      method: "POST",
+    });
+  },
   linkAllDevicesHexnode() {
     return request("/devices/link-hexnode-all", {
       method: "POST",
