@@ -39,6 +39,18 @@ function normalizeDigits(value) {
   return String(value || "").replace(/\D+/g, "");
 }
 
+function buildLocalCredentialSnapshot(localDevice) {
+  return {
+    deviceId: localDevice?.id || null,
+    installCode: localDevice?.installCode || null,
+    imei: localDevice?.imei || null,
+    imei2: localDevice?.imei2 || null,
+    alias: localDevice?.alias || null,
+    model: localDevice?.model || null,
+    hexnodeDeviceId: localDevice?.hexnodeDeviceId || null,
+  };
+}
+
 function buildBaseUrl(pathname, query = null) {
   const base = `https://${HEXNODE_PORTAL}.hexnodemdm.com`;
   const url = new URL(pathname, base);
@@ -125,7 +137,8 @@ async function loadPolicyNameMap() {
 }
 
 function matchDeviceByListEntry(localDevice, listEntry) {
-  const localImei = normalizeDigits(localDevice?.imei);
+  const localImei1 = normalizeDigits(localDevice?.imei);
+  const localImei2 = normalizeDigits(localDevice?.imei2);
   const localInstallCode = normalize(localDevice?.installCode);
   const localAlias = normalize(localDevice?.alias);
   const localModel = normalize(localDevice?.model);
@@ -138,7 +151,8 @@ function matchDeviceByListEntry(localDevice, listEntry) {
     (localInstallCode && (localInstallCode === remoteName || localInstallCode === remoteSerial)) ||
     (localAlias && (localAlias === remoteName || localAlias === remoteSerial)) ||
     (localModel && localModel === remoteModel) ||
-    (localImei && localImei === normalizeDigits(remoteSerial))
+    (localImei1 && localImei1 === normalizeDigits(remoteSerial)) ||
+    (localImei2 && localImei2 === normalizeDigits(remoteSerial))
   );
 }
 
@@ -178,8 +192,9 @@ async function resolveHexnodeDeviceId(localDevice) {
     return Number(directMatch.id);
   }
 
-  const localImei = normalizeDigits(localDevice?.imei);
-  if (!localImei) {
+  const localImei1 = normalizeDigits(localDevice?.imei);
+  const localImei2 = normalizeDigits(localDevice?.imei2);
+  if (!localImei1 && !localImei2) {
     return null;
   }
 
@@ -194,7 +209,10 @@ async function resolveHexnodeDeviceId(localDevice) {
       const remoteImei1 = normalizeDigits(details?.device?.imei_1);
       const remoteImei2 = normalizeDigits(details?.device?.imei_2);
 
-      if (localImei && (localImei === remoteImei1 || localImei === remoteImei2)) {
+      if (
+        (localImei1 && (localImei1 === remoteImei1 || localImei1 === remoteImei2)) ||
+        (localImei2 && (localImei2 === remoteImei1 || localImei2 === remoteImei2))
+      ) {
         return remoteId;
       }
     } catch {
@@ -212,6 +230,7 @@ function toResolvedResult(localDevice, hexnodeDeviceId, source) {
     source,
     matchedBy: {
       imei: localDevice?.imei || null,
+      imei2: localDevice?.imei2 || null,
       installCode: localDevice?.installCode || null,
       alias: localDevice?.alias || null,
       model: localDevice?.model || null,
@@ -237,8 +256,9 @@ export async function resolveHexnodeDeviceMatch(localDevice, options = {}) {
     return toResolvedResult(localDevice, Number(directMatch.id), "devices_list_match");
   }
 
-  const localImei = normalizeDigits(localDevice?.imei);
-  if (!localImei) {
+  const localImei1 = normalizeDigits(localDevice?.imei);
+  const localImei2 = normalizeDigits(localDevice?.imei2);
+  if (!localImei1 && !localImei2) {
     return null;
   }
 
@@ -253,7 +273,10 @@ export async function resolveHexnodeDeviceMatch(localDevice, options = {}) {
       const remoteImei1 = normalizeDigits(details?.device?.imei_1);
       const remoteImei2 = normalizeDigits(details?.device?.imei_2);
 
-      if (localImei && (localImei === remoteImei1 || localImei === remoteImei2)) {
+      if (
+        (localImei1 && (localImei1 === remoteImei1 || localImei1 === remoteImei2)) ||
+        (localImei2 && (localImei2 === remoteImei1 || localImei2 === remoteImei2))
+      ) {
         return toResolvedResult(localDevice, remoteId, "device_details_imei_match");
       }
     } catch {
@@ -262,6 +285,91 @@ export async function resolveHexnodeDeviceMatch(localDevice, options = {}) {
   }
 
   return null;
+}
+
+export async function getHexnodeLinkDiagnostics(localDevice, options = {}) {
+  const maxCandidates = Number(options?.maxCandidates || 5);
+  const local = buildLocalCredentialSnapshot(localDevice);
+
+  if (!HEXNODE_ENABLED) {
+    return {
+      configured: false,
+      portal: HEXNODE_PORTAL || null,
+      local,
+      suggestedCandidates: [],
+      reason: "hexnode_not_configured",
+    };
+  }
+
+  const localInstallCode = normalize(local.installCode);
+  const localAlias = normalize(local.alias);
+  const localModel = normalize(local.model);
+  const localImei1 = normalizeDigits(local.imei);
+  const localImei2 = normalizeDigits(local.imei2);
+
+  try {
+    const listed = await listHexnodeDevices();
+    const scored = listed
+      .map((item) => {
+        const remoteName = normalize(item?.device_name);
+        const remoteSerial = normalize(item?.serial_number);
+        const remoteModel = normalize(item?.model_name);
+        const remoteSerialDigits = normalizeDigits(item?.serial_number);
+        let score = 0;
+
+        if (localInstallCode && (localInstallCode === remoteName || localInstallCode === remoteSerial)) {
+          score += 100;
+        } else if (
+          localInstallCode &&
+          (remoteName.includes(localInstallCode) || remoteSerial.includes(localInstallCode))
+        ) {
+          score += 50;
+        }
+
+        if (localAlias && (localAlias === remoteName || localAlias === remoteSerial)) {
+          score += 40;
+        }
+
+        if (localModel && localModel === remoteModel) {
+          score += 20;
+        }
+
+        if (localImei1 && localImei1 === remoteSerialDigits) {
+          score += 90;
+        }
+        if (localImei2 && localImei2 === remoteSerialDigits) {
+          score += 90;
+        }
+
+        return {
+          id: Number(item?.id),
+          deviceName: item?.device_name || null,
+          serialNumber: item?.serial_number || null,
+          modelName: item?.model_name || null,
+          score,
+        };
+      })
+      .filter((entry) => Number.isFinite(entry.id) && entry.id > 0 && entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(1, maxCandidates));
+
+    return {
+      configured: true,
+      portal: HEXNODE_PORTAL,
+      local,
+      suggestedCandidates: scored,
+      reason: scored.length > 0 ? "candidates_available" : "no_match_candidates",
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      portal: HEXNODE_PORTAL,
+      local,
+      suggestedCandidates: [],
+      reason: "diagnostics_query_failed",
+      error: error?.message || "No se pudieron cargar candidatos desde Hexnode",
+    };
+  }
 }
 
 function getTargetPolicyName(status) {

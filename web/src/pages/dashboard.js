@@ -29,16 +29,18 @@ const initialDeviceForm = {
   model: "",
   alias: "",
   imei: "",
+  imei2: "",
   hexnodeDeviceId: "",
   notes: "",
 };
 
 const initialCreditForm = {
   deviceId: "",
+  purchaseDate: "",
   principalAmount: "",
   downPaymentAmount: "",
   installmentCount: "",
-  startDate: "",
+  cutOffDate: "",
   notes: "",
 };
 
@@ -222,6 +224,33 @@ function normalizeProvisioningChecksum(rawValue) {
   }
 }
 
+function buildHexnodeDiagnosticsMessage(details) {
+  if (!details || typeof details !== "object") {
+    return "";
+  }
+
+  const localCode = String(details?.local?.installCode || "").trim();
+  const localImei1 = String(details?.local?.imei || "").trim();
+  const localImei2 = String(details?.local?.imei2 || "").trim();
+  const topCandidate = Array.isArray(details?.suggestedCandidates) ? details.suggestedCandidates[0] : null;
+
+  const parts = [];
+  if (localCode) {
+    parts.push(`Codigo local: ${localCode}`);
+  }
+  if (localImei1) {
+    parts.push(`IMEI1: ${localImei1}`);
+  }
+  if (localImei2) {
+    parts.push(`IMEI2: ${localImei2}`);
+  }
+  if (topCandidate?.id) {
+    parts.push(`Sugerido Hexnode ID: ${topCandidate.id}`);
+  }
+
+  return parts.join(" | ");
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const hasHydratedQueryRef = useRef(false);
@@ -241,6 +270,8 @@ export default function Dashboard() {
   const [isSavingCreditContract, setIsSavingCreditContract] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState("");
+  const [clearingManualStatusDeviceId, setClearingManualStatusDeviceId] = useState("");
+  const [updatingDeviceIdentityId, setUpdatingDeviceIdentityId] = useState("");
   const [rotatingSecretDeviceId, setRotatingSecretDeviceId] = useState("");
   const [linkingHexnodeDeviceId, setLinkingHexnodeDeviceId] = useState("");
   const [isLinkingAllHexnodeDevices, setIsLinkingAllHexnodeDevices] = useState(false);
@@ -257,11 +288,13 @@ export default function Dashboard() {
   const [deviceQuery, setDeviceQuery] = useState("");
   const [paymentQuery, setPaymentQuery] = useState("");
   const [customerSort, setCustomerSort] = useState("name_asc");
+  const [customerSegment, setCustomerSegment] = useState("all");
   const [deviceSort, setDeviceSort] = useState("updated_desc");
   const [paymentSort, setPaymentSort] = useState("due_asc");
   const [customerPage, setCustomerPage] = useState(1);
   const [devicePage, setDevicePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
+  const [deviceSegment, setDeviceSegment] = useState("all");
   const [deviceCustomerFilter, setDeviceCustomerFilter] = useState("all");
   const [devicePanelQuery, setDevicePanelQuery] = useState("");
   const [paymentPanelQuery, setPaymentPanelQuery] = useState("");
@@ -585,6 +618,7 @@ export default function Dashboard() {
     const brand = deviceForm.brand.trim();
     const model = deviceForm.model.trim();
     const imei = deviceForm.imei.trim();
+    const imei2 = String(deviceForm.imei2 || "").trim();
     const rawHexnodeId = String(deviceForm.hexnodeDeviceId || "").trim();
 
     if (!customerId || !brand || !model || !imei) {
@@ -605,6 +639,7 @@ export default function Dashboard() {
         brand,
         model,
         imei,
+        imei2: imei2 || undefined,
         hexnodeDeviceId: rawHexnodeId || undefined,
       });
       const createdId = String(response?.device?.id || "").trim();
@@ -620,11 +655,12 @@ export default function Dashboard() {
       }
       const createdCode = String(response?.device?.installCode || "").trim();
       const createdSecret = String(response?.device?.clientSecret || "").trim();
+      const autoLinkedHexnodeId = response?.hexnode?.linked ? response?.hexnode?.hexnodeDeviceId : null;
       setStatus(
         "success",
         createdCode
-          ? `Dispositivo creado. Codigo: ${createdCode}${createdSecret ? ` | Secreto cliente: ${createdSecret}` : ""}`
-          : "Dispositivo creado correctamente"
+          ? `Dispositivo creado. Codigo: ${createdCode}${createdSecret ? ` | Secreto cliente: ${createdSecret}` : ""}${autoLinkedHexnodeId ? ` | Hexnode auto-vinculado: ${autoLinkedHexnodeId}` : ""}`
+          : `Dispositivo creado correctamente${autoLinkedHexnodeId ? ` | Hexnode auto-vinculado: ${autoLinkedHexnodeId}` : ""}`
       );
       await loadDashboard({ silent: true });
     } catch (error) {
@@ -637,13 +673,14 @@ export default function Dashboard() {
   async function handleCreateCreditContract(event) {
     event.preventDefault();
     const deviceId = creditForm.deviceId.trim();
+    const purchaseDate = creditForm.purchaseDate;
     const principalAmount = Number(creditForm.principalAmount);
     const downPaymentAmount = creditForm.downPaymentAmount ? Number(creditForm.downPaymentAmount) : 0;
     const installmentCount = Number(creditForm.installmentCount);
-    const startDate = creditForm.startDate;
+    const startDate = creditForm.cutOffDate;
 
-    if (!deviceId || !creditForm.principalAmount || !creditForm.installmentCount || !startDate) {
-      setStatus("error", "Credito: deviceId, principalAmount, installmentCount y startDate son obligatorios");
+    if (!deviceId || !purchaseDate || !creditForm.principalAmount || !creditForm.installmentCount || !startDate) {
+      setStatus("error", "Credito: deviceId, purchaseDate, principalAmount, installmentCount y cutOffDate son obligatorios");
       return;
     }
 
@@ -669,15 +706,22 @@ export default function Dashboard() {
 
     try {
       setIsSavingCreditContract(true);
-      await api.createCreditContract({
+      const response = await api.createCreditContract({
         ...creditForm,
         deviceId,
+        purchaseDate,
         principalAmount,
         downPaymentAmount,
         installmentCount,
         startDate,
       });
-      setStatus("success", "Contrato de credito creado correctamente");
+      const autoLinkedHexnodeId = response?.hexnode?.linked ? response?.hexnode?.hexnodeDeviceId : null;
+      setStatus(
+        "success",
+        autoLinkedHexnodeId
+          ? `Contrato de credito creado correctamente | Hexnode auto-vinculado: ${autoLinkedHexnodeId}`
+          : "Contrato de credito creado correctamente"
+      );
       setSelectedCreditDeviceId(deviceId);
       setCreditForm(initialCreditForm);
       await loadDashboard({ silent: true });
@@ -723,6 +767,34 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo actualizar el estado");
     } finally {
       setUpdatingDeviceId("");
+    }
+  }
+
+  async function handleUpdateDeviceIdentity(deviceId, payload) {
+    try {
+      setUpdatingDeviceIdentityId(String(deviceId));
+      const response = await api.updateDevice(deviceId, payload);
+      updateDeviceInState(response?.device);
+      setStatus("success", "IMEI del dispositivo actualizado");
+      loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo actualizar el IMEI del dispositivo");
+    } finally {
+      setUpdatingDeviceIdentityId("");
+    }
+  }
+
+  async function handleClearManualStatus(deviceId) {
+    try {
+      setClearingManualStatusDeviceId(String(deviceId));
+      const response = await api.clearManualDeviceStatus(deviceId);
+      updateDeviceInState(response?.device);
+      setStatus("success", "Modo automatico activado para el dispositivo");
+      loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo activar el modo automatico");
+    } finally {
+      setClearingManualStatusDeviceId("");
     }
   }
 
@@ -779,7 +851,13 @@ export default function Dashboard() {
       }
       loadDashboard({ silent: true });
     } catch (error) {
-      setStatus("error", error.message || "No se pudo actualizar la vinculacion con Hexnode");
+      const diagnostics = buildHexnodeDiagnosticsMessage(error?.details);
+      setStatus(
+        "error",
+        diagnostics
+          ? `${error.message || "No se pudo actualizar la vinculacion con Hexnode"} | ${diagnostics}`
+          : (error.message || "No se pudo actualizar la vinculacion con Hexnode")
+      );
     } finally {
       setLinkingHexnodeDeviceId("");
     }
@@ -1068,7 +1146,7 @@ export default function Dashboard() {
       .some((value) => String(value).toLowerCase().includes(normalizedCustomerQuery));
   });
 
-  const filteredDevices = devices.filter((device) => {
+  const baseFilteredDevices = devices.filter((device) => {
     const matchesCustomer =
       deviceCustomerFilter === "all" || String(device.customer?.id || "") === deviceCustomerFilter;
 
@@ -1087,6 +1165,34 @@ export default function Dashboard() {
       .join(" ");
 
     return searchTerms.every((term) => haystack.includes(term));
+  });
+
+  function getDeviceSegmentKey(device) {
+    const status = String(device?.currentStatus || "").toUpperCase();
+    if (status === "BLOQUEADO") {
+      return "blocked";
+    }
+    if (status === "SOLO_LLAMADAS") {
+      return "calls_only";
+    }
+    if (status === "ACTIVO" || status === "PAGO_PENDIENTE") {
+      return "active_pending";
+    }
+    return "all";
+  }
+
+  const deviceSegmentCounts = {
+    all: baseFilteredDevices.length,
+    blocked: baseFilteredDevices.filter((device) => getDeviceSegmentKey(device) === "blocked").length,
+    calls_only: baseFilteredDevices.filter((device) => getDeviceSegmentKey(device) === "calls_only").length,
+    active_pending: baseFilteredDevices.filter((device) => getDeviceSegmentKey(device) === "active_pending").length,
+  };
+
+  const filteredDevices = baseFilteredDevices.filter((device) => {
+    if (deviceSegment === "all") {
+      return true;
+    }
+    return getDeviceSegmentKey(device) === deviceSegment;
   });
 
   const filteredPayments = payments.filter((payment) => {
@@ -1110,7 +1216,38 @@ export default function Dashboard() {
     return searchTerms.every((term) => haystack.includes(term));
   });
 
-  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+  function getCustomerPortfolioState(customer) {
+    const contracts = (customer?.devices || [])
+      .map((device) => device.creditContract)
+      .filter(Boolean);
+
+    if (contracts.length === 0) {
+      return "sin_contrato";
+    }
+
+    const hasDebt = contracts.some((contract) =>
+      (contract?.installments || []).some(
+        (installment) => installment.status !== "PAGADO" && installment.status !== "CANCELADO"
+      )
+    );
+
+    return hasDebt ? "active" : "paid";
+  }
+
+  const customerSegmentCounts = {
+    all: filteredCustomers.length,
+    active: filteredCustomers.filter((customer) => getCustomerPortfolioState(customer) === "active").length,
+    paid: filteredCustomers.filter((customer) => getCustomerPortfolioState(customer) === "paid").length,
+  };
+
+  const segmentedCustomers = filteredCustomers.filter((customer) => {
+    if (customerSegment === "all") {
+      return true;
+    }
+    return getCustomerPortfolioState(customer) === customerSegment;
+  });
+
+  const sortedCustomers = [...segmentedCustomers].sort((a, b) => {
     if (customerSort === "name_desc") {
       return String(b.fullName || "").localeCompare(String(a.fullName || ""));
     }
@@ -1247,11 +1384,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     setCustomerPage(1);
-  }, [customerQuery, customerSort]);
+  }, [customerQuery, customerSort, customerSegment]);
 
   useEffect(() => {
     setDevicePage(1);
-  }, [deviceQuery, deviceSort, devicePanelQuery, deviceCustomerFilter]);
+  }, [deviceQuery, deviceSort, devicePanelQuery, deviceCustomerFilter, deviceSegment]);
 
   useEffect(() => {
     setPaymentPage(1);
@@ -1788,12 +1925,24 @@ export default function Dashboard() {
               }
               style={inputStyle}
             />
-            <input
-              type="date"
-              value={creditForm.startDate}
-              onChange={(event) => setCreditForm((value) => ({ ...value, startDate: event.target.value }))}
-              style={inputStyle}
-            />
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 13, color: "#334155" }}>Fecha de compra</span>
+              <input
+                type="date"
+                value={creditForm.purchaseDate}
+                onChange={(event) => setCreditForm((value) => ({ ...value, purchaseDate: event.target.value }))}
+                style={inputStyle}
+              />
+            </label>
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={{ fontSize: 13, color: "#334155" }}>Fecha de corte / primer pago</span>
+              <input
+                type="date"
+                value={creditForm.cutOffDate}
+                onChange={(event) => setCreditForm((value) => ({ ...value, cutOffDate: event.target.value }))}
+                style={inputStyle}
+              />
+            </label>
             <textarea
               placeholder="Notas de contrato (opcional)"
               rows={3}
@@ -1875,6 +2024,9 @@ export default function Dashboard() {
                 }}
               >
                 <div>Total: ${Number(selectedCreditContract.summary?.totalAmount || 0).toFixed(2)} USD</div>
+                <div>Fecha de registro: {selectedCreditContract.summary?.registeredAt ? new Date(selectedCreditContract.summary.registeredAt).toLocaleDateString() : "-"}</div>
+                <div>Fecha de compra: {selectedCreditContract.summary?.purchaseDate ? new Date(selectedCreditContract.summary.purchaseDate).toLocaleDateString() : "-"}</div>
+                <div>Fecha de corte: {selectedCreditContract.summary?.cutOffDate ? new Date(selectedCreditContract.summary.cutOffDate).toLocaleDateString() : "-"}</div>
                 <div>Precio del equipo: ${Number(selectedCreditContract.summary?.principalAmount || 0).toFixed(2)} USD</div>
                 <div>Entrada: ${Number(selectedCreditContract.summary?.downPaymentAmount || 0).toFixed(2)} USD</div>
                 <div>Monto financiado: ${Number(selectedCreditContract.summary?.financedAmount || 0).toFixed(2)} USD</div>
@@ -2039,6 +2191,9 @@ export default function Dashboard() {
             totalPages={customersPageData.totalPages}
             sortValue={customerSort}
             onSortChange={setCustomerSort}
+            customerSegment={customerSegment}
+            onCustomerSegmentChange={setCustomerSegment}
+            segmentCounts={customerSegmentCounts}
             onPrevPage={() => setCustomerPage((value) => Math.max(1, value - 1))}
             onNextPage={() =>
               setCustomerPage((value) => Math.min(customersPageData.totalPages, value + 1))
@@ -2071,6 +2226,9 @@ export default function Dashboard() {
             }
             customerFilter={deviceCustomerFilter}
             onCustomerFilterChange={setDeviceCustomerFilter}
+            deviceSegment={deviceSegment}
+            onDeviceSegmentChange={setDeviceSegment}
+            segmentCounts={deviceSegmentCounts}
             customerOptions={deviceCustomerOptions}
             searchValue={devicePanelQuery}
             onSearchChange={setDevicePanelQuery}
@@ -2079,6 +2237,10 @@ export default function Dashboard() {
             isLinkingAllHexnodeDevices={isLinkingAllHexnodeDevices}
             onDeleteDevice={handleDeleteDevice}
             deletingDeviceId={deletingDeviceId}
+            onUpdateDeviceIdentity={handleUpdateDeviceIdentity}
+            updatingDeviceIdentityId={updatingDeviceIdentityId}
+            onClearManualStatus={handleClearManualStatus}
+            clearingManualStatusDeviceId={clearingManualStatusDeviceId}
           />
         </section>
       )}

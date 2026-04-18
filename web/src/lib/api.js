@@ -34,7 +34,9 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || "Error en la solicitud");
+    const error = new Error(data.message || "Error en la solicitud");
+    error.details = data.details || null;
+    throw error;
   }
 
   return data;
@@ -78,6 +80,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  updateDevice(deviceId, payload) {
+    return request(`/devices/${deviceId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
   deleteDevice(deviceId) {
     return request(`/devices/${deviceId}`, {
       method: "DELETE",
@@ -87,6 +95,11 @@ export const api = {
     return request(`/devices/${deviceId}/status`, {
       method: "PATCH",
       body: JSON.stringify(payload),
+    });
+  },
+  clearManualDeviceStatus(deviceId) {
+    return request(`/devices/${deviceId}/clear-manual-status`, {
+      method: "POST",
     });
   },
   rotateDeviceSecret(deviceId) {

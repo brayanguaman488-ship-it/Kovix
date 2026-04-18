@@ -14,6 +14,7 @@ import {
 } from "../lib/validation.js";
 import { syncDeviceStatus } from "../lib/deviceStatus.js";
 import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
+import { isHexnodeConfigured, resolveHexnodeDeviceMatch } from "../lib/hexnode.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -95,6 +96,9 @@ function buildContractSummary(contract) {
   });
 
   return {
+    purchaseDate: contract.purchaseDate,
+    cutOffDate: contract.startDate,
+    registeredAt: contract.createdAt,
     principalAmount,
     downPaymentAmount,
     financedAmount,
@@ -110,6 +114,45 @@ function buildContractSummary(contract) {
     pendingInstallments: contract.installments.filter((entry) => entry.status === InstallmentStatus.PENDIENTE).length,
     overdueInstallments: contract.installments.filter((entry) => entry.status === InstallmentStatus.VENCIDO).length,
     reportedInstallments: contract.installments.filter((entry) => entry.status === InstallmentStatus.REPORTADO).length,
+  };
+}
+
+async function attemptAutomaticHexnodeLink(deviceId) {
+  if (!isHexnodeConfigured()) {
+    return { linked: false, skipped: "hexnode_not_configured" };
+  }
+
+  const localDevice = await prisma.device.findUnique({
+    where: { id: deviceId },
+  });
+
+  if (!localDevice) {
+    return { linked: false, skipped: "device_not_found" };
+  }
+
+  if (localDevice.hexnodeDeviceId) {
+    return {
+      linked: true,
+      hexnodeDeviceId: localDevice.hexnodeDeviceId,
+      resolvedBy: "stored_device_field",
+      skipped: "already_linked",
+    };
+  }
+
+  const resolved = await resolveHexnodeDeviceMatch(localDevice, { useDefault: false });
+  if (!resolved?.hexnodeDeviceId) {
+    return { linked: false, skipped: "no_match_found" };
+  }
+
+  const updated = await prisma.device.update({
+    where: { id: deviceId },
+    data: { hexnodeDeviceId: resolved.hexnodeDeviceId },
+  });
+
+  return {
+    linked: true,
+    hexnodeDeviceId: updated.hexnodeDeviceId,
+    resolvedBy: resolved.source,
   };
 }
 
@@ -211,6 +254,7 @@ router.use(authMiddleware);
 router.post("/contracts", asyncHandler(async (req, res) => {
   const {
     deviceId,
+    purchaseDate,
     principalAmount,
     downPaymentAmount,
     installmentCount,
@@ -220,6 +264,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
 
   const normalizedDeviceId = asTrimmedString(deviceId);
   const parsedAmount = parsePositiveAmount(principalAmount);
+  const parsedPurchaseDate = parseDate(purchaseDate);
   const parsedDownPayment = downPaymentAmount === undefined || downPaymentAmount === null || downPaymentAmount === ""
     ? 0
     : Number(downPaymentAmount);
@@ -228,6 +273,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
 
   const required = assertRequiredFields([
     ["deviceId", normalizedDeviceId],
+    ["purchaseDate", purchaseDate],
     ["principalAmount", principalAmount],
     ["installmentCount", installmentCount],
     ["startDate", startDate],
@@ -236,7 +282,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
   if (!required.ok) {
     return sendBadRequest(
       res,
-      "deviceId, principalAmount, installmentCount y startDate son obligatorios",
+      "deviceId, purchaseDate, principalAmount, installmentCount y startDate son obligatorios",
       `Faltan: ${required.missing.join(", ")}`
     );
   }
@@ -255,6 +301,10 @@ router.post("/contracts", asyncHandler(async (req, res) => {
 
   if (!parsedInstallmentCount) {
     return sendBadRequest(res, "installmentCount debe ser entero mayor que 0");
+  }
+
+  if (!parsedPurchaseDate) {
+    return sendBadRequest(res, "purchaseDate invalida");
   }
 
   if (!parsedStartDate) {
@@ -291,6 +341,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
           financedAmount,
           installmentCount: parsedInstallmentCount,
           installmentAmount: Number((financedAmount / parsedInstallmentCount).toFixed(2)),
+          purchaseDate: parsedPurchaseDate,
           startDate: parsedStartDate,
           notes: asOptionalTrimmedString(notes),
         },
@@ -353,6 +404,12 @@ router.post("/contracts", asyncHandler(async (req, res) => {
     });
 
     await syncDeviceStatus(device.id, req.user.id, "Contrato de credito creado");
+    let hexnode = { linked: false, skipped: "not_attempted" };
+    try {
+      hexnode = await attemptAutomaticHexnodeLink(device.id);
+    } catch {
+      hexnode = { linked: false, skipped: "auto_link_failed" };
+    }
 
     return res.status(201).json({
       ok: true,
@@ -360,6 +417,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
         ...contract,
         summary: buildContractSummary(contract),
       },
+      hexnode,
     });
   } catch (error) {
     return sendServerError(res, "No se pudo crear el contrato de credito", error?.message);

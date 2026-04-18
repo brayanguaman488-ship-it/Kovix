@@ -21,6 +21,7 @@ import { syncAllDeviceStatuses, syncDeviceStatus } from "../lib/deviceStatus.js"
 import {
   applyHexnodePolicyForStatus,
   generateInstallCode,
+  getHexnodeLinkDiagnostics,
   getHexnodeProvisioningQr,
   isHexnodeConfigured,
   resolveHexnodeDeviceMatch,
@@ -31,6 +32,60 @@ import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
 const { DeviceStatus, InstallmentStatus } = prismaPackage;
+
+function normalizeImei(value) {
+  return String(value || "").trim();
+}
+
+function validateImeiFormat(value) {
+  return /^\d{14,17}$/.test(value);
+}
+
+function normalizeOptionalImei(value) {
+  const normalized = normalizeImei(value);
+  return normalized ? normalized : null;
+}
+
+async function attemptAutomaticHexnodeLink(deviceId) {
+  if (!isHexnodeConfigured()) {
+    return { linked: false, skipped: "hexnode_not_configured" };
+  }
+
+  const current = await prisma.device.findUnique({
+    where: { id: deviceId },
+    include: { customer: true },
+  });
+
+  if (!current) {
+    return { linked: false, skipped: "device_not_found" };
+  }
+
+  if (current.hexnodeDeviceId) {
+    return {
+      linked: true,
+      hexnodeDeviceId: current.hexnodeDeviceId,
+      resolvedBy: "stored_device_field",
+      skipped: "already_linked",
+    };
+  }
+
+  const resolved = await resolveHexnodeDeviceMatch(current, { useDefault: false });
+  if (!resolved?.hexnodeDeviceId) {
+    const diagnostics = await getHexnodeLinkDiagnostics(current);
+    return { linked: false, skipped: "no_match_found", diagnostics };
+  }
+
+  const updated = await prisma.device.update({
+    where: { id: current.id },
+    data: { hexnodeDeviceId: resolved.hexnodeDeviceId },
+  });
+
+  return {
+    linked: true,
+    hexnodeDeviceId: updated.hexnodeDeviceId,
+    resolvedBy: resolved.source,
+  };
+}
 
 async function buildClientSecretFromCustomer(tx, customerId, installCode) {
   const customer = await tx.customer.findUnique({
@@ -130,6 +185,7 @@ function buildClientDeviceResponse(device) {
       callsOnlyAfterDaysLate: 1,
       blockedAfterDaysLate: 3,
     },
+    statusMode: safeStatus && device.manualStatusOverride ? "MANUAL" : "AUTOMATICO",
     credit: creditSummary,
   };
 }
@@ -328,11 +384,12 @@ router.get("/", asyncHandler(async (req, res) => {
 }));
 
 router.post("/", asyncHandler(async (req, res) => {
-  const { customerId, brand, model, alias, imei, installCode, notes, hexnodeDeviceId } = req.body || {};
+  const { customerId, brand, model, alias, imei, imei2, installCode, notes, hexnodeDeviceId } = req.body || {};
   const normalizedCustomerId = asTrimmedString(customerId);
   const normalizedBrand = asTrimmedString(brand);
   const normalizedModel = asTrimmedString(model);
-  const normalizedImei = asTrimmedString(imei);
+  const normalizedImei = normalizeImei(imei);
+  const normalizedImei2 = normalizeOptionalImei(imei2);
   const normalizedInstallCode = asOptionalTrimmedString(installCode);
   const parsedHexnodeDeviceId = hexnodeDeviceId !== undefined && hexnodeDeviceId !== null && String(hexnodeDeviceId).trim()
     ? Number.parseInt(String(hexnodeDeviceId).trim(), 10)
@@ -355,6 +412,18 @@ router.post("/", asyncHandler(async (req, res) => {
 
   if (parsedHexnodeDeviceId !== null && (!Number.isInteger(parsedHexnodeDeviceId) || parsedHexnodeDeviceId <= 0)) {
     return sendBadRequest(res, "hexnodeDeviceId invalido");
+  }
+
+  if (!validateImeiFormat(normalizedImei)) {
+    return sendBadRequest(res, "imei debe tener solo digitos (14 a 17 caracteres)");
+  }
+
+  if (normalizedImei2 && !validateImeiFormat(normalizedImei2)) {
+    return sendBadRequest(res, "imei2 debe tener solo digitos (14 a 17 caracteres)");
+  }
+
+  if (normalizedImei2 && normalizedImei2 === normalizedImei) {
+    return sendBadRequest(res, "imei2 no puede ser igual a imei");
   }
 
   try {
@@ -384,6 +453,7 @@ router.post("/", asyncHandler(async (req, res) => {
           model: normalizedModel,
           alias: asOptionalTrimmedString(alias),
           imei: normalizedImei,
+          imei2: normalizedImei2,
           installCode: finalInstallCode,
           hexnodeDeviceId: parsedHexnodeDeviceId,
           clientSecret,
@@ -413,44 +483,139 @@ router.post("/", asyncHandler(async (req, res) => {
       return created;
     });
 
-    // Intento de vinculacion automatica con Hexnode (no bloquea el registro si falla).
-    if (isHexnodeConfigured() && !device.hexnodeDeviceId) {
-      try {
-        const resolved = await resolveHexnodeDeviceMatch(device, { useDefault: false });
-        if (resolved?.hexnodeDeviceId) {
-          device = await prisma.device.update({
-            where: { id: device.id },
-            data: { hexnodeDeviceId: resolved.hexnodeDeviceId },
-            include: {
-              customer: true,
-              creditContract: {
-                include: {
-                  installments: {
-                    orderBy: { sequence: "asc" },
-                  },
+    let hexnode = { linked: false, skipped: "not_attempted" };
+    try {
+      hexnode = await attemptAutomaticHexnodeLink(device.id);
+      if (hexnode.linked) {
+        const refreshed = await prisma.device.findUnique({
+          where: { id: device.id },
+          include: {
+            customer: true,
+            creditContract: {
+              include: {
+                installments: {
+                  orderBy: { sequence: "asc" },
                 },
               },
             },
-          });
+          },
+        });
+        if (refreshed) {
+          device = refreshed;
         }
-      } catch {
-        // Se ignora para no interrumpir el alta.
       }
+    } catch {
+      hexnode = { linked: false, skipped: "auto_link_failed" };
     }
 
-    return res.status(201).json({ ok: true, device });
+    return res.status(201).json({ ok: true, device, hexnode });
   } catch (error) {
     if (error?.code === "P2003") {
       return sendBadRequest(res, "customerId invalido");
     }
 
     if (isPrismaUniqueConstraintError(error)) {
-      return sendBadRequest(res, "IMEI o installCode ya existen");
+      return sendBadRequest(res, "IMEI 1, IMEI 2 o installCode ya existen");
     }
 
     return sendServerError(res, "No se pudo crear el dispositivo");
   }
 })); 
+
+router.patch("/:id", asyncHandler(async (req, res) => {
+  const payload = {};
+
+  if (req.body?.imei !== undefined) {
+    const imei = normalizeImei(req.body.imei);
+    if (!imei) {
+      return sendBadRequest(res, "imei no puede estar vacio");
+    }
+    if (!validateImeiFormat(imei)) {
+      return sendBadRequest(res, "imei debe tener solo digitos (14 a 17 caracteres)");
+    }
+    payload.imei = imei;
+  }
+
+  if (req.body?.imei2 !== undefined) {
+    const imei2 = normalizeOptionalImei(req.body.imei2);
+    if (imei2 && !validateImeiFormat(imei2)) {
+      return sendBadRequest(res, "imei2 debe tener solo digitos (14 a 17 caracteres)");
+    }
+    payload.imei2 = imei2;
+  }
+
+  const imeiA = payload.imei ?? null;
+  const imeiB = payload.imei2 ?? null;
+  if (imeiA && imeiB && imeiA === imeiB) {
+    return sendBadRequest(res, "imei2 no puede ser igual a imei");
+  }
+
+  if (Object.keys(payload).length === 0) {
+    return sendBadRequest(res, "No hay campos para actualizar");
+  }
+
+  try {
+    const device = await prisma.device.update({
+      where: { id: req.params.id },
+      data: payload,
+      include: {
+        customer: true,
+        creditContract: {
+          include: {
+            installments: {
+              orderBy: { sequence: "asc" },
+            },
+          },
+        },
+        payments: {
+          orderBy: { dueDate: "asc" },
+        },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    let hexnode = { linked: false, skipped: "not_attempted" };
+    try {
+      hexnode = await attemptAutomaticHexnodeLink(device.id);
+    } catch {
+      hexnode = { linked: false, skipped: "auto_link_failed" };
+    }
+
+    const refreshed = await prisma.device.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customer: true,
+        creditContract: {
+          include: {
+            installments: {
+              orderBy: { sequence: "asc" },
+            },
+          },
+        },
+        payments: {
+          orderBy: { dueDate: "asc" },
+        },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    return res.json({ ok: true, device: refreshed || device, hexnode });
+  } catch (error) {
+    if (error?.code === "P2025") {
+      return sendNotFound(res, "Dispositivo no encontrado");
+    }
+    if (isPrismaUniqueConstraintError(error)) {
+      return sendBadRequest(res, "IMEI 1 o IMEI 2 ya existen en otro dispositivo");
+    }
+    return sendServerError(res, "No se pudo actualizar el dispositivo");
+  }
+}));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
   const current = await prisma.device.findUnique({
@@ -481,6 +646,7 @@ router.delete("/:id", asyncHandler(async (req, res) => {
         brand: current.brand,
         model: current.model,
         imei: current.imei,
+        imei2: current.imei2,
         installCode: current.installCode,
         customer: current.customer,
       },
@@ -514,7 +680,12 @@ router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
 
   const resolved = await resolveHexnodeDeviceMatch(device, { useDefault: false });
   if (!resolved?.hexnodeDeviceId) {
-    return sendNotFound(res, "No se pudo vincular con un equipo de Hexnode");
+    const diagnostics = await getHexnodeLinkDiagnostics(device);
+    return res.status(404).json({
+      ok: false,
+      message: "No se pudo vincular con un equipo de Hexnode",
+      details: diagnostics,
+    });
   }
 
   const updated = await prisma.device.update({
@@ -639,6 +810,9 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
       where: { id: req.params.id },
       data: {
         currentStatus: requestedStatus,
+        manualStatusOverride: true,
+        manualStatusReason: reason,
+        manualStatusChangedAt: new Date(),
         lastStatusChangeAt: new Date(),
       },
     });
@@ -703,8 +877,50 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
   return res.json({ ok: true, device, hexnode });
 }));
 
+router.post("/:id/clear-manual-status", asyncHandler(async (req, res) => {
+  const current = await prisma.device.findUnique({
+    where: { id: req.params.id },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Dispositivo no encontrado");
+  }
+
+  await prisma.device.update({
+    where: { id: req.params.id },
+    data: {
+      manualStatusOverride: false,
+      manualStatusReason: null,
+      manualStatusChangedAt: null,
+    },
+  });
+
+  const device = await syncDeviceStatus(
+    req.params.id,
+    req.user.id,
+    "Modo manual desactivado",
+    { force: true, clearManualOverride: true }
+  );
+
+  return res.json({ ok: true, device });
+}));
+
 router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
-  const device = await syncDeviceStatus(req.params.id, req.user.id, "Recalculado manualmente");
+  await prisma.device.update({
+    where: { id: req.params.id },
+    data: {
+      manualStatusOverride: false,
+      manualStatusReason: null,
+      manualStatusChangedAt: null,
+    },
+  });
+
+  const device = await syncDeviceStatus(
+    req.params.id,
+    req.user.id,
+    "Recalculado manualmente (modo automatico)",
+    { force: true, clearManualOverride: true }
+  );
 
   if (!device) {
     return sendNotFound(res, "Dispositivo no encontrado");
@@ -730,7 +946,12 @@ router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
     const hexnode = await applyHexnodePolicyForStatus(device, device.currentStatus);
     return res.json({ ok: true, deviceId: device.id, status: device.currentStatus, hexnode });
   } catch (error) {
-    return sendServerError(res, error?.message || "No se pudo sincronizar con Hexnode");
+    const diagnostics = await getHexnodeLinkDiagnostics(device);
+    return res.status(500).json({
+      ok: false,
+      message: error?.message || "No se pudo sincronizar con Hexnode",
+      details: diagnostics,
+    });
   }
 }));
 

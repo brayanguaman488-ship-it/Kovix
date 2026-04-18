@@ -1,0 +1,4 @@
+ALTER TABLE "Device"
+  ADD COLUMN IF NOT EXISTS "manualStatusOverride" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "manualStatusReason" TEXT,
+  ADD COLUMN IF NOT EXISTS "manualStatusChangedAt" TIMESTAMP(3);

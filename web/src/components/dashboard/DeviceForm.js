@@ -46,6 +46,12 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
           style={inputStyle}
         />
         <input
+          placeholder="IMEI 2 (opcional, Dual SIM)"
+          value={form.imei2 || ""}
+          onChange={(event) => onChange({ ...form, imei2: event.target.value })}
+          style={inputStyle}
+        />
+        <input
           placeholder="Hexnode Device ID (opcional)"
           value={form.hexnodeDeviceId}
           onChange={(event) => onChange({ ...form, hexnodeDeviceId: event.target.value })}

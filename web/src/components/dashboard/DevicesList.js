@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   buttonStyle,
   cardStyle,
@@ -25,6 +27,9 @@ export default function DevicesList({
   onNextPage,
   customerFilter,
   onCustomerFilterChange,
+  deviceSegment,
+  onDeviceSegmentChange,
+  segmentCounts,
   customerOptions,
   searchValue,
   onSearchChange,
@@ -33,7 +38,46 @@ export default function DevicesList({
   isLinkingAllHexnodeDevices,
   onDeleteDevice,
   deletingDeviceId,
+  onUpdateDeviceIdentity,
+  updatingDeviceIdentityId,
+  onClearManualStatus,
+  clearingManualStatusDeviceId,
 }) {
+  const [editingDeviceId, setEditingDeviceId] = useState("");
+  const [optionsDeviceId, setOptionsDeviceId] = useState("");
+  const [editImei, setEditImei] = useState("");
+  const [editImei2, setEditImei2] = useState("");
+
+  function beginEditIdentity(device) {
+    setEditingDeviceId(String(device.id));
+    setOptionsDeviceId("");
+    setEditImei(String(device.imei || ""));
+    setEditImei2(String(device.imei2 || ""));
+  }
+
+  function cancelEditIdentity() {
+    setEditingDeviceId("");
+    setEditImei("");
+    setEditImei2("");
+  }
+
+  async function saveEditIdentity(device) {
+    if (!onUpdateDeviceIdentity) {
+      return;
+    }
+
+    await onUpdateDeviceIdentity(String(device.id), {
+      imei: editImei,
+      imei2: editImei2,
+    });
+    cancelEditIdentity();
+  }
+
+  function toggleOptions(deviceId) {
+    const normalizedId = String(deviceId);
+    setOptionsDeviceId((current) => (current === normalizedId ? "" : normalizedId));
+  }
+
   function getPaymentSignalBadge(status) {
     if (status === "VENCIDO") {
       return {
@@ -77,6 +121,57 @@ export default function DevicesList({
       <h2 style={sectionTitleStyle}>Dispositivos</h2>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => onDeviceSegmentChange("all")}
+            style={{
+              ...secondaryButtonStyle,
+              minHeight: 36,
+              background: deviceSegment === "all" ? "rgba(59,130,246,0.14)" : secondaryButtonStyle.background,
+              border: deviceSegment === "all" ? "1px solid #3b82f6" : secondaryButtonStyle.border,
+            }}
+          >
+            Todos ({segmentCounts?.all || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeviceSegmentChange("active_pending")}
+            style={{
+              ...secondaryButtonStyle,
+              minHeight: 36,
+              background:
+                deviceSegment === "active_pending" ? "rgba(16,185,129,0.14)" : secondaryButtonStyle.background,
+              border: deviceSegment === "active_pending" ? "1px solid #10b981" : secondaryButtonStyle.border,
+            }}
+          >
+            Activos + Pendientes ({segmentCounts?.active_pending || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeviceSegmentChange("calls_only")}
+            style={{
+              ...secondaryButtonStyle,
+              minHeight: 36,
+              background: deviceSegment === "calls_only" ? "rgba(245,158,11,0.15)" : secondaryButtonStyle.background,
+              border: deviceSegment === "calls_only" ? "1px solid #f59e0b" : secondaryButtonStyle.border,
+            }}
+          >
+            Solo llamadas ({segmentCounts?.calls_only || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeviceSegmentChange("blocked")}
+            style={{
+              ...secondaryButtonStyle,
+              minHeight: 36,
+              background: deviceSegment === "blocked" ? "rgba(239,68,68,0.14)" : secondaryButtonStyle.background,
+              border: deviceSegment === "blocked" ? "1px solid #ef4444" : secondaryButtonStyle.border,
+            }}
+          >
+            Bloqueados ({segmentCounts?.blocked || 0})
+          </button>
+        </div>
         <select
           value={customerFilter}
           onChange={(event) => onCustomerFilterChange(event.target.value)}
@@ -142,47 +237,128 @@ export default function DevicesList({
                   display: "flex",
                   gap: 8,
                   alignItems: "center",
-                  justifyContent: "flex-start",
+                  justifyContent: "space-between",
                   flexWrap: "wrap",
                 }}
               >
-                <strong style={{ marginRight: 10 }}>
-                  {device.brand} {device.model}
-                </strong>
-                {paymentSignal && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: paymentSignal.color,
-                      background: paymentSignal.background,
-                      border: `1px solid ${paymentSignal.border}`,
-                      borderRadius: 999,
-                      padding: "2px 8px",
-                    }}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <strong style={{ marginRight: 10 }}>
+                    {device.brand} {device.model}
+                  </strong>
+                  {paymentSignal && (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: paymentSignal.color,
+                        background: paymentSignal.background,
+                        border: `1px solid ${paymentSignal.border}`,
+                        borderRadius: 999,
+                        padding: "2px 8px",
+                      }}
+                    >
+                      {paymentSignal.text}
+                    </span>
+                  )}
+                </div>
+                <div style={{ position: "relative", marginLeft: "auto" }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleOptions(device.id)}
+                    style={{ ...secondaryButtonStyle, minHeight: 36, padding: "6px 10px", borderRadius: 8 }}
                   >
-                    {paymentSignal.text}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onDeleteDevice(device)}
-                  disabled={deletingDeviceId === device.id}
-                  style={{
-                    ...secondaryButtonStyle,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(220, 38, 38, 0.4)",
-                    color: "#991b1b",
-                    background: "rgba(254, 242, 242, 0.95)",
-                    minWidth: 92,
-                  }}
-                >
-                  {deletingDeviceId === device.id ? "Borrando..." : "Papelera"}
-                </button>
+                    Opciones
+                  </button>
+                  {optionsDeviceId === String(device.id) && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 40,
+                        right: 0,
+                        zIndex: 20,
+                        minWidth: 170,
+                        borderRadius: 10,
+                        border: "1px solid var(--line-soft)",
+                        background: "#ffffff",
+                        boxShadow: "0 16px 24px rgba(15, 23, 42, 0.18)",
+                        display: "grid",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => beginEditIdentity(device)}
+                        style={{
+                          border: "none",
+                          borderBottom: "1px solid var(--line-soft)",
+                          background: "#ffffff",
+                          padding: "10px 12px",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          color: "#0f172a",
+                        }}
+                      >
+                        Editar IMEI
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOptionsDeviceId("");
+                          onDeleteDevice(device);
+                        }}
+                        disabled={deletingDeviceId === device.id}
+                        style={{
+                          border: "none",
+                          background: "#fff7ed",
+                          padding: "10px 12px",
+                          textAlign: "left",
+                          cursor: deletingDeviceId === device.id ? "not-allowed" : "pointer",
+                          color: "#9a3412",
+                        }}
+                      >
+                        {deletingDeviceId === device.id ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
-            <p style={{ margin: "6px 0" }}>IMEI: {device.imei}</p>
+            <p style={{ margin: "6px 0" }}>IMEI 1: {device.imei}</p>
+            <p style={{ margin: "6px 0" }}>IMEI 2: {device.imei2 || "No aplica / vacio"}</p>
+            {editingDeviceId === String(device.id) ? (
+              <div style={{ display: "grid", gap: 8, margin: "8px 0" }}>
+                <input
+                  value={editImei}
+                  onChange={(event) => setEditImei(event.target.value)}
+                  placeholder="IMEI 1"
+                  style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "8px 10px" }}
+                />
+                <input
+                  value={editImei2}
+                  onChange={(event) => setEditImei2(event.target.value)}
+                  placeholder="IMEI 2 (opcional)"
+                  style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "8px 10px" }}
+                />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => saveEditIdentity(device)}
+                    disabled={updatingDeviceIdentityId === String(device.id)}
+                    style={{ ...buttonStyle, minHeight: 40 }}
+                  >
+                    {updatingDeviceIdentityId === String(device.id) ? "Guardando IMEI..." : "Guardar IMEI"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEditIdentity}
+                    disabled={updatingDeviceIdentityId === String(device.id)}
+                    style={{ ...secondaryButtonStyle, minHeight: 40 }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
             <p style={{ margin: "6px 0" }}>
               Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}{" "}
@@ -205,6 +381,21 @@ export default function DevicesList({
             </p>
             <p style={{ margin: "6px 0" }}>Secreto del cliente: {device.clientSecret}</p>
             <p style={{ margin: "6px 0" }}>Estado: {device.currentStatus}</p>
+            <p style={{ margin: "6px 0" }}>
+              Modo: {device.manualStatusOverride ? "MANUAL" : "AUTOMATICO"}
+            </p>
+            {device.manualStatusOverride && (
+              <button
+                type="button"
+                onClick={() => onClearManualStatus(String(device.id))}
+                disabled={clearingManualStatusDeviceId === String(device.id)}
+                style={{ ...secondaryButtonStyle, minHeight: 40, marginBottom: 6 }}
+              >
+                {clearingManualStatusDeviceId === String(device.id)
+                  ? "Activando automatico..."
+                  : "Volver a automatico"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onRotateSecret(device.id)}

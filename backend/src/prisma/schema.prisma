@@ -72,10 +72,14 @@ model Device {
   model              String
   alias              String?
   imei               String              @unique
+  imei2              String?             @unique
   installCode        String              @unique
   hexnodeDeviceId    Int?                @unique
   clientSecret       String              @unique @default(uuid())
   currentStatus      DeviceStatus        @default(ACTIVO)
+  manualStatusOverride Boolean           @default(false)
+  manualStatusReason String?
+  manualStatusChangedAt DateTime?
   lastStatusChangeAt DateTime            @default(now())
   isRegistered       Boolean             @default(false)
   lastSeenAt         DateTime?
@@ -121,6 +125,7 @@ model CreditContract {
   installmentCount Int
   installmentAmount Decimal             @db.Decimal(10, 2)
   currency         String               @default("USD")
+  purchaseDate     DateTime
   startDate        DateTime
   status           CreditContractStatus @default(ACTIVO)
   notes            String?

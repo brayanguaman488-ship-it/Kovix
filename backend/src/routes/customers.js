@@ -17,6 +17,15 @@ router.get("/", asyncHandler(async (req, res) => {
     include: {
       devices: {
         orderBy: { createdAt: "desc" },
+        include: {
+          creditContract: {
+            include: {
+              installments: {
+                orderBy: { sequence: "asc" },
+              },
+            },
+          },
+        },
       },
       payments: {
         orderBy: { dueDate: "desc" },
@@ -34,6 +43,13 @@ router.get("/:id", asyncHandler(async (req, res) => {
       devices: {
         orderBy: { createdAt: "desc" },
         include: {
+          creditContract: {
+            include: {
+              installments: {
+                orderBy: { sequence: "asc" },
+              },
+            },
+          },
           payments: {
             orderBy: { dueDate: "asc" },
           },

@@ -54,7 +54,7 @@ export function getDerivedDeviceStatus(payments, now = new Date()) {
   return DeviceStatus.ACTIVO;
 }
 
-export async function syncDeviceStatus(deviceId, changedByUserId, reason) {
+export async function syncDeviceStatus(deviceId, changedByUserId, reason, options = {}) {
   const device = await prisma.device.findUnique({
     where: { id: deviceId },
     include: {
@@ -64,6 +64,18 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason) {
 
   if (!device) {
     return null;
+  }
+
+  if (device.manualStatusOverride && !options.force) {
+    return prisma.device.findUnique({
+      where: { id: deviceId },
+      include: {
+        customer: true,
+        payments: {
+          orderBy: { dueDate: "asc" },
+        },
+      },
+    });
   }
 
   const nextStatus = getDerivedDeviceStatus(device.payments);
@@ -85,6 +97,9 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason) {
       where: { id: deviceId },
       data: {
         currentStatus: nextStatus,
+        manualStatusOverride: options.clearManualOverride ? false : device.manualStatusOverride,
+        manualStatusReason: options.clearManualOverride ? null : device.manualStatusReason,
+        manualStatusChangedAt: options.clearManualOverride ? null : device.manualStatusChangedAt,
         lastStatusChangeAt: new Date(),
       },
     }),
