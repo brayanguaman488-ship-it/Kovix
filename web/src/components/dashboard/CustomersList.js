@@ -24,6 +24,12 @@ export default function CustomersList({
   segmentCounts,
 }) {
   const [expandedCustomerId, setExpandedCustomerId] = useState("");
+  const [optionsCustomerId, setOptionsCustomerId] = useState("");
+
+  function toggleOptions(customerId) {
+    const normalized = String(customerId || "");
+    setOptionsCustomerId((value) => (value === normalized ? "" : normalized));
+  }
 
   function getCustomerCreditState(customer) {
     const contracts = (customer?.devices || [])
@@ -191,22 +197,51 @@ export default function CustomersList({
                 >
                   {expandedCustomerId === customer.id ? "Ocultar tabla general" : "Revisar tabla general"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteCustomer(customer)}
-                  disabled={deletingCustomerId === customer.id}
-                  style={{
-                    ...secondaryButtonStyle,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(220, 38, 38, 0.4)",
-                    color: "#991b1b",
-                    background: "rgba(254, 242, 242, 0.95)",
-                    minWidth: 92,
-                  }}
-                >
-                  {deletingCustomerId === customer.id ? "Borrando..." : "Papelera"}
-                </button>
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleOptions(customer.id)}
+                    style={{ ...secondaryButtonStyle, minHeight: 36, padding: "6px 10px", borderRadius: 8 }}
+                  >
+                    Opciones
+                  </button>
+                  {optionsCustomerId === String(customer.id) && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 40,
+                        right: 0,
+                        zIndex: 20,
+                        minWidth: 170,
+                        borderRadius: 10,
+                        border: "1px solid var(--line-soft)",
+                        background: "#ffffff",
+                        boxShadow: "0 16px 24px rgba(15, 23, 42, 0.18)",
+                        display: "grid",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOptionsCustomerId("");
+                          onDeleteCustomer(customer);
+                        }}
+                        disabled={deletingCustomerId === customer.id}
+                        style={{
+                          border: "none",
+                          background: "#fff7ed",
+                          padding: "10px 12px",
+                          textAlign: "left",
+                          cursor: deletingCustomerId === customer.id ? "not-allowed" : "pointer",
+                          color: "#9a3412",
+                        }}
+                      >
+                        {deletingCustomerId === customer.id ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <p style={{ margin: "6px 0" }}>Documento: {customer.nationalId}</p>

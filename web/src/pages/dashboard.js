@@ -309,7 +309,22 @@ export default function Dashboard() {
   const [hexnodeProvisioning, setHexnodeProvisioning] = useState(null);
   const [activeSummarySection, setActiveSummarySection] = useState("customers");
   const [activeMainView, setActiveMainView] = useState("control");
+  const [isControlNavExpanded, setIsControlNavExpanded] = useState(true);
+  const [isControlCenterExpanded, setIsControlCenterExpanded] = useState(true);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [renewalCustomerQuery, setRenewalCustomerQuery] = useState("");
+  const [renewalSelectedCustomerId, setRenewalSelectedCustomerId] = useState("");
+  const [renewalDeviceForm, setRenewalDeviceForm] = useState(initialDeviceForm);
+  const [renewalCreditForm, setRenewalCreditForm] = useState(initialCreditForm);
+  const [isSavingRenewalDevice, setIsSavingRenewalDevice] = useState(false);
+  const [isSavingRenewalCreditContract, setIsSavingRenewalCreditContract] = useState(false);
+  const [contractsCustomerQuery, setContractsCustomerQuery] = useState("");
+  const [contractsCustomerId, setContractsCustomerId] = useState("");
+  const [contractsAssets, setContractsAssets] = useState([]);
+  const [contractsImagePreviewMap, setContractsImagePreviewMap] = useState({});
+  const [isLoadingContractsAssets, setIsLoadingContractsAssets] = useState(false);
+  const [isUploadingContractDoc, setIsUploadingContractDoc] = useState(false);
+  const [isUploadingClientPhoto, setIsUploadingClientPhoto] = useState(false);
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -413,6 +428,8 @@ export default function Dashboard() {
 
   function openControlSection(sectionKey) {
     setActiveMainView("control");
+    setIsControlNavExpanded(true);
+    setIsControlCenterExpanded(true);
     if (sectionKey) {
       setActiveSummarySection(sectionKey);
     }
@@ -502,6 +519,106 @@ export default function Dashboard() {
       }
     } finally {
       setIsLoadingCreditContract(false);
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const parts = result.split(",");
+        resolve(parts.length > 1 ? parts[1] : "");
+      };
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function loadCustomerAssets(customerId) {
+    const normalizedCustomerId = String(customerId || "").trim();
+    if (!normalizedCustomerId) {
+      setContractsAssets([]);
+      return;
+    }
+
+    try {
+      setIsLoadingContractsAssets(true);
+      const response = await api.getCustomerAssets(normalizedCustomerId);
+      const assets = response?.assets || [];
+      setContractsAssets(assets);
+
+      const imageAssets = assets.filter((asset) => String(asset.mimeType || "").startsWith("image/"));
+      const previewEntries = await Promise.all(
+        imageAssets.map(async (asset) => {
+          const blob = await api.getCustomerAssetContent(asset.id, "inline");
+          return [asset.id, URL.createObjectURL(blob)];
+        })
+      );
+
+      setContractsImagePreviewMap((prev) => {
+        Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+        return Object.fromEntries(previewEntries);
+      });
+    } catch (error) {
+      setContractsAssets([]);
+      setStatus("error", error.message || "No se pudieron cargar los archivos del cliente");
+    } finally {
+      setIsLoadingContractsAssets(false);
+    }
+  }
+
+  async function handleUploadCustomerAsset(file, category) {
+    const activeCustomerId = String(contractsCustomerId || "").trim();
+    if (!activeCustomerId) {
+      setStatus("error", "Selecciona un cliente para subir archivos");
+      return;
+    }
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      if (category === "CONTRACT") {
+        setIsUploadingContractDoc(true);
+      } else {
+        setIsUploadingClientPhoto(true);
+      }
+
+      const base64Data = await fileToBase64(file);
+      await api.uploadCustomerAsset({
+        customerId: activeCustomerId,
+        category,
+        fileName: file.name,
+        mimeType: file.type,
+        base64Data,
+      });
+
+      setStatus("success", category === "CONTRACT" ? "Contrato subido correctamente" : "Foto del cliente subida");
+      await loadCustomerAssets(activeCustomerId);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo subir el archivo");
+    } finally {
+      setIsUploadingContractDoc(false);
+      setIsUploadingClientPhoto(false);
+    }
+  }
+
+  async function handleDownloadAsset(assetId, fileName) {
+    try {
+      const blob = await api.getCustomerAssetContent(assetId, "attachment");
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName || "archivo";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      setStatus("success", "Descarga iniciada");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo descargar el archivo");
     }
   }
 
@@ -730,6 +847,114 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo crear el contrato de credito");
     } finally {
       setIsSavingCreditContract(false);
+    }
+  }
+
+  async function handleCreateRenewalDevice(event) {
+    event.preventDefault();
+    const customerId = renewalSelectedCustomerId.trim();
+    const brand = renewalDeviceForm.brand.trim();
+    const model = renewalDeviceForm.model.trim();
+    const imei = renewalDeviceForm.imei.trim();
+    const imei2 = String(renewalDeviceForm.imei2 || "").trim();
+    const rawHexnodeId = String(renewalDeviceForm.hexnodeDeviceId || "").trim();
+
+    if (!customerId) {
+      setStatus("error", "Renovacion: selecciona un cliente primero");
+      return;
+    }
+
+    if (!brand || !model || !imei) {
+      setStatus("error", "Renovacion dispositivo: brand, model e imei son obligatorios");
+      return;
+    }
+
+    if (rawHexnodeId && !/^\d+$/.test(rawHexnodeId)) {
+      setStatus("error", "Renovacion dispositivo: Hexnode Device ID debe ser numerico");
+      return;
+    }
+
+    try {
+      setIsSavingRenewalDevice(true);
+      const response = await api.createDevice({
+        ...renewalDeviceForm,
+        customerId,
+        brand,
+        model,
+        imei,
+        imei2: imei2 || undefined,
+        hexnodeDeviceId: rawHexnodeId || undefined,
+      });
+
+      const createdId = String(response?.device?.id || "").trim();
+      setRenewalDeviceForm((value) => ({ ...initialDeviceForm, customerId: renewalSelectedCustomerId }));
+      if (createdId) {
+        setRenewalCreditForm((value) => ({ ...value, deviceId: createdId }));
+        setSelectedCreditDeviceId(createdId);
+      }
+      setStatus("success", "Renovacion: dispositivo creado correctamente");
+      await loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo crear el dispositivo de renovacion");
+    } finally {
+      setIsSavingRenewalDevice(false);
+    }
+  }
+
+  async function handleCreateRenewalCreditContract(event) {
+    event.preventDefault();
+    const deviceId = renewalCreditForm.deviceId.trim();
+    const purchaseDate = renewalCreditForm.purchaseDate;
+    const principalAmount = Number(renewalCreditForm.principalAmount);
+    const downPaymentAmount = renewalCreditForm.downPaymentAmount ? Number(renewalCreditForm.downPaymentAmount) : 0;
+    const installmentCount = Number(renewalCreditForm.installmentCount);
+    const startDate = renewalCreditForm.cutOffDate;
+
+    if (!deviceId || !purchaseDate || !renewalCreditForm.principalAmount || !renewalCreditForm.installmentCount || !startDate) {
+      setStatus("error", "Renovacion credito: deviceId, purchaseDate, principalAmount, installmentCount y cutOffDate son obligatorios");
+      return;
+    }
+
+    if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
+      setStatus("error", "Renovacion credito: principalAmount debe ser mayor que 0");
+      return;
+    }
+
+    if (!Number.isFinite(downPaymentAmount) || downPaymentAmount < 0) {
+      setStatus("error", "Renovacion credito: downPaymentAmount debe ser mayor o igual que 0");
+      return;
+    }
+
+    if (downPaymentAmount >= principalAmount) {
+      setStatus("error", "Renovacion credito: la entrada debe ser menor que el monto total");
+      return;
+    }
+
+    if (!Number.isInteger(installmentCount) || installmentCount <= 0) {
+      setStatus("error", "Renovacion credito: installmentCount debe ser entero mayor que 0");
+      return;
+    }
+
+    try {
+      setIsSavingRenewalCreditContract(true);
+      await api.createCreditContract({
+        ...renewalCreditForm,
+        deviceId,
+        purchaseDate,
+        principalAmount,
+        downPaymentAmount,
+        installmentCount,
+        startDate,
+      });
+      setStatus("success", "Renovacion: contrato de credito creado correctamente");
+      setSelectedCreditDeviceId(deviceId);
+      setRenewalCreditForm(initialCreditForm);
+      await loadDashboard({ silent: true });
+      await loadCreditContract(deviceId);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo crear el contrato de renovacion");
+    } finally {
+      setIsSavingRenewalCreditContract(false);
     }
   }
 
@@ -1306,6 +1531,33 @@ export default function Dashboard() {
     return String(a.installCode || "").localeCompare(String(b.installCode || ""));
   });
   const selectedCreditDevice = devices.find((entry) => entry.id === selectedCreditDeviceId) || null;
+  const renewalNormalizedQuery = renewalCustomerQuery.trim().toLowerCase();
+  const renewalCustomerMatches = customers.filter((customer) => {
+    if (!renewalNormalizedQuery) {
+      return true;
+    }
+    return [customer.fullName, customer.nationalId, customer.phone]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(renewalNormalizedQuery));
+  });
+  const renewalSelectedCustomer =
+    customers.find((customer) => String(customer.id) === String(renewalSelectedCustomerId)) || null;
+  const renewalCustomerDevices = devices.filter(
+    (device) => String(device.customer?.id || device.customerId || "") === String(renewalSelectedCustomerId || "")
+  );
+  const contractsNormalizedQuery = contractsCustomerQuery.trim().toLowerCase();
+  const contractsCustomerMatches = customers.filter((customer) => {
+    if (!contractsNormalizedQuery) {
+      return true;
+    }
+    return [customer.fullName, customer.nationalId]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(contractsNormalizedQuery));
+  });
+  const contractsSelectedCustomer =
+    customers.find((customer) => String(customer.id) === String(contractsCustomerId || "")) || null;
+  const contractDocuments = contractsAssets.filter((asset) => String(asset.category || "").toUpperCase() === "CONTRACT");
+  const customerPhotos = contractsAssets.filter((asset) => String(asset.category || "").toUpperCase() === "PHOTO");
   const selectedProvisioningDevice = devices.find((entry) => entry.id === provisioningDeviceId) || null;
   const deviceCustomerOptions = customers
     .map((customer) => ({
@@ -1351,24 +1603,49 @@ export default function Dashboard() {
   }, [devices, provisioningDeviceId]);
 
   useEffect(() => {
-    if (!selectedCreditDeviceId && latestCreatedDevice?.id) {
-      setSelectedCreditDeviceId(latestCreatedDevice.id);
-    }
-  }, [selectedCreditDeviceId, latestCreatedDevice]);
-
-  useEffect(() => {
-    if (latestCreatedDevice?.id && !creditForm.deviceId) {
-      setCreditForm((value) => ({ ...value, deviceId: latestCreatedDevice.id }));
-    }
-  }, [creditForm.deviceId, latestCreatedDevice]);
-
-  useEffect(() => {
-    if (!creditForm.deviceId) {
+    if (activeMainView === "credit_new") {
+      setCustomerForm(initialCustomerForm);
+      setDeviceForm(initialDeviceForm);
+      setCreditForm(initialCreditForm);
       return;
     }
 
-    setSelectedCreditDeviceId(creditForm.deviceId);
-  }, [creditForm.deviceId]);
+    if (activeMainView === "credit_renewal") {
+      setRenewalCustomerQuery("");
+      setRenewalSelectedCustomerId("");
+      setRenewalDeviceForm(initialDeviceForm);
+      setRenewalCreditForm(initialCreditForm);
+    }
+  }, [activeMainView]);
+
+  useEffect(() => {
+    if (!renewalSelectedCustomerId) {
+      setRenewalDeviceForm(initialDeviceForm);
+      setRenewalCreditForm(initialCreditForm);
+      return;
+    }
+
+    setRenewalDeviceForm((value) => ({
+      ...value,
+      customerId: renewalSelectedCustomerId,
+    }));
+
+    const firstDeviceId = renewalCustomerDevices[0]?.id ? String(renewalCustomerDevices[0].id) : "";
+    setRenewalCreditForm((value) => ({
+      ...value,
+      deviceId: value.deviceId || firstDeviceId,
+    }));
+  }, [renewalSelectedCustomerId, renewalCustomerDevices]);
+
+  useEffect(() => {
+    loadCustomerAssets(contractsCustomerId).catch(() => {
+      setContractsAssets([]);
+    });
+  }, [contractsCustomerId]);
+
+  useEffect(() => () => {
+    Object.values(contractsImagePreviewMap).forEach((url) => URL.revokeObjectURL(url));
+  }, [contractsImagePreviewMap]);
 
   useEffect(() => {
     if (provisioningMode === "hexnode" && !hexnodeProvisioning) {
@@ -1476,32 +1753,52 @@ export default function Dashboard() {
           </button>
           <button
             type="button"
+            style={sidebarNavButton(activeMainView === "credit_renewal")}
+            onClick={() => {
+              setActiveMainView("credit_renewal");
+            }}
+          >
+            Renovacion de credito
+          </button>
+          <button
+            type="button"
             style={sidebarNavButton(activeMainView === "control")}
-            onClick={() => setActiveMainView("control")}
+            onClick={() => {
+              if (activeMainView !== "control") {
+                setActiveMainView("control");
+                setIsControlNavExpanded(true);
+                return;
+              }
+              setIsControlNavExpanded((value) => !value);
+            }}
           >
-            Centro de control
+            Centro de control {isControlNavExpanded ? "▾" : "▸"}
           </button>
-          <button
-            type="button"
-            style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "customers")}
-            onClick={() => openControlSection("customers")}
-          >
-            Clientes
-          </button>
-          <button
-            type="button"
-            style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "devices")}
-            onClick={() => openControlSection("devices")}
-          >
-            Celulares
-          </button>
-          <button
-            type="button"
-            style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "payments")}
-            onClick={() => openControlSection("payments")}
-          >
-            Pagos
-          </button>
+          {activeMainView === "control" && isControlNavExpanded && (
+            <>
+              <button
+                type="button"
+                style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "customers")}
+                onClick={() => openControlSection("customers")}
+              >
+                Clientes
+              </button>
+              <button
+                type="button"
+                style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "devices")}
+                onClick={() => openControlSection("devices")}
+              >
+                Celulares
+              </button>
+              <button
+                type="button"
+                style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "payments")}
+                onClick={() => openControlSection("payments")}
+              >
+                Pagos
+              </button>
+            </>
+          )}
           <button
             type="button"
             style={sidebarNavButton(activeMainView === "finance")}
@@ -1558,47 +1855,64 @@ export default function Dashboard() {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <h3 style={{ margin: 0 }}>Centro de control</h3>
+              <button
+                type="button"
+                onClick={() => setIsControlCenterExpanded((value) => !value)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  margin: 0,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: "var(--text-main)",
+                }}
+              >
+                Centro de control {isControlCenterExpanded ? "▾" : "▸"}
+              </button>
               <p style={{ margin: 0, color: "var(--text-soft)" }}>
                 Trabaja por modulo para mantener el flujo limpio y ordenado.
               </p>
             </div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {[
-                { key: "customers", label: "Clientes" },
-                { key: "devices", label: "Celulares" },
-                { key: "payments", label: "Pagos" },
-              ].map((entry) => {
-                const isActive = activeSummarySection === entry.key;
-                return (
-                  <button
-                    key={entry.key}
-                    type="button"
-                    onClick={() => setActiveSummarySection(entry.key)}
-                    style={{
-                      minWidth: 188,
-                      minHeight: 52,
-                      padding: "12px 18px",
-                      borderRadius: 14,
-                      border: isActive ? "1px solid #0f4cbb" : "1px solid rgba(148, 163, 184, 0.55)",
-                      background: isActive
-                        ? "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)"
-                        : "linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92))",
-                      color: isActive ? "#f8fafc" : "var(--text-main)",
-                      fontWeight: isActive ? 700 : 600,
-                      cursor: "pointer",
-                      boxShadow: isActive
-                        ? "0 12px 26px rgba(30, 64, 175, 0.34), inset 0 1px 0 rgba(255,255,255,0.32)"
-                        : "inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-                      transform: isActive ? "translateY(-1px)" : "none",
-                      transition: "all 0.18s ease",
-                    }}
-                  >
-                    {entry.label}
-                  </button>
-                );
-              })}
-            </div>
+            {isControlCenterExpanded && (
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {[
+                  { key: "customers", label: "Clientes" },
+                  { key: "devices", label: "Celulares" },
+                  { key: "payments", label: "Pagos" },
+                ].map((entry) => {
+                  const isActive = activeSummarySection === entry.key;
+                  return (
+                    <button
+                      key={entry.key}
+                      type="button"
+                      onClick={() => setActiveSummarySection(entry.key)}
+                      style={{
+                        minWidth: 188,
+                        minHeight: 52,
+                        padding: "12px 18px",
+                        borderRadius: 14,
+                        border: isActive ? "1px solid #0f4cbb" : "1px solid rgba(148, 163, 184, 0.55)",
+                        background: isActive
+                          ? "linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%)"
+                          : "linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.92))",
+                        color: isActive ? "#f8fafc" : "var(--text-main)",
+                        fontWeight: isActive ? 700 : 600,
+                        cursor: "pointer",
+                        boxShadow: isActive
+                          ? "0 12px 26px rgba(30, 64, 175, 0.34), inset 0 1px 0 rgba(255,255,255,0.32)"
+                          : "inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+                        transform: isActive ? "translateY(-1px)" : "none",
+                        transition: "all 0.18s ease",
+                      }}
+                    >
+                      {entry.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </>
       )}
@@ -1964,222 +2278,203 @@ export default function Dashboard() {
           </form>
         </article>
 
-        <article
-          style={{
-            display: "grid",
-            gap: 12,
-            ...cardStyle,
-          }}
-        >
-          <h3 style={{ margin: 0 }}>Gestion de cuotas</h3>
-          <select
-            value={selectedCreditDeviceId}
-            onChange={(event) => {
-              const selectedDeviceId = event.target.value;
-              setSelectedCreditDeviceId(selectedDeviceId);
-              setCreditForm((value) => ({ ...value, deviceId: selectedDeviceId }));
-            }}
-            style={inputStyle}
-          >
-            <option value="">Selecciona dispositivo para revisar credito</option>
-            {sortedDevicesByCustomer.map((device) => (
-              <option key={device.id} value={device.id}>
-                {(device.customer?.fullName || "Sin cliente")} - {device.brand} {device.model} ({device.installCode})
-              </option>
-            ))}
-          </select>
-
-          {selectedCreditDevice && (
-            <div
-              style={{
-                padding: 10,
-                borderRadius: 8,
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                color: "#334155",
-              }}
-            >
-              Cliente: <strong>{selectedCreditDevice.customer?.fullName || "Sin cliente"}</strong>
-              <br />
-              Equipo: <strong>{selectedCreditDevice.brand} {selectedCreditDevice.model}</strong> ({selectedCreditDevice.installCode})
-            </div>
-          )}
-
-          {isLoadingCreditContract && <p style={{ margin: 0 }}>Cargando contrato...</p>}
-
-          {!isLoadingCreditContract && selectedCreditDeviceId && !selectedCreditContract && (
-            <p style={{ margin: 0, color: "#92400e" }}>Este dispositivo aun no tiene contrato de credito.</p>
-          )}
-
-          {selectedCreditContract && (
-            <div style={{ display: "grid", gap: 12 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gap: 6,
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: 8,
-                  padding: 10,
-                }}
-              >
-                <div>Total: ${Number(selectedCreditContract.summary?.totalAmount || 0).toFixed(2)} USD</div>
-                <div>Fecha de registro: {selectedCreditContract.summary?.registeredAt ? new Date(selectedCreditContract.summary.registeredAt).toLocaleDateString() : "-"}</div>
-                <div>Fecha de compra: {selectedCreditContract.summary?.purchaseDate ? new Date(selectedCreditContract.summary.purchaseDate).toLocaleDateString() : "-"}</div>
-                <div>Fecha de corte: {selectedCreditContract.summary?.cutOffDate ? new Date(selectedCreditContract.summary.cutOffDate).toLocaleDateString() : "-"}</div>
-                <div>Precio del equipo: ${Number(selectedCreditContract.summary?.principalAmount || 0).toFixed(2)} USD</div>
-                <div>Entrada: ${Number(selectedCreditContract.summary?.downPaymentAmount || 0).toFixed(2)} USD</div>
-                <div>Monto financiado: ${Number(selectedCreditContract.summary?.financedAmount || 0).toFixed(2)} USD</div>
-                <div>Pagado: ${Number(selectedCreditContract.summary?.paidAmount || 0).toFixed(2)} USD</div>
-                <div>Pendiente: ${Number(selectedCreditContract.summary?.pendingAmount || 0).toFixed(2)} USD</div>
-                <div>Cuotas pagadas: {selectedCreditContract.summary?.paidInstallments || 0} / {selectedCreditContract.installmentCount}</div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleApproveAllReportedInstallments}
-                disabled={isApprovingAllReported}
-                style={{
-                  width: "fit-content",
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #0891b2",
-                  background: "#ecfeff",
-                  color: "#0e7490",
-                  cursor: isApprovingAllReported ? "not-allowed" : "pointer",
-                }}
-              >
-                {isApprovingAllReported ? "Aprobando..." : "Aprobar todas las reportadas"}
-              </button>
-
-              <div
-                style={{
-                  border: "1px solid #bae6fd",
-                  borderRadius: 8,
-                  background: "#f0f9ff",
-                  padding: 10,
-                }}
-              >
-                <h4 style={{ margin: "0 0 8px 0", color: "#0c4a6e" }}>Reportes de pago pendientes</h4>
-                {reportedInstallments.length === 0 ? (
-                  <p style={{ margin: 0, color: "#0f172a" }}>No hay cuotas reportadas por el cliente.</p>
-                ) : (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 460 }}>
-                      <thead>
-                        <tr style={{ background: "#e0f2fe" }}>
-                          <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Cuota</th>
-                          <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Valor</th>
-                          <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Vence</th>
-                          <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Accion</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportedInstallments.map((installment) => (
-                          <tr key={`reported-${installment.id}`}>
-                            <td style={{ border: "1px solid #bae6fd", padding: 8 }}>#{installment.sequence}</td>
-                            <td style={{ border: "1px solid #bae6fd", padding: 8 }}>
-                              ${Number(installment.amount).toFixed(2)}
-                            </td>
-                            <td style={{ border: "1px solid #bae6fd", padding: 8 }}>
-                              {new Date(installment.dueDate).toLocaleDateString()}
-                            </td>
-                            <td style={{ border: "1px solid #bae6fd", padding: 8 }}>
-                              <button
-                                type="button"
-                                disabled={processingInstallmentId === installment.id}
-                                onClick={() => handleApproveInstallment(installment.id)}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: 6,
-                                  border: "1px solid #16a34a",
-                                  background: "#f0fdf4",
-                                  color: "#14532d",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                Aprobar reporte
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 540 }}>
-                  <thead>
-                    <tr style={{ background: "#f8fafc" }}>
-                      <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>#</th>
-                      <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Vence</th>
-                      <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Monto</th>
-                      <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Estado</th>
-                      <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedCreditContract.installments?.map((installment) => (
-                      <tr key={installment.id}>
-                        <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>{installment.sequence}</td>
-                        <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>
-                          {new Date(installment.dueDate).toLocaleDateString()}
-                        </td>
-                        <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>
-                          ${Number(installment.amount).toFixed(2)}
-                        </td>
-                        <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>{installment.status}</td>
-                        <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button
-                              type="button"
-                              disabled={
-                                processingInstallmentId === installment.id || installment.status === "PAGADO"
-                              }
-                              onClick={() => handleApproveInstallment(installment.id)}
-                              style={{
-                                padding: "6px 10px",
-                                borderRadius: 6,
-                                border: "1px solid #16a34a",
-                                background: "#f0fdf4",
-                                color: "#14532d",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Aprobar pago
-                            </button>
-                            <button
-                              type="button"
-                              disabled={
-                                processingInstallmentId === installment.id || installment.status === "PAGADO"
-                              }
-                              onClick={() => handleMarkInstallmentOverdue(installment.id)}
-                              style={{
-                                padding: "6px 10px",
-                                borderRadius: 6,
-                                border: "1px solid #b45309",
-                                background: "#fffbeb",
-                                color: "#78350f",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Marcar vencida
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </article>
       </section>
         </div>
       </details>
+      )}
+
+      {activeMainView === "credit_renewal" && (
+        <section style={{ display: "grid", gap: 16 }}>
+          <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+            <h3 style={{ margin: 0 }}>Renovacion de credito</h3>
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>
+              Busca un cliente existente por nombre o cedula, registra nuevo equipo y crea su nuevo contrato.
+            </p>
+            <input
+              value={renewalCustomerQuery}
+              onChange={(event) => setRenewalCustomerQuery(event.target.value)}
+              placeholder="Buscar cliente por nombre, cedula o telefono"
+              style={filterInputStyle}
+            />
+            <select
+              value={renewalSelectedCustomerId}
+              onChange={(event) => {
+                const nextId = event.target.value;
+                setRenewalSelectedCustomerId(nextId);
+              }}
+              style={inputStyle}
+            >
+              <option value="">Selecciona cliente para renovacion</option>
+              {renewalCustomerMatches.map((customer) => (
+                <option key={`renewal-customer-${customer.id}`} value={customer.id}>
+                  {customer.fullName} - {customer.nationalId}
+                </option>
+              ))}
+            </select>
+          </article>
+
+          {renewalSelectedCustomer && (
+            <article style={{ ...cardStyle, display: "grid", gap: 8 }}>
+              <h4 style={{ margin: 0 }}>Datos del cliente seleccionado</h4>
+              <div style={{ display: "grid", gap: 4 }}>
+                <div>Nombre: <strong>{renewalSelectedCustomer.fullName}</strong></div>
+                <div>Cedula: {renewalSelectedCustomer.nationalId}</div>
+                <div>Telefono: {renewalSelectedCustomer.phone}</div>
+                <div>Dispositivos actuales: {renewalCustomerDevices.length}</div>
+              </div>
+            </article>
+          )}
+
+          <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+            <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+              <h3 style={{ margin: 0 }}>Registrar dispositivo (renovacion)</h3>
+              <form onSubmit={handleCreateRenewalDevice} style={{ display: "grid", gap: 10 }}>
+                <input
+                  placeholder="Marca"
+                  value={renewalDeviceForm.brand}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, brand: event.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Modelo"
+                  value={renewalDeviceForm.model}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, model: event.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Alias"
+                  value={renewalDeviceForm.alias}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, alias: event.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="IMEI 1"
+                  value={renewalDeviceForm.imei}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, imei: event.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="IMEI 2 (opcional)"
+                  value={renewalDeviceForm.imei2 || ""}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, imei2: event.target.value }))}
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Hexnode Device ID (opcional)"
+                  value={renewalDeviceForm.hexnodeDeviceId}
+                  onChange={(event) =>
+                    setRenewalDeviceForm((value) => ({ ...value, hexnodeDeviceId: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+                <textarea
+                  placeholder="Notas"
+                  rows={3}
+                  value={renewalDeviceForm.notes}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, notes: event.target.value }))}
+                  style={inputStyle}
+                />
+                <button
+                  type="submit"
+                  disabled={isSavingRenewalDevice || !renewalSelectedCustomerId}
+                  style={buttonStyle}
+                >
+                  {isSavingRenewalDevice ? "Guardando..." : "Guardar dispositivo renovacion"}
+                </button>
+              </form>
+            </article>
+
+            <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+              <h3 style={{ margin: 0 }}>Crear contrato (renovacion)</h3>
+              <form onSubmit={handleCreateRenewalCreditContract} style={{ display: "grid", gap: 10 }}>
+                <select
+                  value={renewalCreditForm.deviceId}
+                  onChange={(event) =>
+                    setRenewalCreditForm((value) => ({ ...value, deviceId: event.target.value }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Selecciona dispositivo del cliente</option>
+                  {renewalCustomerDevices.map((device) => (
+                    <option key={`renewal-device-${device.id}`} value={device.id}>
+                      {device.brand} {device.model} ({device.installCode})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  placeholder="Monto total (USD)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={renewalCreditForm.principalAmount}
+                  onChange={(event) =>
+                    setRenewalCreditForm((value) => ({ ...value, principalAmount: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Entrada (USD)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={renewalCreditForm.downPaymentAmount}
+                  onChange={(event) =>
+                    setRenewalCreditForm((value) => ({ ...value, downPaymentAmount: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+                <input
+                  placeholder="Numero de cuotas"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={renewalCreditForm.installmentCount}
+                  onChange={(event) =>
+                    setRenewalCreditForm((value) => ({ ...value, installmentCount: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontSize: 13, color: "#334155" }}>Fecha de compra</span>
+                  <input
+                    type="date"
+                    value={renewalCreditForm.purchaseDate}
+                    onChange={(event) =>
+                      setRenewalCreditForm((value) => ({ ...value, purchaseDate: event.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={{ fontSize: 13, color: "#334155" }}>Fecha de corte / primer pago</span>
+                  <input
+                    type="date"
+                    value={renewalCreditForm.cutOffDate}
+                    onChange={(event) =>
+                      setRenewalCreditForm((value) => ({ ...value, cutOffDate: event.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+                <textarea
+                  placeholder="Notas de contrato"
+                  rows={3}
+                  value={renewalCreditForm.notes}
+                  onChange={(event) => setRenewalCreditForm((value) => ({ ...value, notes: event.target.value }))}
+                  style={inputStyle}
+                />
+                <button
+                  type="submit"
+                  disabled={isSavingRenewalCreditContract || !renewalSelectedCustomerId}
+                  style={buttonStyle}
+                >
+                  {isSavingRenewalCreditContract ? "Guardando..." : "Crear contrato renovacion"}
+                </button>
+              </form>
+            </article>
+          </section>
+
+        </section>
       )}
 
       {activeMainView === "control" && activeSummarySection === "customers" && (
@@ -2274,6 +2569,205 @@ export default function Dashboard() {
               setPaymentPage((value) => Math.min(paymentsPageData.totalPages, value + 1))
             }
           />
+
+          <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+            <h3 style={{ margin: 0 }}>Gestor de cuotas</h3>
+            <select
+              value={selectedCreditDeviceId}
+              onChange={(event) => setSelectedCreditDeviceId(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Selecciona dispositivo para revisar cuotas</option>
+              {sortedDevicesByCustomer.map((device) => (
+                <option key={`payments-quota-device-${device.id}`} value={device.id}>
+                  {(device.customer?.fullName || "Sin cliente")} - {device.brand} {device.model} ({device.installCode})
+                </option>
+              ))}
+            </select>
+
+            {selectedCreditDevice && (
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  color: "#334155",
+                }}
+              >
+                Cliente: <strong>{selectedCreditDevice.customer?.fullName || "Sin cliente"}</strong>
+                <br />
+                Equipo: <strong>{selectedCreditDevice.brand} {selectedCreditDevice.model}</strong> ({selectedCreditDevice.installCode})
+              </div>
+            )}
+
+            {isLoadingCreditContract && <p style={{ margin: 0 }}>Cargando contrato...</p>}
+            {!isLoadingCreditContract && selectedCreditDeviceId && !selectedCreditContract && (
+              <p style={{ margin: 0, color: "#92400e" }}>Este dispositivo aun no tiene contrato de credito.</p>
+            )}
+
+            {selectedCreditContract && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 6,
+                    background: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 8,
+                    padding: 10,
+                  }}
+                >
+                  <div>Total: ${Number(selectedCreditContract.summary?.totalAmount || 0).toFixed(2)} USD</div>
+                  <div>Fecha de registro: {selectedCreditContract.summary?.registeredAt ? new Date(selectedCreditContract.summary.registeredAt).toLocaleDateString() : "-"}</div>
+                  <div>Fecha de compra: {selectedCreditContract.summary?.purchaseDate ? new Date(selectedCreditContract.summary.purchaseDate).toLocaleDateString() : "-"}</div>
+                  <div>Fecha de corte: {selectedCreditContract.summary?.cutOffDate ? new Date(selectedCreditContract.summary.cutOffDate).toLocaleDateString() : "-"}</div>
+                  <div>Precio del equipo: ${Number(selectedCreditContract.summary?.principalAmount || 0).toFixed(2)} USD</div>
+                  <div>Entrada: ${Number(selectedCreditContract.summary?.downPaymentAmount || 0).toFixed(2)} USD</div>
+                  <div>Monto financiado: ${Number(selectedCreditContract.summary?.financedAmount || 0).toFixed(2)} USD</div>
+                  <div>Pagado: ${Number(selectedCreditContract.summary?.paidAmount || 0).toFixed(2)} USD</div>
+                  <div>Pendiente: ${Number(selectedCreditContract.summary?.pendingAmount || 0).toFixed(2)} USD</div>
+                  <div>Cuotas pagadas: {selectedCreditContract.summary?.paidInstallments || 0} / {selectedCreditContract.installmentCount}</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleApproveAllReportedInstallments}
+                  disabled={isApprovingAllReported}
+                  style={{
+                    width: "fit-content",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #0891b2",
+                    background: "#ecfeff",
+                    color: "#0e7490",
+                    cursor: isApprovingAllReported ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {isApprovingAllReported ? "Aprobando..." : "Aprobar todas las reportadas"}
+                </button>
+
+                <div
+                  style={{
+                    border: "1px solid #bae6fd",
+                    borderRadius: 8,
+                    background: "#f0f9ff",
+                    padding: 10,
+                  }}
+                >
+                  <h4 style={{ margin: "0 0 8px 0", color: "#0c4a6e" }}>Reportes de pago pendientes</h4>
+                  {reportedInstallments.length === 0 ? (
+                    <p style={{ margin: 0, color: "#0f172a" }}>No hay cuotas reportadas por el cliente.</p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 460 }}>
+                        <thead>
+                          <tr style={{ background: "#e0f2fe" }}>
+                            <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Cuota</th>
+                            <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Valor</th>
+                            <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Vence</th>
+                            <th style={{ textAlign: "left", border: "1px solid #bae6fd", padding: 8 }}>Accion</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportedInstallments.map((installment) => (
+                            <tr key={`reported-payments-${installment.id}`}>
+                              <td style={{ border: "1px solid #bae6fd", padding: 8 }}>#{installment.sequence}</td>
+                              <td style={{ border: "1px solid #bae6fd", padding: 8 }}>
+                                ${Number(installment.amount).toFixed(2)}
+                              </td>
+                              <td style={{ border: "1px solid #bae6fd", padding: 8 }}>
+                                {new Date(installment.dueDate).toLocaleDateString()}
+                              </td>
+                              <td style={{ border: "1px solid #bae6fd", padding: 8 }}>
+                                <button
+                                  type="button"
+                                  disabled={processingInstallmentId === installment.id}
+                                  onClick={() => handleApproveInstallment(installment.id)}
+                                  style={{
+                                    padding: "6px 10px",
+                                    borderRadius: 6,
+                                    border: "1px solid #16a34a",
+                                    background: "#f0fdf4",
+                                    color: "#14532d",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Aprobar reporte
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 540 }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc" }}>
+                        <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>#</th>
+                        <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Vence</th>
+                        <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Monto</th>
+                        <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Estado</th>
+                        <th style={{ textAlign: "left", border: "1px solid #e2e8f0", padding: 8 }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedCreditContract.installments?.map((installment) => (
+                        <tr key={`payments-installment-${installment.id}`}>
+                          <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>{installment.sequence}</td>
+                          <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>
+                            {new Date(installment.dueDate).toLocaleDateString()}
+                          </td>
+                          <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>
+                            ${Number(installment.amount).toFixed(2)}
+                          </td>
+                          <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>{installment.status}</td>
+                          <td style={{ border: "1px solid #e2e8f0", padding: 8 }}>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                disabled={processingInstallmentId === installment.id || installment.status === "PAGADO"}
+                                onClick={() => handleApproveInstallment(installment.id)}
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: 6,
+                                  border: "1px solid #16a34a",
+                                  background: "#f0fdf4",
+                                  color: "#14532d",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Aprobar pago
+                              </button>
+                              <button
+                                type="button"
+                                disabled={processingInstallmentId === installment.id || installment.status === "PAGADO"}
+                                onClick={() => handleMarkInstallmentOverdue(installment.id)}
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: 6,
+                                  border: "1px solid #b45309",
+                                  background: "#fffbeb",
+                                  color: "#78350f",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Marcar vencida
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </article>
         </section>
       )}
 
@@ -2287,6 +2781,178 @@ export default function Dashboard() {
             onSelectSection={() => {}}
           />
           <FinancePanel payments={sortedPayments} />
+
+          <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+            <h3 style={{ margin: 0 }}>Contratos y evidencias por cliente</h3>
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>
+              Sube contratos (PDF/JPG/JPEG/PNG) y foto del cliente (JPG/JPEG/PNG). Busca por cedula o nombre.
+            </p>
+
+            <input
+              value={contractsCustomerQuery}
+              onChange={(event) => setContractsCustomerQuery(event.target.value)}
+              placeholder="Buscar cliente por nombre o cedula"
+              style={filterInputStyle}
+            />
+            <select
+              value={contractsCustomerId}
+              onChange={(event) => setContractsCustomerId(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Selecciona cliente</option>
+              {contractsCustomerMatches.map((customer) => (
+                <option key={`contracts-customer-${customer.id}`} value={customer.id}>
+                  {customer.fullName} - {customer.nationalId}
+                </option>
+              ))}
+            </select>
+
+            {contractsSelectedCustomer && (
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  color: "#334155",
+                }}
+              >
+                Cliente: <strong>{contractsSelectedCustomer.fullName}</strong><br />
+                Cedula: {contractsSelectedCustomer.nationalId}<br />
+                Telefono: {contractsSelectedCustomer.phone}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <label
+                style={{
+                  ...buttonStyle,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: contractsCustomerId && !isUploadingContractDoc ? "pointer" : "not-allowed",
+                  opacity: contractsCustomerId ? 1 : 0.6,
+                }}
+              >
+                {isUploadingContractDoc ? "Subiendo contrato..." : "Subir contrato"}
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  disabled={!contractsCustomerId || isUploadingContractDoc}
+                  style={{ display: "none" }}
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0] || null;
+                    await handleUploadCustomerAsset(file, "CONTRACT");
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+
+              <label
+                style={{
+                  ...secondaryButtonStyle,
+                  minHeight: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: contractsCustomerId && !isUploadingClientPhoto ? "pointer" : "not-allowed",
+                  opacity: contractsCustomerId ? 1 : 0.6,
+                }}
+              >
+                {isUploadingClientPhoto ? "Subiendo foto..." : "Subir foto cliente"}
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                  disabled={!contractsCustomerId || isUploadingClientPhoto}
+                  style={{ display: "none" }}
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0] || null;
+                    await handleUploadCustomerAsset(file, "PHOTO");
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+
+            {isLoadingContractsAssets && <p style={{ margin: 0 }}>Cargando archivos del cliente...</p>}
+
+            {!isLoadingContractsAssets && contractsCustomerId && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <h4 style={{ margin: 0 }}>Contratos ({contractDocuments.length})</h4>
+                  {contractDocuments.length === 0 ? (
+                    <p style={{ margin: 0, color: "var(--text-soft)" }}>Sin contratos cargados.</p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {contractDocuments.map((asset) => {
+                        const isPdf = String(asset.mimeType || "").toLowerCase().includes("pdf");
+                        return (
+                          <div
+                            key={`contract-asset-${asset.id}`}
+                            style={{
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 8,
+                              padding: 10,
+                              background: "#ffffff",
+                              display: "flex",
+                              gap: 10,
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div>
+                              <div><strong>{asset.fileName}</strong></div>
+                              <div style={{ color: "var(--text-soft)", fontSize: 13 }}>
+                                {asset.mimeType} - {(Number(asset.fileSize || 0) / 1024).toFixed(1)} KB
+                              </div>
+                            </div>
+                            {isPdf ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadAsset(asset.id, asset.fileName)}
+                                style={secondaryButtonStyle}
+                              >
+                                Descargar PDF
+                              </button>
+                            ) : (
+                              <img
+                                src={contractsImagePreviewMap[asset.id] || ""}
+                                alt={asset.fileName}
+                                width={120}
+                                height={90}
+                                style={{ objectFit: "cover", borderRadius: 8, border: "1px solid #cbd5e1" }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "grid", gap: 8 }}>
+                  <h4 style={{ margin: 0 }}>Fotos del cliente ({customerPhotos.length})</h4>
+                  {customerPhotos.length === 0 ? (
+                    <p style={{ margin: 0, color: "var(--text-soft)" }}>Sin fotos cargadas.</p>
+                  ) : (
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      {customerPhotos.map((asset) => (
+                        <img
+                          key={`photo-asset-${asset.id}`}
+                          src={contractsImagePreviewMap[asset.id] || ""}
+                          alt={asset.fileName}
+                          width={180}
+                          height={130}
+                          style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #cbd5e1" }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </article>
         </section>
       )}
 

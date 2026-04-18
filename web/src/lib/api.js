@@ -42,6 +42,47 @@ async function request(path, options = {}) {
   return data;
 }
 
+async function requestRaw(path, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      credentials: "include",
+      headers: {
+        ...(options.headers || {}),
+      },
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Tiempo de espera agotado al conectar con el servidor");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!response.ok) {
+    let message = "Error en la solicitud";
+    let details = null;
+    try {
+      const data = await response.json();
+      message = data?.message || message;
+      details = data?.details || null;
+    } catch {
+      // no-op
+    }
+    const error = new Error(message);
+    error.details = details;
+    throw error;
+  }
+
+  return response;
+}
+
 export const api = {
   login(payload) {
     return request("/auth/login", {
@@ -162,6 +203,22 @@ export const api = {
   },
   getCreditContract(deviceId) {
     return request(`/credits/contracts/${deviceId}`);
+  },
+  getCustomerAssets(customerId) {
+    return request(`/customer-assets?customerId=${encodeURIComponent(customerId)}`);
+  },
+  uploadCustomerAsset(payload) {
+    return request("/customer-assets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  async getCustomerAssetContent(assetId, disposition = "inline") {
+    const response = await requestRaw(
+      `/customer-assets/${encodeURIComponent(assetId)}/content?disposition=${encodeURIComponent(disposition)}`,
+      { method: "GET" }
+    );
+    return response.blob();
   },
   approveInstallmentPayment(installmentId) {
     return request(`/credits/installments/${installmentId}/approve-payment`, {

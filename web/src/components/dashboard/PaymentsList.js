@@ -60,6 +60,7 @@ export default function PaymentsList({
   const [selectedPaidMonth, setSelectedPaidMonth] = useState("all");
   const [selectedPaidYear, setSelectedPaidYear] = useState("all");
   const [reopenedPaymentIds, setReopenedPaymentIds] = useState([]);
+  const [optionsPaymentId, setOptionsPaymentId] = useState("");
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const reopenedStorageKey = "kovix_reopened_payments_v1";
@@ -192,6 +193,11 @@ export default function PaymentsList({
     await onMarkPending(paymentId);
     rememberReopenedPayment(paymentId);
     setActiveTab("pending");
+  }
+
+  function toggleOptions(paymentId) {
+    const normalized = String(paymentId || "");
+    setOptionsPaymentId((value) => (value === normalized ? "" : normalized));
   }
 
   function renderActions(payment) {
@@ -439,9 +445,65 @@ export default function PaymentsList({
                 : {}),
             }}
           >
-            <strong>
-              {payment.customer?.fullName} - ${Number(payment.amount).toFixed(2)}
-            </strong>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <strong>
+                {payment.customer?.fullName} - ${Number(payment.amount).toFixed(2)}
+              </strong>
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => toggleOptions(payment.id)}
+                  style={{
+                    minHeight: 34,
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--line-soft)",
+                    background: "rgba(255,255,255,0.95)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Opciones
+                </button>
+                {optionsPaymentId === String(payment.id) && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 38,
+                      right: 0,
+                      zIndex: 20,
+                      minWidth: 170,
+                      borderRadius: 10,
+                      border: "1px solid var(--line-soft)",
+                      background: "#ffffff",
+                      boxShadow: "0 16px 24px rgba(15, 23, 42, 0.18)",
+                      display: "grid",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOptionsPaymentId("");
+                        onDeletePayment(payment);
+                      }}
+                      disabled={deletingPaymentId === payment.id}
+                      style={{
+                        border: "none",
+                        background: "#fff7ed",
+                        padding: "10px 12px",
+                        textAlign: "left",
+                        cursor: deletingPaymentId === payment.id ? "not-allowed" : "pointer",
+                        color: "#9a3412",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {deletingPaymentId === payment.id ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             <p style={{ margin: "6px 0" }}>Vence: {new Date(payment.dueDate).toLocaleDateString()}</p>
             <p style={{ margin: "6px 0" }}>Estado: {effectiveStatus}</p>
             {isReopenedFromPaid && (
@@ -462,24 +524,6 @@ export default function PaymentsList({
               </p>
             )}
             {renderActions(payment)}
-            <div style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                onClick={() => onDeletePayment(payment)}
-                disabled={deletingPaymentId === payment.id}
-                style={{
-                  padding: "7px 10px",
-                  borderRadius: 8,
-                  border: "1px solid rgba(220, 38, 38, 0.4)",
-                  color: "#991b1b",
-                  background: "rgba(254, 242, 242, 0.95)",
-                  fontWeight: 700,
-                  cursor: deletingPaymentId === payment.id ? "not-allowed" : "pointer",
-                }}
-              >
-                {deletingPaymentId === payment.id ? "Borrando..." : "🗑 Enviar a papelera"}
-              </button>
-            </div>
           </article>
         )})}
         {activeList.length === 0 && (
@@ -491,3 +535,4 @@ export default function PaymentsList({
     </section>
   );
 }
+

@@ -7,6 +7,7 @@ import { ensureAdminUser } from "./lib/ensureAdminUser.js";
 import { startTrashRetentionJob } from "./lib/trash.js";
 import authRoutes from "./routes/auth.js";
 import customerRoutes from "./routes/customers.js";
+import customerAssetsRoutes from "./routes/customerAssets.js";
 import deviceRoutes from "./routes/devices.js";
 import paymentRoutes from "./routes/payments.js";
 import creditRoutes from "./routes/credits.js";
@@ -48,7 +49,7 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "12mb" }));
 app.use(cookieParser());
 
 // Health
@@ -63,6 +64,7 @@ app.get("/health", (req, res) => {
 // Routes
 app.use("/auth", authRoutes);
 app.use("/customers", customerRoutes);
+app.use("/customer-assets", customerAssetsRoutes);
 app.use("/devices", deviceRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/credits", creditRoutes);

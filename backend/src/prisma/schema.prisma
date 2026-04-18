@@ -62,6 +62,22 @@ model Customer {
   devices         Device[]
   payments        Payment[]
   creditContracts CreditContract[]
+  assets          CustomerAsset[]
+}
+
+model CustomerAsset {
+  id        String   @id @default(cuid())
+  customerId String
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  category  String
+  fileName  String
+  mimeType  String
+  fileSize  Int
+  data      Bytes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId, category, createdAt])
 }
 
 model Device {
