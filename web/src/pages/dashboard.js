@@ -251,6 +251,57 @@ function buildHexnodeDiagnosticsMessage(details) {
   return parts.join(" | ");
 }
 
+function buildCreditInstallmentPreview(form) {
+  const principalAmount = Number(form?.principalAmount || 0);
+  const downPaymentAmount = Number(form?.downPaymentAmount || 0);
+  const installmentCount = Number(form?.installmentCount || 0);
+  const cutOffDate = String(form?.cutOffDate || "");
+
+  if (
+    !Number.isFinite(principalAmount) ||
+    principalAmount <= 0 ||
+    !Number.isFinite(downPaymentAmount) ||
+    downPaymentAmount < 0 ||
+    downPaymentAmount >= principalAmount ||
+    !Number.isInteger(installmentCount) ||
+    installmentCount <= 0 ||
+    !cutOffDate
+  ) {
+    return null;
+  }
+
+  const start = new Date(`${cutOffDate}T00:00:00`);
+  if (Number.isNaN(start.getTime())) {
+    return null;
+  }
+
+  const financedAmountRaw = principalAmount - downPaymentAmount;
+  const financedAmount = Number(financedAmountRaw.toFixed(2));
+  const baseInstallment = Number((financedAmount / installmentCount).toFixed(2));
+  let allocated = 0;
+  const installments = [];
+
+  for (let index = 0; index < installmentCount; index += 1) {
+    const dueDate = new Date(start);
+    dueDate.setMonth(start.getMonth() + index);
+
+    const isLast = index === installmentCount - 1;
+    const amount = isLast ? Number((financedAmount - allocated).toFixed(2)) : baseInstallment;
+    allocated = Number((allocated + amount).toFixed(2));
+
+    installments.push({
+      sequence: index + 1,
+      dueDate,
+      amount,
+    });
+  }
+
+  return {
+    financedAmount,
+    installments,
+  };
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const hasHydratedQueryRef = useRef(false);
@@ -296,8 +347,6 @@ export default function Dashboard() {
   const [paymentPage, setPaymentPage] = useState(1);
   const [deviceSegment, setDeviceSegment] = useState("all");
   const [deviceCustomerFilter, setDeviceCustomerFilter] = useState("all");
-  const [devicePanelQuery, setDevicePanelQuery] = useState("");
-  const [paymentPanelQuery, setPaymentPanelQuery] = useState("");
   const [provisioningDeviceId, setProvisioningDeviceId] = useState("");
   const [provisioningBaseUrl, setProvisioningBaseUrl] = useState("https://api.kovixec.com");
   const [provisioningApkUrl, setProvisioningApkUrl] = useState("");
@@ -325,6 +374,11 @@ export default function Dashboard() {
   const [isLoadingContractsAssets, setIsLoadingContractsAssets] = useState(false);
   const [isUploadingContractDoc, setIsUploadingContractDoc] = useState(false);
   const [isUploadingClientPhoto, setIsUploadingClientPhoto] = useState(false);
+  const [pendingContractFile, setPendingContractFile] = useState(null);
+  const [pendingPhotoFile, setPendingPhotoFile] = useState(null);
+  const [contractsOptionsAssetId, setContractsOptionsAssetId] = useState("");
+  const [updatingContractAssetId, setUpdatingContractAssetId] = useState("");
+  const [deletingContractAssetId, setDeletingContractAssetId] = useState("");
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -377,8 +431,6 @@ export default function Dashboard() {
     setDevicePage(1);
     setPaymentPage(1);
     setDeviceCustomerFilter("all");
-    setDevicePanelQuery("");
-    setPaymentPanelQuery("");
     setStatus("info", "Filtros reiniciados");
   }
 
@@ -602,6 +654,76 @@ export default function Dashboard() {
     } finally {
       setIsUploadingContractDoc(false);
       setIsUploadingClientPhoto(false);
+    }
+  }
+
+  async function handleConfirmUploadCustomerAsset(category) {
+    const targetFile = category === "CONTRACT" ? pendingContractFile : pendingPhotoFile;
+    if (!targetFile) {
+      setStatus("error", "Primero selecciona un archivo");
+      return;
+    }
+
+    const confirmed = window.confirm(`Confirmar subida de archivo "${targetFile.name}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    await handleUploadCustomerAsset(targetFile, category);
+    if (category === "CONTRACT") {
+      setPendingContractFile(null);
+    } else {
+      setPendingPhotoFile(null);
+    }
+  }
+
+  async function handleReplaceCustomerAsset(asset, file) {
+    if (!asset?.id || !file) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Reemplazar archivo "${asset.fileName}" por "${file.name}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingContractAssetId(String(asset.id));
+      const base64Data = await fileToBase64(file);
+      await api.updateCustomerAsset(asset.id, {
+        fileName: file.name,
+        mimeType: file.type,
+        base64Data,
+      });
+      setStatus("success", "Archivo actualizado correctamente");
+      await loadCustomerAssets(contractsCustomerId);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo actualizar el archivo");
+    } finally {
+      setUpdatingContractAssetId("");
+    }
+  }
+
+  async function handleDeleteCustomerAsset(asset) {
+    if (!asset?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Eliminar archivo "${asset.fileName}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingContractAssetId(String(asset.id));
+      await api.deleteCustomerAsset(asset.id);
+      setStatus("success", "Archivo eliminado");
+      await loadCustomerAssets(contractsCustomerId);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo eliminar el archivo");
+    } finally {
+      setDeletingContractAssetId("");
+      setContractsOptionsAssetId("");
     }
   }
 
@@ -848,6 +970,13 @@ export default function Dashboard() {
     } finally {
       setIsSavingCreditContract(false);
     }
+  }
+
+  function handleClearCreditNewDraft() {
+    setCreditForm(initialCreditForm);
+    setSelectedCreditDeviceId("");
+    setSelectedCreditContract(null);
+    setStatus("info", "Formulario de credito limpio. No se guardo nada.");
   }
 
   async function handleCreateRenewalDevice(event) {
@@ -1358,8 +1487,6 @@ export default function Dashboard() {
   const normalizedCustomerQuery = customerQuery.trim().toLowerCase();
   const normalizedDeviceQuery = deviceQuery.trim().toLowerCase();
   const normalizedPaymentQuery = paymentQuery.trim().toLowerCase();
-  const normalizedDevicePanelQuery = devicePanelQuery.trim().toLowerCase();
-  const normalizedPaymentPanelQuery = paymentPanelQuery.trim().toLowerCase();
 
   const filteredCustomers = customers.filter((customer) => {
     if (!normalizedCustomerQuery) {
@@ -1379,12 +1506,22 @@ export default function Dashboard() {
       return false;
     }
 
-    const searchTerms = [normalizedDeviceQuery, normalizedDevicePanelQuery].filter(Boolean);
+    const searchTerms = [normalizedDeviceQuery].filter(Boolean);
     if (searchTerms.length === 0) {
       return true;
     }
 
-    const haystack = [device.brand, device.model, device.imei, device.installCode, device.currentStatus, device.customer?.fullName]
+    const haystack = [
+      device.brand,
+      device.model,
+      device.imei,
+      device.imei2,
+      device.installCode,
+      device.currentStatus,
+      device.customer?.fullName,
+      device.customer?.nationalId,
+      device.customer?.phone,
+    ]
       .filter(Boolean)
       .map((value) => String(value).toLowerCase())
       .join(" ");
@@ -1421,13 +1558,14 @@ export default function Dashboard() {
   });
 
   const filteredPayments = payments.filter((payment) => {
-    const searchTerms = [normalizedPaymentQuery, normalizedPaymentPanelQuery].filter(Boolean);
+    const searchTerms = [normalizedPaymentQuery].filter(Boolean);
     if (searchTerms.length === 0) {
       return true;
     }
 
     const haystack = [
       payment.customer?.fullName,
+      payment.customer?.nationalId,
       payment.device?.installCode,
       payment.device?.brand,
       payment.device?.model,
@@ -1531,6 +1669,7 @@ export default function Dashboard() {
     return String(a.installCode || "").localeCompare(String(b.installCode || ""));
   });
   const selectedCreditDevice = devices.find((entry) => entry.id === selectedCreditDeviceId) || null;
+  const creditInstallmentPreview = buildCreditInstallmentPreview(creditForm);
   const renewalNormalizedQuery = renewalCustomerQuery.trim().toLowerCase();
   const renewalCustomerMatches = customers.filter((customer) => {
     if (!renewalNormalizedQuery) {
@@ -1615,6 +1754,13 @@ export default function Dashboard() {
       setRenewalSelectedCustomerId("");
       setRenewalDeviceForm(initialDeviceForm);
       setRenewalCreditForm(initialCreditForm);
+      return;
+    }
+
+    if (activeMainView === "contracts") {
+      setPendingContractFile(null);
+      setPendingPhotoFile(null);
+      setContractsOptionsAssetId("");
     }
   }, [activeMainView]);
 
@@ -1665,11 +1811,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     setDevicePage(1);
-  }, [deviceQuery, deviceSort, devicePanelQuery, deviceCustomerFilter, deviceSegment]);
+  }, [deviceQuery, deviceSort, deviceCustomerFilter, deviceSegment]);
 
   useEffect(() => {
     setPaymentPage(1);
-  }, [paymentQuery, paymentSort, paymentPanelQuery]);
+  }, [paymentQuery, paymentSort]);
 
   useEffect(() => {
     if (customerPage !== customersPageData.page) {
@@ -1805,6 +1951,13 @@ export default function Dashboard() {
             onClick={() => setActiveMainView("finance")}
           >
             Finanzas
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeMainView === "contracts")}
+            onClick={() => setActiveMainView("contracts")}
+          >
+            Contratos
           </button>
           <button
             type="button"
@@ -2264,17 +2417,78 @@ export default function Dashboard() {
               onChange={(event) => setCreditForm((value) => ({ ...value, notes: event.target.value }))}
               style={inputStyle}
             />
-            <button
-              type="submit"
-              disabled={isSavingCreditContract}
-              style={{
-                width: "fit-content",
-                ...buttonStyle,
-                cursor: isSavingCreditContract ? "not-allowed" : "pointer",
-              }}
-            >
-              {isSavingCreditContract ? "Guardando..." : "Crear contrato"}
-            </button>
+            {creditInstallmentPreview ? (
+              <div
+                style={{
+                  display: "grid",
+                  gap: 8,
+                  border: "1px solid #bfdbfe",
+                  borderRadius: 10,
+                  background: "#eff6ff",
+                  padding: 10,
+                }}
+              >
+                <strong>Generador de tabla de cuotas (vista previa)</strong>
+                <div style={{ color: "#1e3a8a" }}>
+                  Monto financiado: ${creditInstallmentPreview.financedAmount.toFixed(2)} USD
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 460 }}>
+                    <thead>
+                      <tr style={{ background: "#dbeafe" }}>
+                        <th style={{ textAlign: "left", border: "1px solid #93c5fd", padding: 8 }}>#</th>
+                        <th style={{ textAlign: "left", border: "1px solid #93c5fd", padding: 8 }}>Vence</th>
+                        <th style={{ textAlign: "left", border: "1px solid #93c5fd", padding: 8 }}>Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {creditInstallmentPreview.installments.map((entry) => (
+                        <tr key={`credit-preview-installment-${entry.sequence}`}>
+                          <td style={{ border: "1px solid #bfdbfe", padding: 8 }}>{entry.sequence}</td>
+                          <td style={{ border: "1px solid #bfdbfe", padding: 8 }}>
+                            {entry.dueDate.toLocaleDateString()}
+                          </td>
+                          <td style={{ border: "1px solid #bfdbfe", padding: 8 }}>${entry.amount.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  color: "#475569",
+                }}
+              >
+                Completa monto total, entrada, numero de cuotas y fecha de corte para generar la tabla de cuotas.
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="submit"
+                disabled={isSavingCreditContract}
+                style={{
+                  width: "fit-content",
+                  ...buttonStyle,
+                  cursor: isSavingCreditContract ? "not-allowed" : "pointer",
+                }}
+              >
+                {isSavingCreditContract ? "Guardando..." : "Subir credito nuevo"}
+              </button>
+              <button
+                type="button"
+                onClick={handleClearCreditNewDraft}
+                disabled={isSavingCreditContract}
+                style={{ ...secondaryButtonStyle, width: "fit-content" }}
+              >
+                Limpiar
+              </button>
+            </div>
           </form>
         </article>
 
@@ -2495,6 +2709,8 @@ export default function Dashboard() {
             }
             onDeleteCustomer={handleDeleteCustomer}
             deletingCustomerId={deletingCustomerId}
+            searchValue={customerQuery}
+            onSearchChange={setCustomerQuery}
           />
         </section>
       )}
@@ -2525,8 +2741,8 @@ export default function Dashboard() {
             onDeviceSegmentChange={setDeviceSegment}
             segmentCounts={deviceSegmentCounts}
             customerOptions={deviceCustomerOptions}
-            searchValue={devicePanelQuery}
-            onSearchChange={setDevicePanelQuery}
+            searchValue={deviceQuery}
+            onSearchChange={setDeviceQuery}
             devicePaymentSignalMap={devicePaymentSignalMap}
             onLinkAllHexnodeDevices={handleLinkAllHexnodeDevices}
             isLinkingAllHexnodeDevices={isLinkingAllHexnodeDevices}
@@ -2542,17 +2758,10 @@ export default function Dashboard() {
 
       {activeMainView === "control" && activeSummarySection === "payments" && (
         <section style={{ display: "grid", gap: 16 }}>
-          <div style={{ ...cardStyle, display: "grid", gap: 10 }}>
-            <h3 style={{ margin: 0 }}>Busqueda de pagos</h3>
-            <input
-              value={paymentPanelQuery}
-              onChange={(event) => setPaymentPanelQuery(event.target.value)}
-              placeholder="Buscar por cliente, equipo, codigo o monto"
-              style={filterInputStyle}
-            />
-          </div>
           <PaymentsList
             payments={sortedPayments}
+            searchValue={paymentQuery}
+            onSearchChange={setPaymentQuery}
             onMarkPaid={handleMarkPaid}
             onMarkOverdue={handleMarkOverdue}
             onMarkPending={handleMarkPending}
@@ -2781,11 +2990,15 @@ export default function Dashboard() {
             onSelectSection={() => {}}
           />
           <FinancePanel payments={sortedPayments} />
+        </section>
+      )}
 
+      {activeMainView === "contracts" && (
+        <section style={{ display: "grid", gap: 16 }}>
           <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>Contratos y evidencias por cliente</h3>
+            <h3 style={{ margin: 0 }}>Contratos</h3>
             <p style={{ margin: 0, color: "var(--text-soft)" }}>
-              Sube contratos (PDF/JPG/JPEG/PNG) y foto del cliente (JPG/JPEG/PNG). Busca por cedula o nombre.
+              Apartado independiente para contratos y foto del cliente.
             </p>
 
             <input
@@ -2808,151 +3021,210 @@ export default function Dashboard() {
             </select>
 
             {contractsSelectedCustomer && (
-              <div
-                style={{
-                  padding: 10,
-                  borderRadius: 8,
-                  border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
-                  color: "#334155",
-                }}
-              >
-                Cliente: <strong>{contractsSelectedCustomer.fullName}</strong><br />
-                Cedula: {contractsSelectedCustomer.nationalId}<br />
-                Telefono: {contractsSelectedCustomer.phone}
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <label
-                style={{
-                  ...buttonStyle,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: contractsCustomerId && !isUploadingContractDoc ? "pointer" : "not-allowed",
-                  opacity: contractsCustomerId ? 1 : 0.6,
-                }}
-              >
-                {isUploadingContractDoc ? "Subiendo contrato..." : "Subir contrato"}
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                  disabled={!contractsCustomerId || isUploadingContractDoc}
-                  style={{ display: "none" }}
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0] || null;
-                    await handleUploadCustomerAsset(file, "CONTRACT");
-                    event.target.value = "";
+              <div style={{ display: "grid", gap: 8 }}>
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    background: "#f8fafc",
+                    color: "#334155",
                   }}
-                />
-              </label>
-
-              <label
-                style={{
-                  ...secondaryButtonStyle,
-                  minHeight: 44,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: contractsCustomerId && !isUploadingClientPhoto ? "pointer" : "not-allowed",
-                  opacity: contractsCustomerId ? 1 : 0.6,
-                }}
-              >
-                {isUploadingClientPhoto ? "Subiendo foto..." : "Subir foto cliente"}
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                  disabled={!contractsCustomerId || isUploadingClientPhoto}
-                  style={{ display: "none" }}
-                  onChange={async (event) => {
-                    const file = event.target.files?.[0] || null;
-                    await handleUploadCustomerAsset(file, "PHOTO");
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-
-            {isLoadingContractsAssets && <p style={{ margin: 0 }}>Cargando archivos del cliente...</p>}
-
-            {!isLoadingContractsAssets && contractsCustomerId && (
-              <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "grid", gap: 8 }}>
-                  <h4 style={{ margin: 0 }}>Contratos ({contractDocuments.length})</h4>
-                  {contractDocuments.length === 0 ? (
-                    <p style={{ margin: 0, color: "var(--text-soft)" }}>Sin contratos cargados.</p>
-                  ) : (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {contractDocuments.map((asset) => {
-                        const isPdf = String(asset.mimeType || "").toLowerCase().includes("pdf");
-                        return (
-                          <div
-                            key={`contract-asset-${asset.id}`}
-                            style={{
-                              border: "1px solid #e2e8f0",
-                              borderRadius: 8,
-                              padding: 10,
-                              background: "#ffffff",
-                              display: "flex",
-                              gap: 10,
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <div>
-                              <div><strong>{asset.fileName}</strong></div>
-                              <div style={{ color: "var(--text-soft)", fontSize: 13 }}>
-                                {asset.mimeType} - {(Number(asset.fileSize || 0) / 1024).toFixed(1)} KB
-                              </div>
-                            </div>
-                            {isPdf ? (
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadAsset(asset.id, asset.fileName)}
-                                style={secondaryButtonStyle}
-                              >
-                                Descargar PDF
-                              </button>
-                            ) : (
-                              <img
-                                src={contractsImagePreviewMap[asset.id] || ""}
-                                alt={asset.fileName}
-                                width={120}
-                                height={90}
-                                style={{ objectFit: "cover", borderRadius: 8, border: "1px solid #cbd5e1" }}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                >
+                  Cliente: <strong>{contractsSelectedCustomer.fullName}</strong><br />
+                  Cedula: {contractsSelectedCustomer.nationalId}<br />
+                  Telefono: {contractsSelectedCustomer.phone}
                 </div>
 
-                <div style={{ display: "grid", gap: 8 }}>
-                  <h4 style={{ margin: 0 }}>Fotos del cliente ({customerPhotos.length})</h4>
-                  {customerPhotos.length === 0 ? (
-                    <p style={{ margin: 0, color: "var(--text-soft)" }}>Sin fotos cargadas.</p>
-                  ) : (
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      {customerPhotos.map((asset) => (
-                        <img
-                          key={`photo-asset-${asset.id}`}
-                          src={contractsImagePreviewMap[asset.id] || ""}
-                          alt={asset.fileName}
-                          width={180}
-                          height={130}
-                          style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #cbd5e1" }}
-                        />
-                      ))}
-                    </div>
-                  )}
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                  <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                    <strong>Subir contrato</strong>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                      onChange={(event) => setPendingContractFile(event.target.files?.[0] || null)}
+                      disabled={!contractsCustomerId || isUploadingContractDoc}
+                    />
+                    <button
+                      type="button"
+                      disabled={!pendingContractFile || !contractsCustomerId || isUploadingContractDoc}
+                      onClick={() => handleConfirmUploadCustomerAsset("CONTRACT")}
+                      style={buttonStyle}
+                    >
+                      {isUploadingContractDoc ? "Subiendo..." : "Confirmar subida contrato"}
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                    <strong>Subir foto cliente</strong>
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                      onChange={(event) => setPendingPhotoFile(event.target.files?.[0] || null)}
+                      disabled={!contractsCustomerId || isUploadingClientPhoto}
+                    />
+                    <button
+                      type="button"
+                      disabled={!pendingPhotoFile || !contractsCustomerId || isUploadingClientPhoto}
+                      onClick={() => handleConfirmUploadCustomerAsset("PHOTO")}
+                      style={secondaryButtonStyle}
+                    >
+                      {isUploadingClientPhoto ? "Subiendo..." : "Confirmar subida foto"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </article>
+
+          {isLoadingContractsAssets && (
+            <article style={{ ...cardStyle, display: "grid", gap: 8 }}>
+              <p style={{ margin: 0 }}>Cargando archivos del cliente...</p>
+            </article>
+          )}
+
+          {!isLoadingContractsAssets && contractsCustomerId && (
+            <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+              <h4 style={{ margin: 0 }}>Tarjetas de archivos ({contractsAssets.length})</h4>
+              {contractsAssets.length === 0 ? (
+                <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay archivos cargados para este cliente.</p>
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {contractsAssets.map((asset) => {
+                    const isPdf = String(asset.mimeType || "").toLowerCase().includes("pdf");
+                    const isImage = String(asset.mimeType || "").toLowerCase().startsWith("image/");
+                    return (
+                      <article
+                        key={`asset-card-${asset.id}`}
+                        style={{
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 10,
+                          background: "#ffffff",
+                          padding: 12,
+                          display: "grid",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <div>
+                            <strong>{asset.fileName}</strong>
+                            <div style={{ color: "var(--text-soft)", fontSize: 13 }}>
+                              {asset.category} - {asset.mimeType} - {(Number(asset.fileSize || 0) / 1024).toFixed(1)} KB
+                            </div>
+                          </div>
+                          <div style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setContractsOptionsAssetId((value) => (value === String(asset.id) ? "" : String(asset.id)))
+                              }
+                              style={{ ...secondaryButtonStyle, minHeight: 34, padding: "6px 10px", borderRadius: 8 }}
+                            >
+                              Opciones
+                            </button>
+                            {contractsOptionsAssetId === String(asset.id) && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: 38,
+                                  right: 0,
+                                  zIndex: 25,
+                                  minWidth: 200,
+                                  borderRadius: 10,
+                                  border: "1px solid var(--line-soft)",
+                                  background: "#ffffff",
+                                  boxShadow: "0 16px 24px rgba(15, 23, 42, 0.18)",
+                                  display: "grid",
+                                  gap: 0,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <label
+                                  style={{
+                                    padding: "10px 12px",
+                                    borderBottom: "1px solid var(--line-soft)",
+                                    cursor: updatingContractAssetId ? "not-allowed" : "pointer",
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {updatingContractAssetId === String(asset.id) ? "Editando..." : "Editar archivo"}
+                                  <input
+                                    type="file"
+                                    accept={
+                                      asset.category === "PHOTO"
+                                        ? ".jpg,.jpeg,.png,image/jpeg,image/png"
+                                        : ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                                    }
+                                    disabled={updatingContractAssetId === String(asset.id)}
+                                    style={{ display: "none" }}
+                                    onChange={async (event) => {
+                                      const file = event.target.files?.[0] || null;
+                                      await handleReplaceCustomerAsset(asset, file);
+                                      event.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomerAsset(asset)}
+                                  disabled={deletingContractAssetId === String(asset.id)}
+                                  style={{
+                                    border: "none",
+                                    background: "#fff7ed",
+                                    padding: "10px 12px",
+                                    textAlign: "left",
+                                    cursor: deletingContractAssetId === String(asset.id) ? "not-allowed" : "pointer",
+                                    color: "#9a3412",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {deletingContractAssetId === String(asset.id) ? "Eliminando..." : "Eliminar"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: 10,
+                            borderRadius: 8,
+                            border: "1px solid #e2e8f0",
+                            background: "#f8fafc",
+                            color: "#334155",
+                          }}
+                        >
+                          Cliente: <strong>{contractsSelectedCustomer?.fullName || "-"}</strong><br />
+                          Cedula: {contractsSelectedCustomer?.nationalId || "-"}<br />
+                          Telefono: {contractsSelectedCustomer?.phone || "-"}
+                        </div>
+
+                        {isPdf ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadAsset(asset.id, asset.fileName)}
+                            style={secondaryButtonStyle}
+                          >
+                            Descargar PDF
+                          </button>
+                        ) : (
+                          isImage && (
+                            <img
+                              src={contractsImagePreviewMap[asset.id] || ""}
+                              alt={asset.fileName}
+                              width={260}
+                              height={180}
+                              style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #cbd5e1" }}
+                            />
+                          )
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </article>
+          )}
         </section>
       )}
 

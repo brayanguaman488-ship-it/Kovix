@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   buttonStyle,
   cardStyle,
+  inputStyle,
   listItemStyle,
   sectionTitleStyle,
 } from "./styles";
@@ -47,6 +48,8 @@ function resolvePaymentStatus(payment) {
 
 export default function PaymentsList({
   payments,
+  searchValue,
+  onSearchChange,
   onMarkPaid,
   onMarkOverdue,
   onMarkPending,
@@ -328,6 +331,12 @@ export default function PaymentsList({
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Pagos</h2>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+        <input
+          value={searchValue || ""}
+          onChange={(event) => onSearchChange?.(event.target.value)}
+          placeholder="Buscar pagos por nombre o cedula"
+          style={{ ...inputStyle, maxWidth: 360 }}
+        />
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[
             { key: "monthly", label: "Activos del mes", count: monthlyPayments.length },

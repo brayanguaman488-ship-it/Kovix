@@ -187,7 +187,7 @@ export default function DevicesList({
         <input
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Buscar equipo, IMEI o codigo"
+          placeholder="Buscar por cliente, cedula, equipo, IMEI o codigo"
           style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "6px 8px", minWidth: 230 }}
         />
         <select

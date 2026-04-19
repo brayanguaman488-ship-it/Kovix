@@ -148,4 +148,87 @@ router.get("/:id/content", asyncHandler(async (req, res) => {
   return res.send(Buffer.from(asset.data));
 }));
 
+router.patch("/:id", asyncHandler(async (req, res) => {
+  const id = asTrimmedString(req.params?.id);
+  const fileName = asTrimmedString(req.body?.fileName);
+  const mimeType = asTrimmedString(req.body?.mimeType).toLowerCase();
+  const base64Data = asTrimmedString(req.body?.base64Data);
+
+  if (!id || !fileName || !mimeType || !base64Data) {
+    return sendBadRequest(res, "id, fileName, mimeType y base64Data son obligatorios");
+  }
+
+  const current = await prisma.customerAsset.findUnique({
+    where: { id },
+    select: { id: true, category: true },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Archivo no encontrado");
+  }
+
+  if (!isAllowedMimeType(current.category, mimeType)) {
+    return sendBadRequest(res, "Tipo de archivo no permitido para esta categoria");
+  }
+
+  let dataBuffer;
+  try {
+    dataBuffer = Buffer.from(base64Data, "base64");
+  } catch {
+    return sendBadRequest(res, "base64Data invalido");
+  }
+
+  if (!dataBuffer || dataBuffer.length === 0) {
+    return sendBadRequest(res, "No se pudo decodificar el archivo");
+  }
+
+  if (dataBuffer.length > MAX_FILE_SIZE_BYTES) {
+    return sendBadRequest(res, "Archivo demasiado grande. Maximo permitido: 10 MB");
+  }
+
+  try {
+    const asset = await prisma.customerAsset.update({
+      where: { id },
+      data: {
+        fileName,
+        mimeType,
+        fileSize: dataBuffer.length,
+        data: dataBuffer,
+      },
+      select: {
+        id: true,
+        customerId: true,
+        category: true,
+        fileName: true,
+        mimeType: true,
+        fileSize: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return res.json({ ok: true, asset });
+  } catch (error) {
+    return sendServerError(res, "No se pudo actualizar el archivo", error?.message);
+  }
+}));
+
+router.delete("/:id", asyncHandler(async (req, res) => {
+  const id = asTrimmedString(req.params?.id);
+  const current = await prisma.customerAsset.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Archivo no encontrado");
+  }
+
+  await prisma.customerAsset.delete({
+    where: { id },
+  });
+
+  return res.json({ ok: true, assetId: id, message: "Archivo eliminado" });
+}));
+
 export default router;

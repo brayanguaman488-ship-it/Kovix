@@ -213,6 +213,17 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  updateCustomerAsset(assetId, payload) {
+    return request(`/customer-assets/${encodeURIComponent(assetId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteCustomerAsset(assetId) {
+    return request(`/customer-assets/${encodeURIComponent(assetId)}`, {
+      method: "DELETE",
+    });
+  },
   async getCustomerAssetContent(assetId, disposition = "inline") {
     const response = await requestRaw(
       `/customer-assets/${encodeURIComponent(assetId)}/content?disposition=${encodeURIComponent(disposition)}`,

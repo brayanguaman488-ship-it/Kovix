@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   cardStyle,
+  inputStyle,
   listItemStyle,
   paginationRowStyle,
   secondaryButtonStyle,
@@ -22,6 +23,8 @@ export default function CustomersList({
   customerSegment,
   onCustomerSegmentChange,
   segmentCounts,
+  searchValue,
+  onSearchChange,
 }) {
   const [expandedCustomerId, setExpandedCustomerId] = useState("");
   const [optionsCustomerId, setOptionsCustomerId] = useState("");
@@ -133,6 +136,12 @@ export default function CustomersList({
       <h2 style={sectionTitleStyle}>Clientes</h2>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
+        <input
+          value={searchValue || ""}
+          onChange={(event) => onSearchChange?.(event.target.value)}
+          placeholder="Buscar cliente por nombre o cedula"
+          style={{ ...inputStyle, maxWidth: 320 }}
+        />
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button
             type="button"
