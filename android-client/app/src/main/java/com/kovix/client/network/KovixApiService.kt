@@ -8,6 +8,11 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface KovixApiService {
+    @POST("devices/client/bootstrap")
+    suspend fun bootstrapDevice(
+        @Body body: BootstrapRequest,
+    ): Response<BootstrapResponse>
+
     @GET("devices/client/{installCode}/status")
     suspend fun getDeviceStatus(
         @Path("installCode") installCode: String,

@@ -1,5 +1,6 @@
 package com.kovix.client
 
+import android.Manifest
 import android.app.ActivityManager
 import android.app.AlertDialog
 import android.app.admin.DevicePolicyManager
@@ -7,11 +8,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.PersistableBundle
+import android.provider.Settings
 import android.text.InputType
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -26,12 +29,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.kovix.client.admin.KovixDeviceAdminReceiver
+import com.kovix.client.network.BootstrapRequest
 import com.kovix.client.network.DeviceCreditInstallment
 import com.kovix.client.network.DevicePayload
 import com.kovix.client.network.KovixRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.telephony.TelephonyManager
 import java.util.Locale
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -112,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         setupDeviceControlMode()
         loadConfigFromPrefs()
         hookActions()
+        attemptAutomaticBootstrapIfNeeded()
         startBackgroundSyncService()
         startPollingIfConfigured()
     }
@@ -321,6 +327,7 @@ class MainActivity : AppCompatActivity() {
             saveConfigToPrefs()
             buildRepository()
             setError("")
+            attemptAutomaticBootstrapIfNeeded()
             startBackgroundSyncService()
             startPollingIfConfigured()
         }
@@ -426,6 +433,137 @@ class MainActivity : AppCompatActivity() {
         } else {
             null
         }
+    }
+
+    private fun attemptAutomaticBootstrapIfNeeded() {
+        val baseUrl = baseUrlInput.text.toString().trim()
+        val currentInstallCode = installCodeInput.text.toString().trim()
+        val currentClientSecret = clientSecretInput.text.toString().trim()
+        val repo = repository
+
+        if (baseUrl.isBlank() || repo == null) {
+            return
+        }
+
+        if (currentInstallCode.isNotBlank() && currentClientSecret.isNotBlank()) {
+            return
+        }
+
+        lifecycleScope.launch {
+            val payload = buildBootstrapRequest()
+            if (payload.imei.isNullOrBlank() && payload.imei2.isNullOrBlank()) {
+                setError("Falta IMEI para bootstrap automatico. Verifica permisos del dispositivo.")
+                return@launch
+            }
+
+            repo.bootstrapCredentials(payload)
+                .onSuccess { response ->
+                    val installCode = response.bootstrap?.installCode?.trim().orEmpty()
+                    val clientSecret = response.bootstrap?.clientSecret?.trim().orEmpty()
+                    if (installCode.isBlank() || clientSecret.isBlank()) {
+                        return@onSuccess
+                    }
+
+                    prefs().edit()
+                        .putString(PREF_BASE_URL, baseUrl)
+                        .putString(PREF_INSTALL_CODE, installCode)
+                        .putString(PREF_CLIENT_SECRET, clientSecret)
+                        .putBoolean(PREF_CONFIG_LOCKED, true)
+                        .apply()
+
+                    installCodeInput.setText(installCode)
+                    clientSecretInput.setText(clientSecret)
+                    isConfigLocked = true
+                    applyConfigLockState()
+                    setError("")
+                    startPollingIfConfigured()
+
+                    lifecycleScope.launch {
+                        syncOnce()
+                    }
+                }
+                .onFailure {
+                    // Silencioso: si no hay match aun, permitimos reintento en siguiente apertura/sync.
+                }
+        }
+    }
+
+    private fun buildBootstrapRequest(): BootstrapRequest {
+        val imeiA = readImei(0)
+        val imeiB = readImei(1)
+        val serial = readSerialNumber()
+        val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+            ?.trim()
+            .orEmpty()
+            .takeIf { it.isNotBlank() && it != "9774d56d682e549c" }
+        val enrollmentSpecificId = readEnrollmentSpecificId()
+
+        return BootstrapRequest(
+            imei = imeiA,
+            imei2 = imeiB,
+            serialNumber = serial,
+            androidId = androidId,
+            enrollmentSpecificId = enrollmentSpecificId,
+            manufacturer = Build.MANUFACTURER?.trim(),
+            brand = Build.BRAND?.trim(),
+            model = Build.MODEL?.trim(),
+            packageName = packageName,
+            appVersion = BuildConfig.VERSION_NAME,
+        )
+    }
+
+    private fun readImei(slotIndex: Int): String? {
+        val hasPhonePermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!hasPhonePermission) {
+            return null
+        }
+
+        val telephonyManager = getSystemService(TelephonyManager::class.java) ?: return null
+        val rawValue = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                telephonyManager.getImei(slotIndex)
+            } else {
+                @Suppress("DEPRECATION")
+                telephonyManager.deviceId
+            }
+        }.getOrNull()
+
+        val normalized = normalizeDigits(rawValue)
+        return if (normalized.length in 14..17) normalized else null
+    }
+
+    private fun readSerialNumber(): String? {
+        val rawValue = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Build.getSerial()
+            } else {
+                @Suppress("DEPRECATION")
+                Build.SERIAL
+            }
+        }.getOrNull()
+
+        return rawValue
+            ?.trim()
+            ?.takeIf { it.isNotBlank() && !it.equals("UNKNOWN", ignoreCase = true) }
+    }
+
+    private fun readEnrollmentSpecificId(): String? {
+        if (!isDeviceOwnerMode) {
+            return null
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return null
+        }
+
+        return runCatching {
+            devicePolicyManager.enrollmentSpecificId
+        }.getOrNull()?.trim()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun normalizeDigits(value: String?): String {
+        return (value ?: "").filter { it.isDigit() }.trim()
     }
 
     private fun startPollingIfConfigured() {

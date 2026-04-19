@@ -71,3 +71,28 @@ data class PushTokenResponse(
     val ok: Boolean,
     val message: String? = null,
 )
+
+data class BootstrapRequest(
+    val imei: String? = null,
+    val imei2: String? = null,
+    val serialNumber: String? = null,
+    val androidId: String? = null,
+    val enrollmentSpecificId: String? = null,
+    val manufacturer: String? = null,
+    val brand: String? = null,
+    val model: String? = null,
+    val packageName: String? = null,
+    val appVersion: String? = null,
+)
+
+data class BootstrapCredentials(
+    val installCode: String? = null,
+    val clientSecret: String? = null,
+    val matchedBy: String? = null,
+)
+
+data class BootstrapResponse(
+    val ok: Boolean,
+    val bootstrap: BootstrapCredentials? = null,
+    val message: String? = null,
+)

@@ -37,6 +37,10 @@ function normalizeImei(value) {
   return String(value || "").trim();
 }
 
+function normalizeDigits(value) {
+  return String(value || "").replace(/\D+/g, "").trim();
+}
+
 function validateImeiFormat(value) {
   return /^\d{14,17}$/.test(value);
 }
@@ -189,6 +193,87 @@ function buildClientDeviceResponse(device) {
     credit: creditSummary,
   };
 }
+
+router.post("/client/bootstrap", asyncHandler(async (req, res) => {
+  const rawImei = normalizeDigits(req.body?.imei);
+  const rawImei2 = normalizeDigits(req.body?.imei2);
+  const imeiCandidates = [rawImei, rawImei2].filter(Boolean);
+
+  if (imeiCandidates.length === 0) {
+    return sendBadRequest(res, "Se requiere imei o imei2 para bootstrap automatico");
+  }
+
+  const invalidCandidate = imeiCandidates.find((candidate) => !validateImeiFormat(candidate));
+  if (invalidCandidate) {
+    return sendBadRequest(res, "imei debe tener solo digitos (14 a 17 caracteres)");
+  }
+
+  const device = await prisma.device.findFirst({
+    where: {
+      OR: imeiCandidates.flatMap((candidate) => ([
+        { imei: candidate },
+        { imei2: candidate },
+      ])),
+    },
+    include: {
+      customer: true,
+      creditContract: {
+        include: {
+          installments: {
+            orderBy: { sequence: "asc" },
+          },
+        },
+      },
+    },
+  });
+
+  if (!device) {
+    return sendNotFound(res, "No se encontro un dispositivo registrado para este IMEI");
+  }
+
+  await syncAutomaticAgingStatuses(device.id);
+  await syncDeviceStatus(device.id, null, "Bootstrap automatico desde app cliente");
+
+  let hexnode = { linked: false, skipped: "not_attempted" };
+  try {
+    hexnode = await attemptAutomaticHexnodeLink(device.id);
+  } catch (_error) {
+    hexnode = { linked: false, skipped: "auto_link_failed" };
+  }
+
+  const updated = await prisma.device.update({
+    where: { id: device.id },
+    data: {
+      isRegistered: true,
+      lastSeenAt: new Date(),
+    },
+    include: {
+      customer: true,
+      creditContract: {
+        include: {
+          installments: {
+            orderBy: { sequence: "asc" },
+          },
+        },
+      },
+    },
+  });
+
+  const matchedBy = imeiCandidates.includes(String(updated.imei || "").trim())
+    ? "imei"
+    : "imei2";
+
+  return res.json({
+    ok: true,
+    bootstrap: {
+      installCode: updated.installCode,
+      clientSecret: updated.clientSecret,
+      matchedBy,
+    },
+    device: buildClientDeviceResponse(updated),
+    hexnode,
+  });
+}));
 
 router.get("/client/:installCode/status", asyncHandler(async (req, res) => {
   const providedSecret = extractClientSecret(req);

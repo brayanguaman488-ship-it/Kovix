@@ -37,6 +37,16 @@ class KovixRepository(baseUrl: String) {
         }
     }
 
+    suspend fun bootstrapCredentials(payload: BootstrapRequest): Result<BootstrapResponse> {
+        return runCatching {
+            val response = api.bootstrapDevice(payload)
+            if (!response.isSuccessful) {
+                throw IllegalStateException("Bootstrap HTTP ${response.code()}")
+            }
+            response.body() ?: throw IllegalStateException("Bootstrap vacio")
+        }
+    }
+
     suspend fun heartbeat(installCode: String, clientSecret: String): Result<DeviceStatusResponse> {
         return runCatching {
             val body = HeartbeatRequest(appVersion = BuildConfig.VERSION_NAME)
