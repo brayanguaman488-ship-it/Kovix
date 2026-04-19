@@ -2,11 +2,43 @@ import prismaPackage from "@prisma/client";
 
 const { DeviceStatus } = prismaPackage;
 
-const HEXNODE_PORTAL = (process.env.HEXNODE_PORTAL || "").trim();
+const HEXNODE_PORTAL_RAW = (process.env.HEXNODE_PORTAL || "").trim();
 const HEXNODE_API_KEY = (process.env.HEXNODE_API_KEY || "").trim();
-const HEXNODE_ENABLED = Boolean(HEXNODE_PORTAL && HEXNODE_API_KEY);
 const HEXNODE_ENROLLMENT_QR_IMAGE_URL = (process.env.HEXNODE_ENROLLMENT_QR_IMAGE_URL || "").trim();
 const HEXNODE_ENROLLMENT_QR_VALUE = (process.env.HEXNODE_ENROLLMENT_QR_VALUE || "").trim();
+
+function normalizeHexnodePortalHost(rawValue) {
+  const raw = String(rawValue || "").trim().replace(/\/+$/, "");
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    if (/^https?:\/\//i.test(raw)) {
+      const parsed = new URL(raw);
+      return String(parsed.host || "").trim().toLowerCase();
+    }
+  } catch {
+    // Si falla parseo por URL, intentamos con normalizacion manual.
+  }
+
+  const withoutProtocol = raw.replace(/^https?:\/\//i, "").split("/")[0].trim().toLowerCase();
+  if (!withoutProtocol) {
+    return "";
+  }
+
+  if (withoutProtocol.includes(".")) {
+    return withoutProtocol;
+  }
+
+  return `${withoutProtocol}.hexnodemdm.com`;
+}
+
+const HEXNODE_PORTAL_HOST = normalizeHexnodePortalHost(HEXNODE_PORTAL_RAW);
+const HEXNODE_PORTAL = HEXNODE_PORTAL_HOST
+  ? HEXNODE_PORTAL_HOST.replace(/\.hexnodemdm\.com$/i, "")
+  : "";
+const HEXNODE_ENABLED = Boolean(HEXNODE_PORTAL_HOST && HEXNODE_API_KEY);
 
 const POLICY_NAME_BY_STATUS = {
   [DeviceStatus.ACTIVO]: (process.env.HEXNODE_POLICY_ACTIVO || "KOVIX_ACTIVO").trim(),
@@ -52,7 +84,7 @@ function buildLocalCredentialSnapshot(localDevice) {
 }
 
 function buildBaseUrl(pathname, query = null) {
-  const base = `https://${HEXNODE_PORTAL}.hexnodemdm.com`;
+  const base = `https://${HEXNODE_PORTAL_HOST}`;
   const url = new URL(pathname, base);
 
   if (query && typeof query === "object") {
@@ -449,7 +481,7 @@ export function isHexnodeConfigured() {
 }
 
 export function getHexnodeProvisioningQr() {
-  const portalUrl = HEXNODE_PORTAL ? `https://${HEXNODE_PORTAL}.hexnodemdm.com` : "";
+  const portalUrl = HEXNODE_PORTAL_HOST ? `https://${HEXNODE_PORTAL_HOST}` : "";
 
   if (HEXNODE_ENROLLMENT_QR_IMAGE_URL) {
     return {
@@ -468,6 +500,17 @@ export function getHexnodeProvisioningQr() {
       portalUrl,
       qrUrl: `https://quickchart.io/qr?size=320&text=${encodeURIComponent(HEXNODE_ENROLLMENT_QR_VALUE)}`,
       qrValue: HEXNODE_ENROLLMENT_QR_VALUE,
+    };
+  }
+
+  if (portalUrl) {
+    const enrollmentUrl = `${portalUrl}/enroll`;
+    return {
+      configured: true,
+      mode: "portal_enroll_url",
+      portalUrl,
+      qrUrl: `https://quickchart.io/qr?size=320&text=${encodeURIComponent(enrollmentUrl)}`,
+      qrValue: enrollmentUrl,
     };
   }
 
