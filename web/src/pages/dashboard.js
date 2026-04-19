@@ -34,15 +34,25 @@ const initialDeviceForm = {
   notes: "",
 };
 
-const initialCreditForm = {
-  deviceId: "",
-  purchaseDate: "",
-  principalAmount: "",
-  downPaymentAmount: "",
-  installmentCount: "",
-  cutOffDate: "",
-  notes: "",
-};
+function getTodayIsoDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function createInitialCreditForm() {
+  return {
+    deviceId: "",
+    purchaseDate: getTodayIsoDate(),
+    principalAmount: "",
+    downPaymentAmount: "",
+    installmentCount: "",
+    cutOffDate: "",
+    notes: "",
+  };
+}
 
 const PAGE_SIZE = 6;
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
@@ -312,7 +322,7 @@ export default function Dashboard() {
   const [payments, setPayments] = useState([]);
   const [customerForm, setCustomerForm] = useState(initialCustomerForm);
   const [deviceForm, setDeviceForm] = useState(initialDeviceForm);
-  const [creditForm, setCreditForm] = useState(initialCreditForm);
+  const [creditForm, setCreditForm] = useState(createInitialCreditForm);
   const [statusState, setStatusState] = useState({ type: "info", message: "" });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -364,7 +374,7 @@ export default function Dashboard() {
   const [renewalCustomerQuery, setRenewalCustomerQuery] = useState("");
   const [renewalSelectedCustomerId, setRenewalSelectedCustomerId] = useState("");
   const [renewalDeviceForm, setRenewalDeviceForm] = useState(initialDeviceForm);
-  const [renewalCreditForm, setRenewalCreditForm] = useState(initialCreditForm);
+  const [renewalCreditForm, setRenewalCreditForm] = useState(createInitialCreditForm);
   const [isSavingRenewalDevice, setIsSavingRenewalDevice] = useState(false);
   const [isSavingRenewalCreditContract, setIsSavingRenewalCreditContract] = useState(false);
   const [contractsCustomerQuery, setContractsCustomerQuery] = useState("");
@@ -737,6 +747,17 @@ export default function Dashboard() {
     }
   }
 
+  async function handleOpenAsset(assetId) {
+    try {
+      const blob = await api.getCustomerAssetContent(assetId, "inline");
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo abrir el archivo");
+    }
+  }
+
   useEffect(() => {
     loadDashboard()
       .catch(() => {
@@ -955,7 +976,7 @@ export default function Dashboard() {
           : "Contrato de credito creado correctamente"
       );
       setSelectedCreditDeviceId(deviceId);
-      setCreditForm(initialCreditForm);
+      setCreditForm(createInitialCreditForm());
       await loadDashboard({ silent: true });
       await loadCreditContract(deviceId);
     } catch (error) {
@@ -1073,7 +1094,7 @@ export default function Dashboard() {
       });
       setStatus("success", "Renovacion: contrato de credito creado correctamente");
       setSelectedCreditDeviceId(deviceId);
-      setRenewalCreditForm(initialCreditForm);
+      setRenewalCreditForm(createInitialCreditForm());
       await loadDashboard({ silent: true });
       await loadCreditContract(deviceId);
     } catch (error) {
@@ -1746,7 +1767,7 @@ export default function Dashboard() {
     if (activeMainView === "credit_new") {
       setCustomerForm(initialCustomerForm);
       setDeviceForm(initialDeviceForm);
-      setCreditForm(initialCreditForm);
+      setCreditForm(createInitialCreditForm());
       return;
     }
 
@@ -1754,7 +1775,7 @@ export default function Dashboard() {
       setRenewalCustomerQuery("");
       setRenewalSelectedCustomerId("");
       setRenewalDeviceForm(initialDeviceForm);
-      setRenewalCreditForm(initialCreditForm);
+      setRenewalCreditForm(createInitialCreditForm());
       return;
     }
 
@@ -1780,7 +1801,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!renewalSelectedCustomerId) {
       setRenewalDeviceForm(initialDeviceForm);
-      setRenewalCreditForm(initialCreditForm);
+      setRenewalCreditForm(createInitialCreditForm());
       return;
     }
 
@@ -3267,22 +3288,50 @@ export default function Dashboard() {
                                   {asset.fileName} - {(Number(asset.fileSize || 0) / 1024).toFixed(1)} KB
                                 </div>
                                 {isPdf ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownloadAsset(asset.id, asset.fileName)}
-                                    style={secondaryButtonStyle}
-                                  >
-                                    Descargar PDF
-                                  </button>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenAsset(asset.id)}
+                                      style={secondaryButtonStyle}
+                                    >
+                                      Ver PDF
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadAsset(asset.id, asset.fileName)}
+                                      style={secondaryButtonStyle}
+                                    >
+                                      Descargar PDF
+                                    </button>
+                                  </div>
                                 ) : (
                                   isImage && (
-                                    <img
-                                      src={contractsImagePreviewMap[asset.id] || ""}
-                                      alt={asset.fileName}
-                                      width={260}
-                                      height={180}
-                                      style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #cbd5e1" }}
-                                    />
+                                    <div style={{ display: "grid", gap: 8 }}>
+                                      <img
+                                        src={contractsImagePreviewMap[asset.id] || ""}
+                                        alt={asset.fileName}
+                                        width={260}
+                                        height={180}
+                                        style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #cbd5e1", cursor: "pointer" }}
+                                        onClick={() => handleOpenAsset(asset.id)}
+                                      />
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenAsset(asset.id)}
+                                          style={secondaryButtonStyle}
+                                        >
+                                          Ver foto
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDownloadAsset(asset.id, asset.fileName)}
+                                          style={secondaryButtonStyle}
+                                        >
+                                          Descargar foto
+                                        </button>
+                                      </div>
+                                    </div>
                                   )
                                 )}
                               </>
