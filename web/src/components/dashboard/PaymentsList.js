@@ -335,7 +335,7 @@ export default function PaymentsList({
           value={searchValue || ""}
           onChange={(event) => onSearchChange?.(event.target.value)}
           placeholder="Buscar pagos por nombre o cedula"
-          style={{ ...inputStyle, maxWidth: 360 }}
+          style={{ ...inputStyle, width: 360, minWidth: 240, flex: "0 1 360px" }}
         />
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[

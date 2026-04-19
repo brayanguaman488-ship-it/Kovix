@@ -140,7 +140,7 @@ export default function CustomersList({
           value={searchValue || ""}
           onChange={(event) => onSearchChange?.(event.target.value)}
           placeholder="Buscar cliente por nombre o cedula"
-          style={{ ...inputStyle, maxWidth: 320 }}
+          style={{ ...inputStyle, width: 320, minWidth: 220, flex: "0 1 320px" }}
         />
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button
