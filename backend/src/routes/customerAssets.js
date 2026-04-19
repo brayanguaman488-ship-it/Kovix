@@ -3,6 +3,7 @@ import { Router } from "express";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { sendBadRequest, sendNotFound, sendServerError } from "../lib/http.js";
 import { prisma } from "../lib/prisma.js";
+import { registerTrashEntry } from "../lib/trash.js";
 import { asTrimmedString } from "../lib/validation.js";
 import authMiddleware from "../middleware/auth.js";
 
@@ -217,15 +218,41 @@ router.delete("/:id", asyncHandler(async (req, res) => {
   const id = asTrimmedString(req.params?.id);
   const current = await prisma.customerAsset.findUnique({
     where: { id },
-    select: { id: true },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          fullName: true,
+          nationalId: true,
+        },
+      },
+    },
   });
 
   if (!current) {
     return sendNotFound(res, "Archivo no encontrado");
   }
 
-  await prisma.customerAsset.delete({
-    where: { id },
+  await prisma.$transaction(async (tx) => {
+    await registerTrashEntry({
+      client: tx,
+      entityType: "customer_asset",
+      entityId: current.id,
+      summary: `${current.category}: ${current.fileName}`,
+      payload: {
+        id: current.id,
+        category: current.category,
+        fileName: current.fileName,
+        mimeType: current.mimeType,
+        fileSize: current.fileSize,
+        customer: current.customer,
+      },
+      deletedByUserId: req.user?.id || null,
+    });
+
+    await tx.customerAsset.delete({
+      where: { id },
+    });
   });
 
   return res.json({ ok: true, assetId: id, message: "Archivo eliminado" });

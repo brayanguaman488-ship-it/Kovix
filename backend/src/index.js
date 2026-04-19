@@ -11,6 +11,7 @@ import customerAssetsRoutes from "./routes/customerAssets.js";
 import deviceRoutes from "./routes/devices.js";
 import paymentRoutes from "./routes/payments.js";
 import creditRoutes from "./routes/credits.js";
+import trashRoutes from "./routes/trash.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -68,6 +69,7 @@ app.use("/customer-assets", customerAssetsRoutes);
 app.use("/devices", deviceRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/credits", creditRoutes);
+app.use("/trash", trashRoutes);
 
 app.use((error, req, res, next) => {
   console.error("Unhandled API error:", error);

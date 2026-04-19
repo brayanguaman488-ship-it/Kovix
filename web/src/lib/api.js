@@ -224,6 +224,14 @@ export const api = {
       method: "DELETE",
     });
   },
+  getTrashEntries(limit = 80) {
+    return request(`/trash?limit=${encodeURIComponent(limit)}`);
+  },
+  deleteTrashEntry(entryId) {
+    return request(`/trash/${encodeURIComponent(entryId)}`, {
+      method: "DELETE",
+    });
+  },
   async getCustomerAssetContent(assetId, disposition = "inline") {
     const response = await requestRaw(
       `/customer-assets/${encodeURIComponent(assetId)}/content?disposition=${encodeURIComponent(disposition)}`,

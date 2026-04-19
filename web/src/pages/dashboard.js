@@ -261,6 +261,15 @@ function buildHexnodeDiagnosticsMessage(details) {
   return parts.join(" | ");
 }
 
+function getTrashEntityLabel(entityType) {
+  const normalized = String(entityType || "").toLowerCase();
+  if (normalized === "customer") return "Cliente";
+  if (normalized === "device") return "Dispositivo";
+  if (normalized === "payment") return "Pago";
+  if (normalized === "customer_asset") return "Archivo";
+  return normalized || "Registro";
+}
+
 function buildCreditInstallmentPreview(form) {
   const principalAmount = Number(form?.principalAmount || 0);
   const downPaymentAmount = Number(form?.downPaymentAmount || 0);
@@ -388,6 +397,9 @@ export default function Dashboard() {
   const [contractsOptionsAssetId, setContractsOptionsAssetId] = useState("");
   const [updatingContractAssetId, setUpdatingContractAssetId] = useState("");
   const [deletingContractAssetId, setDeletingContractAssetId] = useState("");
+  const [trashEntries, setTrashEntries] = useState([]);
+  const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
+  const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -744,6 +756,42 @@ export default function Dashboard() {
       setStatus("success", "Descarga iniciada");
     } catch (error) {
       setStatus("error", error.message || "No se pudo descargar el archivo");
+    }
+  }
+
+  async function loadTrashEntries() {
+    try {
+      setIsLoadingTrashEntries(true);
+      const response = await api.getTrashEntries(120);
+      setTrashEntries(response?.entries || []);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo cargar la papelera");
+      setTrashEntries([]);
+    } finally {
+      setIsLoadingTrashEntries(false);
+    }
+  }
+
+  async function handleDeleteTrashEntry(entryId) {
+    const id = String(entryId || "").trim();
+    if (!id) {
+      return;
+    }
+
+    const confirmed = window.confirm("Quitar este registro de papelera?");
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingTrashEntryId(id);
+      await api.deleteTrashEntry(id);
+      setTrashEntries((prev) => prev.filter((entry) => String(entry.id) !== id));
+      setStatus("success", "Registro eliminado de papelera");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo eliminar el registro de papelera");
+    } finally {
+      setDeletingTrashEntryId("");
     }
   }
 
@@ -1838,6 +1886,12 @@ export default function Dashboard() {
       setProvisioningMode("hexnode");
     }
   }, [activeMainView, provisioningMode]);
+
+  useEffect(() => {
+    if (activeMainView === "trash") {
+      loadTrashEntries();
+    }
+  }, [activeMainView]);
 
   useEffect(() => {
     setCustomerPage(1);
@@ -3359,9 +3413,59 @@ export default function Dashboard() {
           <p style={{ margin: 0, color: "var(--text-soft)" }}>
             Los elementos eliminados se envian a papelera y se purgan automaticamente cada 30 dias.
           </p>
-          <p style={{ margin: 0, color: "var(--text-soft)" }}>
-            Por ahora la papelera funciona con retencion automatica en backend.
-          </p>
+          {isLoadingTrashEntries ? (
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>Cargando papelera...</p>
+          ) : trashEntries.length === 0 ? (
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay elementos en papelera.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {trashEntries.map((entry) => {
+                const payload = entry?.payload || {};
+                return (
+                  <article
+                    key={`trash-entry-${entry.id}`}
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 10,
+                      background: "#f8fafc",
+                      padding: 12,
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <strong>{getTrashEntityLabel(entry.entityType)}: {entry.summary || entry.entityId}</strong>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTrashEntry(entry.id)}
+                        disabled={deletingTrashEntryId === String(entry.id)}
+                        style={{
+                          border: "1px solid #f59e0b",
+                          background: "#fffbeb",
+                          color: "#92400e",
+                          borderRadius: 8,
+                          padding: "6px 10px",
+                          cursor: deletingTrashEntryId === String(entry.id) ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {deletingTrashEntryId === String(entry.id) ? "Quitando..." : "Quitar registro"}
+                      </button>
+                    </div>
+                    <div style={{ color: "#475569", fontSize: 14 }}>
+                      Eliminado: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"} | Purga:{" "}
+                      {entry.deleteAfter ? new Date(entry.deleteAfter).toLocaleDateString() : "-"}
+                    </div>
+                    {payload?.customer?.fullName && (
+                      <div style={{ color: "#334155", fontSize: 14 }}>
+                        Cliente: <strong>{payload.customer.fullName}</strong>
+                        {payload.customer?.nationalId ? ` (${payload.customer.nationalId})` : ""}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
       </main>
