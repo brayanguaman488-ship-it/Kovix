@@ -10,6 +10,12 @@ import authMiddleware from "../middleware/auth.js";
 const router = Router();
 const { EquifaxConsultationStatus } = prismaPackage;
 const ADMIN_ROLE = "ADMIN";
+const GERENCIA_ROLE = "GERENCIA";
+
+function canRespondEquifax(role) {
+  const normalizedRole = String(role || "").toUpperCase();
+  return normalizedRole === ADMIN_ROLE || normalizedRole === GERENCIA_ROLE;
+}
 
 router.use(authMiddleware);
 
@@ -35,8 +41,7 @@ router.get("/", asyncHandler(async (req, res) => {
     ],
   };
 
-  const isAdmin = String(req.user?.role || "") === ADMIN_ROLE;
-  if (!isAdmin) {
+  if (!canRespondEquifax(req.user?.role)) {
     where.AND.push({
       requestedByUserId: req.user.id,
     });
@@ -123,11 +128,10 @@ router.post("/", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/:id/respond", asyncHandler(async (req, res) => {
-  const isAdmin = String(req.user?.role || "") === ADMIN_ROLE;
-  if (!isAdmin) {
+  if (!canRespondEquifax(req.user?.role)) {
     return res.status(403).json({
       ok: false,
-      message: "Solo administradores pueden responder consultas Equifax",
+      message: "Solo administradores o gerencia pueden responder consultas Equifax",
     });
   }
 

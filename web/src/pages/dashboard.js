@@ -438,7 +438,10 @@ export default function Dashboard() {
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
-  const isAdminUser = String(user?.role || "").toUpperCase() === "ADMIN";
+  const userRole = String(user?.role || "").toUpperCase();
+  const canManageUsers = userRole === "ADMIN";
+  const canRespondEquifax = userRole === "ADMIN" || userRole === "GERENCIA";
+  const canCreateEquifax = userRole === "TIENDA";
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -951,7 +954,7 @@ export default function Dashboard() {
   }
 
   async function loadUsers(options = { silent: false }) {
-    if (!isAdminUser) {
+    if (!canManageUsers) {
       setUsersList([]);
       return;
     }
@@ -977,7 +980,7 @@ export default function Dashboard() {
   async function handleCreateUser(event) {
     event.preventDefault();
 
-    if (!isAdminUser) {
+    if (!canManageUsers) {
       setStatus("error", "Solo administradores pueden crear usuarios");
       return;
     }
@@ -1016,7 +1019,7 @@ export default function Dashboard() {
       return;
     }
 
-    if (!isAdminUser) {
+    if (!canManageUsers) {
       setStatus("error", "Solo administradores pueden cambiar contrasenas");
       return;
     }
@@ -2200,7 +2203,7 @@ export default function Dashboard() {
       loadUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainView, isAdminUser]);
+  }, [activeMainView, canManageUsers]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -2415,7 +2418,7 @@ export default function Dashboard() {
           >
             Consultas Equifax
           </button>
-          {isAdminUser && (
+          {canManageUsers && (
             <button
               type="button"
               style={sidebarNavButton(activeMainView === "users")}
@@ -3811,7 +3814,7 @@ export default function Dashboard() {
           <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
             <h2 style={{ margin: 0 }}>Consultas Equifax</h2>
             <p style={{ margin: 0, color: "var(--text-soft)" }}>
-              {isAdminUser
+              {canRespondEquifax
                 ? "Recibes consultas de tiendas y respondes evaluacion crediticia."
                 : "Registra consultas con cedula y nombre. El administrador revisa y responde."}
             </p>
@@ -3821,10 +3824,10 @@ export default function Dashboard() {
             style={{
               display: "grid",
               gap: 16,
-              gridTemplateColumns: isAdminUser ? "1fr" : "repeat(auto-fit, minmax(320px, 1fr))",
+              gridTemplateColumns: canCreateEquifax ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr",
             }}
           >
-            {!isAdminUser && (
+            {canCreateEquifax && (
               <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
                 <h3 style={{ margin: 0 }}>Nueva consulta</h3>
                 <form onSubmit={handleCreateEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
@@ -3961,10 +3964,10 @@ export default function Dashboard() {
           </section>
 
           <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>{isAdminUser ? "Detalle y respuesta" : "Detalle de consulta"}</h3>
+            <h3 style={{ margin: 0 }}>{canRespondEquifax ? "Detalle y respuesta" : "Detalle de consulta"}</h3>
             {!selectedEquifaxConsultation ? (
               <p style={{ margin: 0, color: "var(--text-soft)" }}>
-                {isAdminUser
+                {canRespondEquifax
                   ? "Selecciona una consulta para verla y responderla."
                   : "Selecciona una consulta para ver su estado y respuesta."}
               </p>
@@ -3995,7 +3998,7 @@ export default function Dashboard() {
                 </div>
 
                 <form onSubmit={handleRespondEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
-                  {isAdminUser ? (
+                  {canRespondEquifax ? (
                     <>
                       <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
                         <input
@@ -4132,7 +4135,7 @@ export default function Dashboard() {
             </p>
           </article>
 
-          {!isAdminUser ? (
+          {!canManageUsers ? (
             <article style={{ ...cardStyle, display: "grid", gap: 8 }}>
               <strong>Acceso restringido</strong>
               <p style={{ margin: 0, color: "var(--text-soft)" }}>
@@ -4169,6 +4172,7 @@ export default function Dashboard() {
                     style={inputStyle}
                   >
                     <option value="TIENDA">TIENDA</option>
+                    <option value="GERENCIA">GERENCIA</option>
                     <option value="ADMIN">ADMIN</option>
                   </select>
                   <button type="submit" disabled={isSavingUser} style={buttonStyle}>
@@ -4212,8 +4216,10 @@ export default function Dashboard() {
                             style={{
                               fontSize: 12,
                               fontWeight: 700,
-                              color: entry.role === "ADMIN" ? "#1e3a8a" : "#166534",
-                              background: entry.role === "ADMIN" ? "#dbeafe" : "#dcfce7",
+                              color:
+                                entry.role === "ADMIN" ? "#1e3a8a" : entry.role === "GERENCIA" ? "#7c2d12" : "#166534",
+                              background:
+                                entry.role === "ADMIN" ? "#dbeafe" : entry.role === "GERENCIA" ? "#ffedd5" : "#dcfce7",
                               borderRadius: 999,
                               padding: "4px 8px",
                             }}
