@@ -1021,7 +1021,7 @@ export default function Dashboard() {
       return;
     }
 
-    const newPassword = window.prompt(`Nueva contrasena para ${targetUser?.username || "usuario"}:`, "");
+    const newPassword = window.prompt(`Cambiar contrasena para ${targetUser?.username || "usuario"}:`, "");
     if (!newPassword) {
       return;
     }
@@ -4232,7 +4232,7 @@ export default function Dashboard() {
                             disabled={resettingPasswordUserId === String(entry.id)}
                             style={{ ...secondaryButtonStyle, minHeight: 34, borderRadius: 8 }}
                           >
-                            {resettingPasswordUserId === String(entry.id) ? "Actualizando..." : "Resetear contrasena"}
+                            {resettingPasswordUserId === String(entry.id) ? "Actualizando..." : "Cambiar contrasena"}
                           </button>
                         </div>
                       </article>
