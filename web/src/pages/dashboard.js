@@ -69,6 +69,13 @@ const initialEquifaxResponseForm = {
   responseNotes: "",
 };
 
+const initialUserForm = {
+  fullName: "",
+  username: "",
+  password: "",
+  role: "TIENDA",
+};
+
 const PAGE_SIZE = 6;
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
 const DEVICE_OWNER_PACKAGE_NAME = "com.kovix.client";
@@ -423,6 +430,11 @@ export default function Dashboard() {
   const [equifaxResponseForm, setEquifaxResponseForm] = useState(initialEquifaxResponseForm);
   const [equifaxRetentionDays, setEquifaxRetentionDays] = useState(15);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
+  const [userForm, setUserForm] = useState(initialUserForm);
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
@@ -935,6 +947,93 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo guardar la respuesta Equifax");
     } finally {
       setRespondingEquifaxId("");
+    }
+  }
+
+  async function loadUsers(options = { silent: false }) {
+    if (!isAdminUser) {
+      setUsersList([]);
+      return;
+    }
+
+    try {
+      if (!options.silent) {
+        setIsLoadingUsers(true);
+      }
+      const response = await api.getUsers();
+      setUsersList(response?.users || []);
+    } catch (error) {
+      if (!options.silent) {
+        setStatus("error", error.message || "No se pudo cargar la lista de usuarios");
+      }
+      setUsersList([]);
+    } finally {
+      if (!options.silent) {
+        setIsLoadingUsers(false);
+      }
+    }
+  }
+
+  async function handleCreateUser(event) {
+    event.preventDefault();
+
+    if (!isAdminUser) {
+      setStatus("error", "Solo administradores pueden crear usuarios");
+      return;
+    }
+
+    const username = String(userForm.username || "").trim();
+    const password = String(userForm.password || "");
+    const fullName = String(userForm.fullName || "").trim();
+    const role = String(userForm.role || "TIENDA").toUpperCase();
+
+    if (!username || !password) {
+      setStatus("error", "Usuario: username y password son obligatorios");
+      return;
+    }
+
+    try {
+      setIsSavingUser(true);
+      await api.createUser({
+        username,
+        password,
+        fullName,
+        role,
+      });
+      setUserForm(initialUserForm);
+      setStatus("success", "Usuario creado correctamente");
+      await loadUsers({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo crear el usuario");
+    } finally {
+      setIsSavingUser(false);
+    }
+  }
+
+  async function handleResetUserPassword(targetUser) {
+    const userId = String(targetUser?.id || "").trim();
+    if (!userId) {
+      return;
+    }
+
+    if (!isAdminUser) {
+      setStatus("error", "Solo administradores pueden cambiar contrasenas");
+      return;
+    }
+
+    const newPassword = window.prompt(`Nueva contrasena para ${targetUser?.username || "usuario"}:`, "");
+    if (!newPassword) {
+      return;
+    }
+
+    try {
+      setResettingPasswordUserId(userId);
+      await api.updateUserPassword(userId, { password: newPassword });
+      setStatus("success", `Contrasena actualizada para ${targetUser?.username || "usuario"}`);
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo actualizar la contrasena");
+    } finally {
+      setResettingPasswordUserId("");
     }
   }
 
@@ -2025,6 +2124,11 @@ export default function Dashboard() {
 
     if (activeMainView === "equifax") {
       setEquifaxConsultationForm(initialEquifaxConsultationForm);
+      return;
+    }
+
+    if (activeMainView === "users") {
+      setUserForm(initialUserForm);
     }
   }, [activeMainView]);
 
@@ -2090,6 +2194,13 @@ export default function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMainView]);
+
+  useEffect(() => {
+    if (activeMainView === "users") {
+      loadUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainView, isAdminUser]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -2304,6 +2415,15 @@ export default function Dashboard() {
           >
             Consultas Equifax
           </button>
+          {isAdminUser && (
+            <button
+              type="button"
+              style={sidebarNavButton(activeMainView === "users")}
+              onClick={() => setActiveMainView("users")}
+            >
+              Usuarios
+            </button>
+          )}
           <button
             type="button"
             style={sidebarNavButton(activeMainView === "trash")}
@@ -4000,6 +4120,128 @@ export default function Dashboard() {
               </>
             )}
           </article>
+        </section>
+      )}
+
+      {activeMainView === "users" && (
+        <section style={{ display: "grid", gap: 16 }}>
+          <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+            <h2 style={{ margin: 0 }}>Usuarios del sistema</h2>
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>
+              Crea usuarios para tiendas aliadas y administra sus accesos.
+            </p>
+          </article>
+
+          {!isAdminUser ? (
+            <article style={{ ...cardStyle, display: "grid", gap: 8 }}>
+              <strong>Acceso restringido</strong>
+              <p style={{ margin: 0, color: "var(--text-soft)" }}>
+                Solo administradores pueden gestionar usuarios.
+              </p>
+            </article>
+          ) : (
+            <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+              <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+                <h3 style={{ margin: 0 }}>Registrar usuario</h3>
+                <form onSubmit={handleCreateUser} style={{ display: "grid", gap: 10 }}>
+                  <input
+                    value={userForm.fullName}
+                    onChange={(event) => setUserForm((value) => ({ ...value, fullName: event.target.value }))}
+                    placeholder="Nombre completo (opcional)"
+                    style={inputStyle}
+                  />
+                  <input
+                    value={userForm.username}
+                    onChange={(event) => setUserForm((value) => ({ ...value, username: event.target.value }))}
+                    placeholder="Username"
+                    style={inputStyle}
+                  />
+                  <input
+                    type="password"
+                    value={userForm.password}
+                    onChange={(event) => setUserForm((value) => ({ ...value, password: event.target.value }))}
+                    placeholder="Contrasena"
+                    style={inputStyle}
+                  />
+                  <select
+                    value={userForm.role}
+                    onChange={(event) => setUserForm((value) => ({ ...value, role: event.target.value }))}
+                    style={inputStyle}
+                  >
+                    <option value="TIENDA">TIENDA</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                  <button type="submit" disabled={isSavingUser} style={buttonStyle}>
+                    {isSavingUser ? "Guardando..." : "Crear usuario"}
+                  </button>
+                </form>
+              </article>
+
+              <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+                <h3 style={{ margin: 0 }}>Usuarios registrados</h3>
+                <button
+                  type="button"
+                  onClick={() => loadUsers()}
+                  disabled={isLoadingUsers}
+                  style={{ ...secondaryButtonStyle, width: "fit-content" }}
+                >
+                  {isLoadingUsers ? "Cargando..." : "Recargar usuarios"}
+                </button>
+
+                {isLoadingUsers ? (
+                  <p style={{ margin: 0, color: "var(--text-soft)" }}>Cargando usuarios...</p>
+                ) : usersList.length === 0 ? (
+                  <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay usuarios creados.</p>
+                ) : (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {usersList.map((entry) => (
+                      <article
+                        key={`user-row-${entry.id}`}
+                        style={{
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 10,
+                          background: "#ffffff",
+                          padding: 10,
+                          display: "grid",
+                          gap: 4,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          <strong>{entry.fullName || entry.username}</strong>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: entry.role === "ADMIN" ? "#1e3a8a" : "#166534",
+                              background: entry.role === "ADMIN" ? "#dbeafe" : "#dcfce7",
+                              borderRadius: 999,
+                              padding: "4px 8px",
+                            }}
+                          >
+                            {entry.role}
+                          </span>
+                        </div>
+                        <div style={{ color: "#475569", fontSize: 13 }}>Usuario: {entry.username}</div>
+                        <div style={{ color: "#64748b", fontSize: 12 }}>
+                          Creado: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"}
+                        </div>
+                        <div style={{ marginTop: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleResetUserPassword(entry)}
+                            disabled={resettingPasswordUserId === String(entry.id)}
+                            style={{ ...secondaryButtonStyle, minHeight: 34, borderRadius: 8 }}
+                          >
+                            {resettingPasswordUserId === String(entry.id) ? "Actualizando..." : "Resetear contrasena"}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </article>
+            </section>
+          )}
         </section>
       )}
 

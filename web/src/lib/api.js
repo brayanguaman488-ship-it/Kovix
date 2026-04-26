@@ -98,6 +98,21 @@ export const api = {
       method: "POST",
     });
   },
+  getUsers() {
+    return request("/auth/users");
+  },
+  createUser(payload) {
+    return request("/auth/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateUserPassword(userId, payload) {
+    return request(`/auth/users/${encodeURIComponent(userId)}/password`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
   getCustomers() {
     return request("/customers");
   },

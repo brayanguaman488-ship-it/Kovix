@@ -17,11 +17,13 @@ export async function ensureAdminUser() {
     update: {
       passwordHash,
       fullName: "Administrador KOVIX",
+      role: "ADMIN",
     },
     create: {
       username,
       passwordHash,
       fullName: "Administrador KOVIX",
+      role: "ADMIN",
     },
   });
 
