@@ -434,6 +434,9 @@ export default function Dashboard() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
+  const [editingUserId, setEditingUserId] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState("");
+  const [usersOptionsUserId, setUsersOptionsUserId] = useState("");
   const [userForm, setUserForm] = useState(initialUserForm);
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
@@ -1037,6 +1040,78 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo actualizar la contrasena");
     } finally {
       setResettingPasswordUserId("");
+    }
+  }
+
+  async function handleEditUser(targetUser) {
+    const userId = String(targetUser?.id || "").trim();
+    if (!userId) {
+      return;
+    }
+
+    if (!canManageUsers) {
+      setStatus("error", "Solo administradores pueden editar usuarios");
+      return;
+    }
+
+    const nextFullName = window.prompt(
+      `Nuevo nombre para ${targetUser?.username || "usuario"}:`,
+      String(targetUser?.fullName || "")
+    );
+    if (nextFullName === null) {
+      return;
+    }
+
+    const nextUsername = window.prompt(
+      `Nuevo username para ${targetUser?.username || "usuario"}:`,
+      String(targetUser?.username || "")
+    );
+    if (nextUsername === null) {
+      return;
+    }
+
+    try {
+      setEditingUserId(userId);
+      await api.updateUser(userId, {
+        fullName: nextFullName,
+        username: nextUsername,
+      });
+      setStatus("success", "Usuario actualizado");
+      await loadUsers({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo actualizar el usuario");
+    } finally {
+      setEditingUserId("");
+      setUsersOptionsUserId("");
+    }
+  }
+
+  async function handleDeleteUser(targetUser) {
+    const userId = String(targetUser?.id || "").trim();
+    if (!userId) {
+      return;
+    }
+
+    if (!canManageUsers) {
+      setStatus("error", "Solo administradores pueden eliminar usuarios");
+      return;
+    }
+
+    const confirmed = window.confirm(`Eliminar usuario "${targetUser?.username || "usuario"}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingUserId(userId);
+      await api.deleteUser(userId);
+      setStatus("success", "Usuario eliminado");
+      await loadUsers({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo eliminar el usuario");
+    } finally {
+      setDeletingUserId("");
+      setUsersOptionsUserId("");
     }
   }
 
@@ -4212,34 +4287,103 @@ export default function Dashboard() {
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                           <strong>{entry.fullName || entry.username}</strong>
-                          <span
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color:
-                                entry.role === "ADMIN" ? "#1e3a8a" : entry.role === "GERENCIA" ? "#7c2d12" : "#166534",
-                              background:
-                                entry.role === "ADMIN" ? "#dbeafe" : entry.role === "GERENCIA" ? "#ffedd5" : "#dcfce7",
-                              borderRadius: 999,
-                              padding: "4px 8px",
-                            }}
-                          >
-                            {entry.role}
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color:
+                                  entry.role === "ADMIN" ? "#1e3a8a" : entry.role === "GERENCIA" ? "#7c2d12" : "#166534",
+                                background:
+                                  entry.role === "ADMIN" ? "#dbeafe" : entry.role === "GERENCIA" ? "#ffedd5" : "#dcfce7",
+                                borderRadius: 999,
+                                padding: "4px 8px",
+                              }}
+                            >
+                              {entry.role}
+                            </span>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setUsersOptionsUserId((value) => (value === String(entry.id) ? "" : String(entry.id)))
+                                }
+                                style={{ ...secondaryButtonStyle, minHeight: 34, borderRadius: 8, padding: "6px 10px" }}
+                              >
+                                Opciones
+                              </button>
+                              {usersOptionsUserId === String(entry.id) && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: 38,
+                                    right: 0,
+                                    zIndex: 25,
+                                    minWidth: 220,
+                                    borderRadius: 10,
+                                    border: "1px solid var(--line-soft)",
+                                    background: "#ffffff",
+                                    boxShadow: "0 16px 24px rgba(15, 23, 42, 0.18)",
+                                    display: "grid",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditUser(entry)}
+                                    disabled={editingUserId === String(entry.id)}
+                                    style={{
+                                      border: "none",
+                                      background: "#ffffff",
+                                      padding: "10px 12px",
+                                      textAlign: "left",
+                                      borderBottom: "1px solid var(--line-soft)",
+                                      cursor: editingUserId === String(entry.id) ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {editingUserId === String(entry.id) ? "Editando..." : "Editar usuario"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteUser(entry)}
+                                    disabled={deletingUserId === String(entry.id)}
+                                    style={{
+                                      border: "none",
+                                      background: "#fff7ed",
+                                      padding: "10px 12px",
+                                      textAlign: "left",
+                                      borderBottom: "1px solid var(--line-soft)",
+                                      cursor: deletingUserId === String(entry.id) ? "not-allowed" : "pointer",
+                                      color: "#9a3412",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {deletingUserId === String(entry.id) ? "Eliminando..." : "Eliminar usuario"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetUserPassword(entry)}
+                                    disabled={resettingPasswordUserId === String(entry.id)}
+                                    style={{
+                                      border: "none",
+                                      background: "#ffffff",
+                                      padding: "10px 12px",
+                                      textAlign: "left",
+                                      cursor: resettingPasswordUserId === String(entry.id) ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {resettingPasswordUserId === String(entry.id)
+                                      ? "Actualizando..."
+                                      : "Cambiar contrasena"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                         <div style={{ color: "#475569", fontSize: 13 }}>Usuario: {entry.username}</div>
                         <div style={{ color: "#64748b", fontSize: 12 }}>
                           Creado: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"}
-                        </div>
-                        <div style={{ marginTop: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => handleResetUserPassword(entry)}
-                            disabled={resettingPasswordUserId === String(entry.id)}
-                            style={{ ...secondaryButtonStyle, minHeight: 34, borderRadius: 8 }}
-                          >
-                            {resettingPasswordUserId === String(entry.id) ? "Actualizando..." : "Cambiar contrasena"}
-                          </button>
                         </div>
                       </article>
                     ))}

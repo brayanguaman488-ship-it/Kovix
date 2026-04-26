@@ -178,5 +178,96 @@ router.patch("/users/:id/password", authMiddleware, asyncHandler(async (req, res
   }
 }));
 
+router.patch("/users/:id", authMiddleware, asyncHandler(async (req, res) => {
+  if (!ensureAdmin(req, res)) {
+    return;
+  }
+
+  const username = req.body?.username !== undefined ? asTrimmedString(req.body?.username) : undefined;
+  const fullName = req.body?.fullName !== undefined ? asTrimmedString(req.body?.fullName) : undefined;
+
+  const data = {};
+
+  if (username !== undefined) {
+    if (!username || username.length < 3 || username.length > 60) {
+      return sendBadRequest(res, "username invalido");
+    }
+    data.username = username;
+  }
+
+  if (fullName !== undefined) {
+    data.fullName = fullName || null;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return sendBadRequest(res, "No hay cambios para guardar");
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data,
+    });
+
+    return res.json({
+      ok: true,
+      user: sanitizeUser(user),
+      message: "Usuario actualizado",
+    });
+  } catch (error) {
+    if (error?.code === "P2025") {
+      return sendNotFound(res, "Usuario no encontrado");
+    }
+    if (isPrismaUniqueConstraintError(error)) {
+      return sendBadRequest(res, "Ya existe un usuario con ese username");
+    }
+
+    return sendServerError(res, "No se pudo actualizar el usuario");
+  }
+}));
+
+router.delete("/users/:id", authMiddleware, asyncHandler(async (req, res) => {
+  if (!ensureAdmin(req, res)) {
+    return;
+  }
+
+  const targetId = asTrimmedString(req.params?.id);
+  if (!targetId) {
+    return sendBadRequest(res, "ID de usuario invalido");
+  }
+
+  if (targetId === req.user.id) {
+    return sendBadRequest(res, "No puedes eliminar tu propio usuario");
+  }
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: targetId },
+  });
+
+  if (!targetUser) {
+    return sendNotFound(res, "Usuario no encontrado");
+  }
+
+  if (String(targetUser.role || "").toUpperCase() === ADMIN_ROLE) {
+    const totalAdmins = await prisma.user.count({
+      where: { role: ADMIN_ROLE },
+    });
+
+    if (totalAdmins <= 1) {
+      return sendBadRequest(res, "No puedes eliminar el ultimo ADMIN del sistema");
+    }
+  }
+
+  await prisma.user.delete({
+    where: { id: targetId },
+  });
+
+  return res.json({
+    ok: true,
+    message: "Usuario eliminado",
+    userId: targetId,
+  });
+}));
+
 export default router;
 

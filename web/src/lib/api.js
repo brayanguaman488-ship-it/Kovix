@@ -113,6 +113,17 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  updateUser(userId, payload) {
+    return request(`/auth/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteUser(userId) {
+    return request(`/auth/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    });
+  },
   getCustomers() {
     return request("/customers");
   },
