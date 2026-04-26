@@ -74,6 +74,7 @@ const initialUserForm = {
   username: "",
   password: "",
   role: "TIENDA",
+  avatarDataUrl: "",
 };
 
 const PAGE_SIZE = 6;
@@ -843,6 +844,32 @@ export default function Dashboard() {
     }
   }
 
+  function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("No se pudo leer la imagen"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function readAvatarFromFile(file) {
+    if (!file) {
+      return "";
+    }
+
+    const allowed = ["image/png", "image/jpeg", "image/webp"];
+    if (!allowed.includes(String(file.type || "").toLowerCase())) {
+      throw new Error("Avatar: solo se permite PNG, JPG o WEBP");
+    }
+
+    if (Number(file.size || 0) > 700 * 1024) {
+      throw new Error("Avatar: tamano maximo 700 KB");
+    }
+
+    return fileToDataUrl(file);
+  }
+
   async function loadTrashEntries() {
     try {
       setIsLoadingTrashEntries(true);
@@ -1016,6 +1043,7 @@ export default function Dashboard() {
     const password = String(userForm.password || "");
     const fullName = String(userForm.fullName || "").trim();
     const role = String(userForm.role || "TIENDA").toUpperCase();
+    const avatarDataUrl = String(userForm.avatarDataUrl || "").trim();
 
     if (!username || !password) {
       setStatus("error", "Usuario: username y password son obligatorios");
@@ -1029,6 +1057,7 @@ export default function Dashboard() {
         password,
         fullName,
         role,
+        avatarDataUrl: avatarDataUrl || null,
       });
       setUserForm(initialUserForm);
       setStatus("success", "Usuario creado correctamente");
@@ -1037,6 +1066,16 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo crear el usuario");
     } finally {
       setIsSavingUser(false);
+    }
+  }
+
+  async function handleUserAvatarFileChange(file) {
+    try {
+      const dataUrl = await readAvatarFromFile(file);
+      setUserForm((value) => ({ ...value, avatarDataUrl: dataUrl }));
+      setStatus("success", "Avatar cargado para el nuevo usuario");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo cargar el avatar");
     }
   }
 
@@ -1104,6 +1143,32 @@ export default function Dashboard() {
       await loadUsers({ silent: true });
     } catch (error) {
       setStatus("error", error.message || "No se pudo actualizar el usuario");
+    } finally {
+      setEditingUserId("");
+      setUsersOptionsUserId("");
+    }
+  }
+
+  async function handleUpdateUserAvatar(targetUser, file) {
+    const userId = String(targetUser?.id || "").trim();
+    if (!userId || !file) {
+      return;
+    }
+
+    if (!canManageUsers) {
+      setStatus("error", "Solo administradores pueden editar usuarios");
+      return;
+    }
+
+    try {
+      setEditingUserId(userId);
+      const avatarDataUrl = await readAvatarFromFile(file);
+      await api.updateUser(userId, { avatarDataUrl });
+      setStatus("success", "Avatar actualizado");
+      await loadUsers({ silent: true });
+      await loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo actualizar el avatar");
     } finally {
       setEditingUserId("");
       setUsersOptionsUserId("");
@@ -2595,6 +2660,59 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {scopeUsers
+              .filter((entry) => String(entry.role || "").toUpperCase() === "TIENDA")
+              .slice(0, 12)
+              .map((entry) => {
+                const isActive = String(ownerScopeFilter) === String(entry.id);
+                return (
+                  <button
+                    key={`scope-chip-${entry.id}`}
+                    type="button"
+                    onClick={() => handleStoreScopeFilterChange(String(entry.id))}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      borderRadius: 999,
+                      border: isActive ? "1px solid #1d4ed8" : "1px solid #cbd5e1",
+                      background: isActive ? "#dbeafe" : "#ffffff",
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        display: "grid",
+                        placeItems: "center",
+                        background: "#0f172a",
+                        color: "#ffffff",
+                        fontSize: 11,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {entry.avatarDataUrl ? (
+                        <img
+                          src={entry.avatarDataUrl}
+                          alt={entry.fullName || entry.username}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        String(entry.fullName || entry.username || "U").trim().slice(0, 1).toUpperCase()
+                      )}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>
+                      {entry.fullName || entry.username}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
           <p style={{ margin: 0, color: "var(--text-soft)" }}>
             Este filtro aplica a clientes, celulares, pagos, finanzas y contratos.
@@ -4284,6 +4402,62 @@ export default function Dashboard() {
               <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
                 <h3 style={{ margin: 0 }}>Registrar usuario</h3>
                 <form onSubmit={handleCreateUser} style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        display: "grid",
+                        placeItems: "center",
+                        background: "#0f172a",
+                        color: "#ffffff",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {userForm.avatarDataUrl ? (
+                        <img src={userForm.avatarDataUrl} alt="Avatar nuevo usuario" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        "U"
+                      )}
+                    </span>
+                    <label
+                      style={{
+                        ...secondaryButtonStyle,
+                        minHeight: 40,
+                        borderRadius: 10,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        padding: "0 12px",
+                      }}
+                    >
+                      Subir avatar
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        style={{ display: "none" }}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            handleUserAvatarFileChange(file);
+                          }
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {userForm.avatarDataUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setUserForm((value) => ({ ...value, avatarDataUrl: "" }))}
+                        style={{ ...secondaryButtonStyle, minHeight: 40, borderRadius: 10 }}
+                      >
+                        Quitar avatar
+                      </button>
+                    )}
+                  </div>
                   <input
                     value={userForm.fullName}
                     onChange={(event) => setUserForm((value) => ({ ...value, fullName: event.target.value }))}
@@ -4348,7 +4522,32 @@ export default function Dashboard() {
                         }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                          <strong>{entry.fullName || entry.username}</strong>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: "50%",
+                                overflow: "hidden",
+                                display: "grid",
+                                placeItems: "center",
+                                background: "#0f172a",
+                                color: "#ffffff",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {entry.avatarDataUrl ? (
+                                <img
+                                  src={entry.avatarDataUrl}
+                                  alt={entry.fullName || entry.username}
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                              ) : (
+                                String(entry.fullName || entry.username || "U").trim().slice(0, 1).toUpperCase()
+                              )}
+                            </span>
+                            <strong>{entry.fullName || entry.username}</strong>
+                          </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span
                               style={{
@@ -4405,6 +4604,30 @@ export default function Dashboard() {
                                   >
                                     {editingUserId === String(entry.id) ? "Editando..." : "Editar usuario"}
                                   </button>
+                                  <label
+                                    style={{
+                                      border: "none",
+                                      background: "#ffffff",
+                                      padding: "10px 12px",
+                                      textAlign: "left",
+                                      borderBottom: "1px solid var(--line-soft)",
+                                      cursor: editingUserId === String(entry.id) ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {editingUserId === String(entry.id) ? "Actualizando avatar..." : "Actualizar avatar"}
+                                    <input
+                                      type="file"
+                                      accept="image/png,image/jpeg,image/webp"
+                                      style={{ display: "none" }}
+                                      onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        if (file) {
+                                          handleUpdateUserAvatar(entry, file);
+                                        }
+                                        event.target.value = "";
+                                      }}
+                                    />
+                                  </label>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteUser(entry)}

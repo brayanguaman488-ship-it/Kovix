@@ -51,6 +51,7 @@ model User {
   username      String                @unique
   passwordHash  String
   fullName      String?
+  avatarDataUrl String?               @db.Text
   role          UserRole              @default(ADMIN)
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt

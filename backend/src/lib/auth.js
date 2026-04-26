@@ -56,6 +56,7 @@ export function sanitizeUser(user) {
     id: user.id,
     username: user.username,
     fullName: user.fullName,
+    avatarDataUrl: user.avatarDataUrl || null,
     role: user.role,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

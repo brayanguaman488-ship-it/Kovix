@@ -16,6 +16,32 @@ import {
 const router = Router();
 const ADMIN_ROLE = "ADMIN";
 const ALLOWED_ROLES = ["ADMIN", "GERENCIA", "TIENDA"];
+const MAX_AVATAR_DATA_URL_LENGTH = 1_500_000;
+
+function normalizeAvatarDataUrl(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > MAX_AVATAR_DATA_URL_LENGTH) {
+    throw new Error("avatarDataUrl demasiado grande");
+  }
+
+  if (!/^data:image\/(png|jpeg|jpg|webp);base64,[a-zA-Z0-9+/=]+$/i.test(normalized)) {
+    throw new Error("avatarDataUrl invalido. Usa PNG/JPG/WEBP en base64");
+  }
+
+  return normalized;
+}
 
 function ensureAdmin(req, res) {
   if (String(req.user?.role || "").toUpperCase() !== ADMIN_ROLE) {
@@ -121,6 +147,7 @@ router.get("/users/scope-list", authMiddleware, asyncHandler(async (req, res) =>
       id: true,
       username: true,
       fullName: true,
+      avatarDataUrl: true,
       role: true,
     },
   });
@@ -140,6 +167,13 @@ router.post("/users", authMiddleware, asyncHandler(async (req, res) => {
   const password = String(req.body?.password || "");
   const fullName = asTrimmedString(req.body?.fullName);
   const role = asTrimmedString(req.body?.role).toUpperCase() || "TIENDA";
+  let avatarDataUrl;
+
+  try {
+    avatarDataUrl = normalizeAvatarDataUrl(req.body?.avatarDataUrl);
+  } catch (error) {
+    return sendBadRequest(res, error?.message || "avatarDataUrl invalido");
+  }
 
   if (!username || !password) {
     return sendBadRequest(res, "username y password son obligatorios");
@@ -164,6 +198,7 @@ router.post("/users", authMiddleware, asyncHandler(async (req, res) => {
         username,
         passwordHash,
         fullName: fullName || null,
+        avatarDataUrl: avatarDataUrl ?? null,
         role,
       },
     });
@@ -219,6 +254,13 @@ router.patch("/users/:id", authMiddleware, asyncHandler(async (req, res) => {
 
   const username = req.body?.username !== undefined ? asTrimmedString(req.body?.username) : undefined;
   const fullName = req.body?.fullName !== undefined ? asTrimmedString(req.body?.fullName) : undefined;
+  let avatarDataUrl;
+
+  try {
+    avatarDataUrl = normalizeAvatarDataUrl(req.body?.avatarDataUrl);
+  } catch (error) {
+    return sendBadRequest(res, error?.message || "avatarDataUrl invalido");
+  }
 
   const data = {};
 
@@ -231,6 +273,10 @@ router.patch("/users/:id", authMiddleware, asyncHandler(async (req, res) => {
 
   if (fullName !== undefined) {
     data.fullName = fullName || null;
+  }
+
+  if (avatarDataUrl !== undefined) {
+    data.avatarDataUrl = avatarDataUrl;
   }
 
   if (Object.keys(data).length === 0) {
