@@ -426,6 +426,7 @@ export default function Dashboard() {
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
+  const isAdminUser = String(user?.role || "").toUpperCase() === "ADMIN";
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -3690,7 +3691,9 @@ export default function Dashboard() {
           <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
             <h2 style={{ margin: 0 }}>Consultas Equifax</h2>
             <p style={{ margin: 0, color: "var(--text-soft)" }}>
-              Los usuarios registran cedula y nombre del cliente. El administrador responde con evaluacion crediticia.
+              {isAdminUser
+                ? "Recibes consultas de tiendas y respondes evaluacion crediticia."
+                : "Registra consultas con cedula y nombre. El administrador revisa y responde."}
             </p>
           </article>
 
@@ -3830,9 +3833,13 @@ export default function Dashboard() {
           </section>
 
           <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>Detalle y respuesta</h3>
+            <h3 style={{ margin: 0 }}>{isAdminUser ? "Detalle y respuesta" : "Detalle de consulta"}</h3>
             {!selectedEquifaxConsultation ? (
-              <p style={{ margin: 0, color: "var(--text-soft)" }}>Selecciona una consulta para verla y responderla.</p>
+              <p style={{ margin: 0, color: "var(--text-soft)" }}>
+                {isAdminUser
+                  ? "Selecciona una consulta para verla y responderla."
+                  : "Selecciona una consulta para ver su estado y respuesta."}
+              </p>
             ) : (
               <>
                 <div
@@ -3860,77 +3867,127 @@ export default function Dashboard() {
                 </div>
 
                 <form onSubmit={handleRespondEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
-                  <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-                    <input
-                      value={equifaxResponseForm.responseNationalId}
-                      onChange={(event) =>
-                        setEquifaxResponseForm((value) => ({ ...value, responseNationalId: event.target.value }))
-                      }
-                      placeholder="Cedula validada"
-                      style={inputStyle}
-                    />
-                    <input
-                      value={equifaxResponseForm.responseFullName}
-                      onChange={(event) =>
-                        setEquifaxResponseForm((value) => ({ ...value, responseFullName: event.target.value }))
-                      }
-                      placeholder="Nombre completo validado"
-                      style={inputStyle}
-                    />
-                  </div>
+                  {isAdminUser ? (
+                    <>
+                      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                        <input
+                          value={equifaxResponseForm.responseNationalId}
+                          onChange={(event) =>
+                            setEquifaxResponseForm((value) => ({ ...value, responseNationalId: event.target.value }))
+                          }
+                          placeholder="Cedula validada"
+                          style={inputStyle}
+                        />
+                        <input
+                          value={equifaxResponseForm.responseFullName}
+                          onChange={(event) =>
+                            setEquifaxResponseForm((value) => ({ ...value, responseFullName: event.target.value }))
+                          }
+                          placeholder="Nombre completo validado"
+                          style={inputStyle}
+                        />
+                      </div>
 
-                  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(equifaxResponseForm.hasGoodCredit)}
+                            onChange={(event) =>
+                              setEquifaxResponseForm((value) => ({ ...value, hasGoodCredit: event.target.checked }))
+                            }
+                          />
+                          Buenos puntos de credito
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(equifaxResponseForm.highEndPhoneEligible)}
+                            onChange={(event) =>
+                              setEquifaxResponseForm((value) => ({ ...value, highEndPhoneEligible: event.target.checked }))
+                            }
+                          />
+                          Apto para telefono gama alta
+                        </label>
+                      </div>
+
                       <input
-                        type="checkbox"
-                        checked={Boolean(equifaxResponseForm.hasGoodCredit)}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={equifaxResponseForm.maxDebtAmount}
                         onChange={(event) =>
-                          setEquifaxResponseForm((value) => ({ ...value, hasGoodCredit: event.target.checked }))
+                          setEquifaxResponseForm((value) => ({ ...value, maxDebtAmount: event.target.value }))
                         }
+                        placeholder="Endeudamiento maximo sugerido (USD)"
+                        style={inputStyle}
                       />
-                      Buenos puntos de credito
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(equifaxResponseForm.highEndPhoneEligible)}
+
+                      <textarea
+                        rows={3}
+                        value={equifaxResponseForm.responseNotes}
                         onChange={(event) =>
-                          setEquifaxResponseForm((value) => ({ ...value, highEndPhoneEligible: event.target.checked }))
+                          setEquifaxResponseForm((value) => ({ ...value, responseNotes: event.target.value }))
                         }
+                        placeholder="Observaciones de respuesta"
+                        style={inputStyle}
                       />
-                      Apto para telefono gama alta
-                    </label>
-                  </div>
 
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={equifaxResponseForm.maxDebtAmount}
-                    onChange={(event) =>
-                      setEquifaxResponseForm((value) => ({ ...value, maxDebtAmount: event.target.value }))
-                    }
-                    placeholder="Endeudamiento maximo sugerido (USD)"
-                    style={inputStyle}
-                  />
-
-                  <textarea
-                    rows={3}
-                    value={equifaxResponseForm.responseNotes}
-                    onChange={(event) =>
-                      setEquifaxResponseForm((value) => ({ ...value, responseNotes: event.target.value }))
-                    }
-                    placeholder="Observaciones de respuesta"
-                    style={inputStyle}
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={respondingEquifaxId === String(selectedEquifaxConsultation.id)}
-                    style={buttonStyle}
-                  >
-                    {respondingEquifaxId === String(selectedEquifaxConsultation.id) ? "Guardando respuesta..." : "Guardar respuesta"}
-                  </button>
+                      <button
+                        type="submit"
+                        disabled={respondingEquifaxId === String(selectedEquifaxConsultation.id)}
+                        style={buttonStyle}
+                      >
+                        {respondingEquifaxId === String(selectedEquifaxConsultation.id) ? "Guardando respuesta..." : "Guardar respuesta"}
+                      </button>
+                    </>
+                  ) : (
+                    <div
+                      style={{
+                        border: "1px solid #dbe3ef",
+                        borderRadius: 10,
+                        background: "#f8fafc",
+                        padding: 12,
+                        display: "grid",
+                        gap: 6,
+                        color: "#334155",
+                      }}
+                    >
+                      <div>Respuesta cedula: <strong>{selectedEquifaxConsultation.responseNationalId || "-"}</strong></div>
+                      <div>Respuesta nombre: <strong>{selectedEquifaxConsultation.responseFullName || "-"}</strong></div>
+                      <div>
+                        Buenos puntos:{" "}
+                        <strong>
+                          {selectedEquifaxConsultation.hasGoodCredit === null || selectedEquifaxConsultation.hasGoodCredit === undefined
+                            ? "-"
+                            : selectedEquifaxConsultation.hasGoodCredit
+                              ? "SI"
+                              : "NO"}
+                        </strong>
+                      </div>
+                      <div>
+                        Gama alta:{" "}
+                        <strong>
+                          {selectedEquifaxConsultation.highEndPhoneEligible === null ||
+                          selectedEquifaxConsultation.highEndPhoneEligible === undefined
+                            ? "-"
+                            : selectedEquifaxConsultation.highEndPhoneEligible
+                              ? "SI"
+                              : "NO"}
+                        </strong>
+                      </div>
+                      <div>
+                        Endeudamiento maximo:{" "}
+                        <strong>
+                          {selectedEquifaxConsultation.maxDebtAmount === null ||
+                          selectedEquifaxConsultation.maxDebtAmount === undefined
+                            ? "-"
+                            : `$${Number(selectedEquifaxConsultation.maxDebtAmount).toFixed(2)}`}
+                        </strong>
+                      </div>
+                      <div>Observaciones: {selectedEquifaxConsultation.responseNotes || "-"}</div>
+                    </div>
+                  )}
                 </form>
               </>
             )}

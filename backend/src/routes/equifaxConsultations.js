@@ -9,6 +9,7 @@ import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
 const { EquifaxConsultationStatus } = prismaPackage;
+const ADMIN_ROLE = "ADMIN";
 
 router.use(authMiddleware);
 
@@ -33,6 +34,13 @@ router.get("/", asyncHandler(async (req, res) => {
       },
     ],
   };
+
+  const isAdmin = String(req.user?.role || "") === ADMIN_ROLE;
+  if (!isAdmin) {
+    where.AND.push({
+      requestedByUserId: req.user.id,
+    });
+  }
 
   if (statusParam && statusParam !== "ALL") {
     if (!Object.values(EquifaxConsultationStatus).includes(statusParam)) {
@@ -115,6 +123,14 @@ router.post("/", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/:id/respond", asyncHandler(async (req, res) => {
+  const isAdmin = String(req.user?.role || "") === ADMIN_ROLE;
+  if (!isAdmin) {
+    return res.status(403).json({
+      ok: false,
+      message: "Solo administradores pueden responder consultas Equifax",
+    });
+  }
+
   const {
     responseNationalId,
     responseFullName,
