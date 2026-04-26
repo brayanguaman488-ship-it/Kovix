@@ -3697,40 +3697,48 @@ export default function Dashboard() {
             </p>
           </article>
 
-          <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-            <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
-              <h3 style={{ margin: 0 }}>Nueva consulta</h3>
-              <form onSubmit={handleCreateEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
-                <input
-                  value={equifaxConsultationForm.queryNationalId}
-                  onChange={(event) =>
-                    setEquifaxConsultationForm((value) => ({ ...value, queryNationalId: event.target.value }))
-                  }
-                  placeholder="Cedula del cliente"
-                  style={inputStyle}
-                />
-                <input
-                  value={equifaxConsultationForm.queryFullName}
-                  onChange={(event) =>
-                    setEquifaxConsultationForm((value) => ({ ...value, queryFullName: event.target.value }))
-                  }
-                  placeholder="Nombre completo del cliente"
-                  style={inputStyle}
-                />
-                <textarea
-                  rows={3}
-                  value={equifaxConsultationForm.queryNotes}
-                  onChange={(event) =>
-                    setEquifaxConsultationForm((value) => ({ ...value, queryNotes: event.target.value }))
-                  }
-                  placeholder="Motivo / notas de consulta (opcional)"
-                  style={inputStyle}
-                />
-                <button type="submit" disabled={isCreatingEquifax} style={buttonStyle}>
-                  {isCreatingEquifax ? "Registrando..." : "Enviar consulta"}
-                </button>
-              </form>
-            </article>
+          <section
+            style={{
+              display: "grid",
+              gap: 16,
+              gridTemplateColumns: isAdminUser ? "1fr" : "repeat(auto-fit, minmax(320px, 1fr))",
+            }}
+          >
+            {!isAdminUser && (
+              <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+                <h3 style={{ margin: 0 }}>Nueva consulta</h3>
+                <form onSubmit={handleCreateEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
+                  <input
+                    value={equifaxConsultationForm.queryNationalId}
+                    onChange={(event) =>
+                      setEquifaxConsultationForm((value) => ({ ...value, queryNationalId: event.target.value }))
+                    }
+                    placeholder="Cedula del cliente"
+                    style={inputStyle}
+                  />
+                  <input
+                    value={equifaxConsultationForm.queryFullName}
+                    onChange={(event) =>
+                      setEquifaxConsultationForm((value) => ({ ...value, queryFullName: event.target.value }))
+                    }
+                    placeholder="Nombre completo del cliente"
+                    style={inputStyle}
+                  />
+                  <textarea
+                    rows={3}
+                    value={equifaxConsultationForm.queryNotes}
+                    onChange={(event) =>
+                      setEquifaxConsultationForm((value) => ({ ...value, queryNotes: event.target.value }))
+                    }
+                    placeholder="Motivo / notas de consulta (opcional)"
+                    style={inputStyle}
+                  />
+                  <button type="submit" disabled={isCreatingEquifax} style={buttonStyle}>
+                    {isCreatingEquifax ? "Registrando..." : "Enviar consulta"}
+                  </button>
+                </form>
+              </article>
+            )}
 
             <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
               <h3 style={{ margin: 0 }}>Bandeja de consultas</h3>
