@@ -384,6 +384,7 @@ export default function Dashboard() {
   const [renewalSelectedCustomerId, setRenewalSelectedCustomerId] = useState("");
   const [renewalDeviceForm, setRenewalDeviceForm] = useState(initialDeviceForm);
   const [renewalCreditForm, setRenewalCreditForm] = useState(createInitialCreditForm);
+  const [renewalCreatedDeviceId, setRenewalCreatedDeviceId] = useState("");
   const [isSavingRenewalDevice, setIsSavingRenewalDevice] = useState(false);
   const [isSavingRenewalCreditContract, setIsSavingRenewalCreditContract] = useState(false);
   const [contractsCustomerQuery, setContractsCustomerQuery] = useState("");
@@ -1083,6 +1084,7 @@ export default function Dashboard() {
       const createdId = String(response?.device?.id || "").trim();
       setRenewalDeviceForm((value) => ({ ...initialDeviceForm, customerId: renewalSelectedCustomerId }));
       if (createdId) {
+        setRenewalCreatedDeviceId(createdId);
         setRenewalCreditForm((value) => ({ ...value, deviceId: createdId }));
         setSelectedCreditDeviceId(createdId);
       }
@@ -1103,6 +1105,16 @@ export default function Dashboard() {
     const downPaymentAmount = renewalCreditForm.downPaymentAmount ? Number(renewalCreditForm.downPaymentAmount) : 0;
     const installmentCount = Number(renewalCreditForm.installmentCount);
     const startDate = renewalCreditForm.cutOffDate;
+
+    if (!renewalCreatedDeviceId) {
+      setStatus("error", "Renovacion: primero registra un dispositivo nuevo para este cliente");
+      return;
+    }
+
+    if (deviceId !== renewalCreatedDeviceId) {
+      setStatus("error", "Renovacion: el contrato debe crearse sobre el nuevo dispositivo registrado");
+      return;
+    }
 
     if (!deviceId || !purchaseDate || !renewalCreditForm.principalAmount || !renewalCreditForm.installmentCount || !startDate) {
       setStatus("error", "Renovacion credito: deviceId, purchaseDate, principalAmount, installmentCount y cutOffDate son obligatorios");
@@ -1143,6 +1155,8 @@ export default function Dashboard() {
       setStatus("success", "Renovacion: contrato de credito creado correctamente");
       setSelectedCreditDeviceId(deviceId);
       setRenewalCreditForm(createInitialCreditForm());
+      setRenewalCreatedDeviceId("");
+      setRenewalDeviceForm((value) => ({ ...initialDeviceForm, customerId: renewalSelectedCustomerId }));
       await loadDashboard({ silent: true });
       await loadCreditContract(deviceId);
     } catch (error) {
@@ -1748,6 +1762,10 @@ export default function Dashboard() {
   const renewalCustomerDevices = devices.filter(
     (device) => String(device.customer?.id || device.customerId || "") === String(renewalSelectedCustomerId || "")
   );
+  const renewalCreatedDevice = renewalCustomerDevices.find(
+    (device) => String(device.id) === String(renewalCreatedDeviceId || "")
+  ) || null;
+  const renewalContractDevices = renewalCreatedDevice ? [renewalCreatedDevice] : [];
   const contractsNormalizedQuery = contractsCustomerQuery.trim().toLowerCase();
   const contractsCustomerMatches = customers.filter((customer) => {
     if (!contractsNormalizedQuery) {
@@ -1850,6 +1868,7 @@ export default function Dashboard() {
     if (!renewalSelectedCustomerId) {
       setRenewalDeviceForm(initialDeviceForm);
       setRenewalCreditForm(createInitialCreditForm());
+      setRenewalCreatedDeviceId("");
       return;
     }
 
@@ -1857,13 +1876,9 @@ export default function Dashboard() {
       ...value,
       customerId: renewalSelectedCustomerId,
     }));
-
-    const firstDeviceId = renewalCustomerDevices[0]?.id ? String(renewalCustomerDevices[0].id) : "";
-    setRenewalCreditForm((value) => ({
-      ...value,
-      deviceId: value.deviceId || firstDeviceId,
-    }));
-  }, [renewalSelectedCustomerId, renewalCustomerDevices]);
+    setRenewalCreditForm(createInitialCreditForm());
+    setRenewalCreatedDeviceId("");
+  }, [renewalSelectedCustomerId]);
 
   useEffect(() => {
     loadCustomerAssets(contractsCustomerId).catch(() => {
@@ -2710,8 +2725,12 @@ export default function Dashboard() {
                   }
                   style={inputStyle}
                 >
-                  <option value="">Selecciona dispositivo del cliente</option>
-                  {renewalCustomerDevices.map((device) => (
+                  <option value="">
+                    {renewalContractDevices.length > 0
+                      ? "Selecciona el nuevo dispositivo registrado"
+                      : "Primero registra un dispositivo nuevo"}
+                  </option>
+                  {renewalContractDevices.map((device) => (
                     <option key={`renewal-device-${device.id}`} value={device.id}>
                       {device.brand} {device.model} ({device.installCode})
                     </option>
