@@ -208,6 +208,55 @@ async function listHexnodeDevices() {
   return found;
 }
 
+export async function findHexnodeDeviceIdByRemoteIdentifiers(identifiers = {}) {
+  if (!HEXNODE_ENABLED) {
+    return null;
+  }
+
+  const serialNormalized = normalize(identifiers?.serialNumber);
+  const serialDigits = normalizeDigits(identifiers?.serialNumber);
+  const enrollmentNormalized = normalize(identifiers?.enrollmentSpecificId);
+  const androidIdNormalized = normalize(identifiers?.androidId);
+
+  if (!serialNormalized && !serialDigits && !enrollmentNormalized && !androidIdNormalized) {
+    return null;
+  }
+
+  const listed = await listHexnodeDevices();
+
+  for (const item of listed) {
+    const remoteId = Number(item?.id);
+    if (!Number.isFinite(remoteId) || remoteId <= 0) {
+      continue;
+    }
+
+    const remoteSerial = normalize(item?.serial_number);
+    const remoteSerialDigits = normalizeDigits(item?.serial_number);
+    const remoteEnrollment = normalize(
+      item?.enrollment_specific_id || item?.enrollment_id || item?.device_uuid || item?.udid
+    );
+    const remoteAndroidId = normalize(item?.android_id || item?.udid);
+
+    if (serialNormalized && (serialNormalized === remoteSerial || serialNormalized === remoteSerialDigits)) {
+      return remoteId;
+    }
+
+    if (serialDigits && (serialDigits === remoteSerialDigits || serialDigits === remoteSerial)) {
+      return remoteId;
+    }
+
+    if (enrollmentNormalized && enrollmentNormalized === remoteEnrollment) {
+      return remoteId;
+    }
+
+    if (androidIdNormalized && androidIdNormalized === remoteAndroidId) {
+      return remoteId;
+    }
+  }
+
+  return null;
+}
+
 async function resolveHexnodeDeviceId(localDevice) {
   const idFromRecord = Number(localDevice?.hexnodeDeviceId);
   if (Number.isFinite(idFromRecord) && idFromRecord > 0) {
