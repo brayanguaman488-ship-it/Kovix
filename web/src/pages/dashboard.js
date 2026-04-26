@@ -418,10 +418,11 @@ export default function Dashboard() {
   const [isCreatingEquifax, setIsCreatingEquifax] = useState(false);
   const [respondingEquifaxId, setRespondingEquifaxId] = useState("");
   const [equifaxSearch, setEquifaxSearch] = useState("");
-  const [equifaxStatusFilter, setEquifaxStatusFilter] = useState("ALL");
   const [equifaxSelectedConsultationId, setEquifaxSelectedConsultationId] = useState("");
   const [equifaxConsultationForm, setEquifaxConsultationForm] = useState(initialEquifaxConsultationForm);
   const [equifaxResponseForm, setEquifaxResponseForm] = useState(initialEquifaxResponseForm);
+  const [equifaxRetentionDays, setEquifaxRetentionDays] = useState(15);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
@@ -538,6 +539,21 @@ export default function Dashboard() {
     requestAnimationFrame(() => {
       advancedToolsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  }
+
+  function handleToggleNotifications() {
+    setIsNotificationsOpen((value) => !value);
+  }
+
+  function handleOpenNotification(item) {
+    const consultationId = String(item?.id || "").trim();
+    if (!consultationId) {
+      return;
+    }
+
+    setActiveMainView("equifax");
+    setEquifaxSelectedConsultationId(consultationId);
+    setIsNotificationsOpen(false);
   }
 
 
@@ -827,18 +843,23 @@ export default function Dashboard() {
       }
 
       const response = await api.getEquifaxConsultations({
-        status: equifaxStatusFilter,
-        search: equifaxSearch,
+        status: "ALL",
+        limit: 200,
       });
 
       const consultations = response?.consultations || [];
       setEquifaxConsultations(consultations);
+      setEquifaxRetentionDays(Number(response?.retentionDays || 15));
 
       if (!equifaxSelectedConsultationId && consultations.length > 0) {
-        setEquifaxSelectedConsultationId(String(consultations[0].id));
+        const nextSelection =
+          consultations.find((entry) => String(entry.status || "") === "PENDIENTE")?.id || consultations[0].id;
+        setEquifaxSelectedConsultationId(String(nextSelection));
       }
     } catch (error) {
-      setStatus("error", error.message || "No se pudieron cargar las consultas Equifax");
+      if (!options.silent) {
+        setStatus("error", error.message || "No se pudieron cargar las consultas Equifax");
+      }
       setEquifaxConsultations([]);
     } finally {
       if (!options.silent) {
@@ -936,6 +957,7 @@ export default function Dashboard() {
         setLoading(false);
       });
     loadHexnodeProvisioningQr({ silent: true });
+    loadEquifaxConsultations({ silent: true });
     // Ejecutar solo al montar para evitar ciclos de carga.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1900,11 +1922,7 @@ export default function Dashboard() {
   const contractDocuments = contractsAssets.filter((asset) => String(asset.category || "").toUpperCase() === "CONTRACT");
   const customerPhotos = contractsAssets.filter((asset) => String(asset.category || "").toUpperCase() === "PHOTO");
   const equifaxNormalizedSearch = equifaxSearch.trim().toLowerCase();
-  const filteredEquifaxConsultations = equifaxConsultations.filter((consultation) => {
-    if (equifaxStatusFilter !== "ALL" && String(consultation.status || "") !== equifaxStatusFilter) {
-      return false;
-    }
-
+  const matchesEquifaxSearch = (consultation) => {
     if (!equifaxNormalizedSearch) {
       return true;
     }
@@ -1919,7 +1937,16 @@ export default function Dashboard() {
     ]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(equifaxNormalizedSearch));
-  });
+  };
+  const pendingEquifaxConsultations = equifaxConsultations
+    .filter((entry) => String(entry.status || "") === "PENDIENTE")
+    .filter(matchesEquifaxSearch);
+  const respondedEquifaxConsultations = equifaxConsultations
+    .filter((entry) => String(entry.status || "") === "RESPONDIDA")
+    .filter(matchesEquifaxSearch);
+  const notificationsEquifax = equifaxConsultations
+    .filter((entry) => String(entry.status || "") === "PENDIENTE")
+    .slice(0, 10);
   const selectedEquifaxConsultation =
     equifaxConsultations.find((entry) => String(entry.id) === String(equifaxSelectedConsultationId || "")) || null;
   const selectedProvisioningDevice = devices.find((entry) => entry.id === provisioningDeviceId) || null;
@@ -2061,7 +2088,16 @@ export default function Dashboard() {
       loadEquifaxConsultations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMainView, equifaxStatusFilter]);
+  }, [activeMainView]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      loadEquifaxConsultations({ silent: true });
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!selectedEquifaxConsultation) {
@@ -2085,6 +2121,26 @@ export default function Dashboard() {
       responseNotes: String(selectedEquifaxConsultation.responseNotes || ""),
     });
   }, [selectedEquifaxConsultation]);
+
+  useEffect(() => {
+    if (equifaxConsultations.length === 0) {
+      if (equifaxSelectedConsultationId) {
+        setEquifaxSelectedConsultationId("");
+      }
+      return;
+    }
+
+    const exists = equifaxConsultations.some(
+      (entry) => String(entry.id) === String(equifaxSelectedConsultationId || "")
+    );
+
+    if (!exists) {
+      const nextSelection =
+        equifaxConsultations.find((entry) => String(entry.status || "") === "PENDIENTE")?.id ||
+        equifaxConsultations[0].id;
+      setEquifaxSelectedConsultationId(String(nextSelection));
+    }
+  }, [equifaxConsultations, equifaxSelectedConsultationId]);
 
   useEffect(() => {
     setCustomerPage(1);
@@ -2258,7 +2314,16 @@ export default function Dashboard() {
       </aside>
 
       <main style={pageShellStyle}>
-      <DashboardHeader user={user} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
+      <DashboardHeader
+        user={user}
+        onLogout={handleLogout}
+        isLoggingOut={isLoggingOut}
+        notificationsCount={notificationsEquifax.length}
+        notifications={notificationsEquifax}
+        notificationsOpen={isNotificationsOpen}
+        onToggleNotifications={handleToggleNotifications}
+        onOpenNotification={handleOpenNotification}
+      />
 
       {(isRefreshing || isLoggingOut) && (
         <section
@@ -3673,15 +3738,6 @@ export default function Dashboard() {
                   placeholder="Buscar por nombre o cedula"
                   style={{ ...inputStyle, minWidth: 220, flex: 1 }}
                 />
-                <select
-                  value={equifaxStatusFilter}
-                  onChange={(event) => setEquifaxStatusFilter(event.target.value)}
-                  style={{ ...inputStyle, width: 180 }}
-                >
-                  <option value="ALL">Todos</option>
-                  <option value="PENDIENTE">Pendientes</option>
-                  <option value="RESPONDIDA">Respondidas</option>
-                </select>
                 <button
                   type="button"
                   onClick={() => loadEquifaxConsultations()}
@@ -3691,47 +3747,83 @@ export default function Dashboard() {
                   {isLoadingEquifax ? "Cargando..." : "Recargar"}
                 </button>
               </div>
+              <p style={{ margin: 0, color: "var(--text-soft)", fontSize: 13 }}>
+                Las respondidas se ocultan automaticamente despues de {equifaxRetentionDays} dias.
+              </p>
 
               {isLoadingEquifax ? (
                 <p style={{ margin: 0, color: "var(--text-soft)" }}>Cargando consultas...</p>
-              ) : filteredEquifaxConsultations.length === 0 ? (
-                <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay consultas para los filtros actuales.</p>
               ) : (
-                <div style={{ display: "grid", gap: 8, maxHeight: 360, overflowY: "auto", paddingRight: 4 }}>
-                  {filteredEquifaxConsultations.map((consultation) => {
-                    const isSelected = String(consultation.id) === String(equifaxSelectedConsultationId);
-                    const isResponded = String(consultation.status) === "RESPONDIDA";
+                <div style={{ display: "grid", gap: 12 }}>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <strong>Pendientes ({pendingEquifaxConsultations.length})</strong>
+                    {pendingEquifaxConsultations.length === 0 ? (
+                      <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay pendientes.</p>
+                    ) : (
+                      <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                        {pendingEquifaxConsultations.map((consultation) => {
+                          const isSelected = String(consultation.id) === String(equifaxSelectedConsultationId);
 
-                    return (
-                      <button
-                        key={`equifax-consultation-${consultation.id}`}
-                        type="button"
-                        onClick={() => setEquifaxSelectedConsultationId(String(consultation.id))}
-                        style={{
-                          textAlign: "left",
-                          borderRadius: 10,
-                          border: isSelected ? "1px solid #2563eb" : "1px solid #dbe3ef",
-                          background: isSelected ? "#eff6ff" : "#ffffff",
-                          padding: 10,
-                          cursor: "pointer",
-                          display: "grid",
-                          gap: 4,
-                        }}
-                      >
-                        <strong>{consultation.queryFullName}</strong>
-                        <span style={{ color: "#475569", fontSize: 13 }}>Cedula: {consultation.queryNationalId}</span>
-                        <span style={{ color: "#475569", fontSize: 13 }}>
-                          Estado:{" "}
-                          <strong style={{ color: isResponded ? "#166534" : "#9a3412" }}>
-                            {isResponded ? "RESPONDIDA" : "PENDIENTE"}
-                          </strong>
-                        </span>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>
-                          {consultation.createdAt ? new Date(consultation.createdAt).toLocaleString() : "-"}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          return (
+                            <button
+                              key={`equifax-pending-${consultation.id}`}
+                              type="button"
+                              onClick={() => setEquifaxSelectedConsultationId(String(consultation.id))}
+                              style={{
+                                textAlign: "left",
+                                borderRadius: 10,
+                                border: isSelected ? "1px solid #2563eb" : "1px solid #dbe3ef",
+                                background: isSelected ? "#eff6ff" : "#ffffff",
+                                padding: 10,
+                                cursor: "pointer",
+                                display: "grid",
+                                gap: 4,
+                              }}
+                            >
+                              <strong>{consultation.queryFullName}</strong>
+                              <span style={{ color: "#475569", fontSize: 13 }}>Cedula: {consultation.queryNationalId}</span>
+                              <span style={{ color: "#9a3412", fontSize: 13, fontWeight: 700 }}>PENDIENTE</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <strong>Respondidas ({respondedEquifaxConsultations.length})</strong>
+                    {respondedEquifaxConsultations.length === 0 ? (
+                      <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay respondidas recientes.</p>
+                    ) : (
+                      <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                        {respondedEquifaxConsultations.map((consultation) => {
+                          const isSelected = String(consultation.id) === String(equifaxSelectedConsultationId);
+
+                          return (
+                            <button
+                              key={`equifax-responded-${consultation.id}`}
+                              type="button"
+                              onClick={() => setEquifaxSelectedConsultationId(String(consultation.id))}
+                              style={{
+                                textAlign: "left",
+                                borderRadius: 10,
+                                border: isSelected ? "1px solid #166534" : "1px solid #dbe3ef",
+                                background: isSelected ? "#f0fdf4" : "#ffffff",
+                                padding: 10,
+                                cursor: "pointer",
+                                display: "grid",
+                                gap: 4,
+                              }}
+                            >
+                              <strong>{consultation.queryFullName}</strong>
+                              <span style={{ color: "#475569", fontSize: 13 }}>Cedula: {consultation.queryNationalId}</span>
+                              <span style={{ color: "#166534", fontSize: 13, fontWeight: 700 }}>RESPONDIDA</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </article>

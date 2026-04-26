@@ -257,6 +257,9 @@ export const api = {
     if (params.search) {
       query.set("search", params.search);
     }
+    if (params.limit) {
+      query.set("limit", String(params.limit));
+    }
     const suffix = query.toString() ? `?${query.toString()}` : "";
     return request(`/equifax-consultations${suffix}`);
   },

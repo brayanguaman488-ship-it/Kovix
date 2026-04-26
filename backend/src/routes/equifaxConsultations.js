@@ -15,27 +15,47 @@ router.use(authMiddleware);
 router.get("/", asyncHandler(async (req, res) => {
   const statusParam = asTrimmedString(req.query?.status).toUpperCase();
   const searchParam = asTrimmedString(req.query?.search);
+  const limitParam = Number(req.query?.limit || 0);
+  const retentionRaw = Number(process.env.EQUIFAX_RESPONDED_RETENTION_DAYS || 15);
+  const retentionDays = Number.isFinite(retentionRaw) && retentionRaw > 0 ? retentionRaw : 15;
+  const respondedCutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
 
-  const where = {};
+  const where = {
+    AND: [
+      {
+        OR: [
+          { status: EquifaxConsultationStatus.PENDIENTE },
+          {
+            status: EquifaxConsultationStatus.RESPONDIDA,
+            respondedAt: { gte: respondedCutoff },
+          },
+        ],
+      },
+    ],
+  };
+
   if (statusParam && statusParam !== "ALL") {
     if (!Object.values(EquifaxConsultationStatus).includes(statusParam)) {
       return sendBadRequest(res, "status invalido. Usa: PENDIENTE, RESPONDIDA o ALL");
     }
-    where.status = statusParam;
+    where.AND.push({ status: statusParam });
   }
 
   if (searchParam) {
-    where.OR = [
-      { queryNationalId: { contains: searchParam, mode: "insensitive" } },
-      { queryFullName: { contains: searchParam, mode: "insensitive" } },
-      { responseNationalId: { contains: searchParam, mode: "insensitive" } },
-      { responseFullName: { contains: searchParam, mode: "insensitive" } },
-    ];
+    where.AND.push({
+      OR: [
+        { queryNationalId: { contains: searchParam, mode: "insensitive" } },
+        { queryFullName: { contains: searchParam, mode: "insensitive" } },
+        { responseNationalId: { contains: searchParam, mode: "insensitive" } },
+        { responseFullName: { contains: searchParam, mode: "insensitive" } },
+      ],
+    });
   }
 
   const consultations = await prisma.equifaxConsultation.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    take: Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : undefined,
     include: {
       requestedByUser: {
         select: { id: true, username: true, fullName: true },
@@ -46,7 +66,12 @@ router.get("/", asyncHandler(async (req, res) => {
     },
   });
 
-  return res.json({ ok: true, consultations });
+  return res.json({
+    ok: true,
+    consultations,
+    retentionDays,
+    cutoffDate: respondedCutoff.toISOString(),
+  });
 }));
 
 router.post("/", asyncHandler(async (req, res) => {
