@@ -12,6 +12,7 @@ import deviceRoutes from "./routes/devices.js";
 import paymentRoutes from "./routes/payments.js";
 import creditRoutes from "./routes/credits.js";
 import trashRoutes from "./routes/trash.js";
+import equifaxConsultationRoutes from "./routes/equifaxConsultations.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -70,6 +71,7 @@ app.use("/devices", deviceRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/credits", creditRoutes);
 app.use("/trash", trashRoutes);
+app.use("/equifax-consultations", equifaxConsultationRoutes);
 
 app.use((error, req, res, next) => {
   console.error("Unhandled API error:", error);

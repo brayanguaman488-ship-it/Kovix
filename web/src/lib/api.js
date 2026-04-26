@@ -249,4 +249,27 @@ export const api = {
       method: "PATCH",
     });
   },
+  getEquifaxConsultations(params = {}) {
+    const query = new URLSearchParams();
+    if (params.status) {
+      query.set("status", params.status);
+    }
+    if (params.search) {
+      query.set("search", params.search);
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/equifax-consultations${suffix}`);
+  },
+  createEquifaxConsultation(payload) {
+    return request("/equifax-consultations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  respondEquifaxConsultation(consultationId, payload) {
+    return request(`/equifax-consultations/${encodeURIComponent(consultationId)}/respond`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
 };

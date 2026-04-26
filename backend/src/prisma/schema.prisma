@@ -39,6 +39,11 @@ enum InstallmentStatus {
   CANCELADO
 }
 
+enum EquifaxConsultationStatus {
+  PENDIENTE
+  RESPONDIDA
+}
+
 model User {
   id            String                @id @default(cuid())
   username      String                @unique
@@ -48,6 +53,8 @@ model User {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   statusChanges DeviceStatusHistory[]
+  equifaxRequests EquifaxConsultation[] @relation("EquifaxRequestedBy")
+  equifaxResponses EquifaxConsultation[] @relation("EquifaxRespondedBy")
 }
 
 model Customer {
@@ -200,4 +207,28 @@ model TrashEntry {
 
   @@index([deleteAfter])
   @@index([entityType, entityId])
+}
+
+model EquifaxConsultation {
+  id                String                    @id @default(cuid())
+  queryNationalId   String
+  queryFullName     String
+  queryNotes        String?
+  status            EquifaxConsultationStatus @default(PENDIENTE)
+  responseNationalId String?
+  responseFullName  String?
+  hasGoodCredit     Boolean?
+  highEndPhoneEligible Boolean?
+  maxDebtAmount     Decimal?                  @db.Decimal(10, 2)
+  responseNotes     String?
+  requestedByUserId String?
+  requestedByUser   User?                     @relation("EquifaxRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  respondedByUserId String?
+  respondedByUser   User?                     @relation("EquifaxRespondedBy", fields: [respondedByUserId], references: [id], onDelete: SetNull)
+  respondedAt       DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([queryNationalId])
 }

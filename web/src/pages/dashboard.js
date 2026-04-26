@@ -54,6 +54,21 @@ function createInitialCreditForm() {
   };
 }
 
+const initialEquifaxConsultationForm = {
+  queryNationalId: "",
+  queryFullName: "",
+  queryNotes: "",
+};
+
+const initialEquifaxResponseForm = {
+  responseNationalId: "",
+  responseFullName: "",
+  hasGoodCredit: true,
+  highEndPhoneEligible: false,
+  maxDebtAmount: "",
+  responseNotes: "",
+};
+
 const PAGE_SIZE = 6;
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
 const DEVICE_OWNER_PACKAGE_NAME = "com.kovix.client";
@@ -398,6 +413,15 @@ export default function Dashboard() {
   const [contractsOptionsAssetId, setContractsOptionsAssetId] = useState("");
   const [updatingContractAssetId, setUpdatingContractAssetId] = useState("");
   const [deletingContractAssetId, setDeletingContractAssetId] = useState("");
+  const [equifaxConsultations, setEquifaxConsultations] = useState([]);
+  const [isLoadingEquifax, setIsLoadingEquifax] = useState(false);
+  const [isCreatingEquifax, setIsCreatingEquifax] = useState(false);
+  const [respondingEquifaxId, setRespondingEquifaxId] = useState("");
+  const [equifaxSearch, setEquifaxSearch] = useState("");
+  const [equifaxStatusFilter, setEquifaxStatusFilter] = useState("ALL");
+  const [equifaxSelectedConsultationId, setEquifaxSelectedConsultationId] = useState("");
+  const [equifaxConsultationForm, setEquifaxConsultationForm] = useState(initialEquifaxConsultationForm);
+  const [equifaxResponseForm, setEquifaxResponseForm] = useState(initialEquifaxResponseForm);
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
@@ -793,6 +817,102 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo eliminar el registro de papelera");
     } finally {
       setDeletingTrashEntryId("");
+    }
+  }
+
+  async function loadEquifaxConsultations(options = { silent: false }) {
+    try {
+      if (!options.silent) {
+        setIsLoadingEquifax(true);
+      }
+
+      const response = await api.getEquifaxConsultations({
+        status: equifaxStatusFilter,
+        search: equifaxSearch,
+      });
+
+      const consultations = response?.consultations || [];
+      setEquifaxConsultations(consultations);
+
+      if (!equifaxSelectedConsultationId && consultations.length > 0) {
+        setEquifaxSelectedConsultationId(String(consultations[0].id));
+      }
+    } catch (error) {
+      setStatus("error", error.message || "No se pudieron cargar las consultas Equifax");
+      setEquifaxConsultations([]);
+    } finally {
+      if (!options.silent) {
+        setIsLoadingEquifax(false);
+      }
+    }
+  }
+
+  async function handleCreateEquifaxConsultation(event) {
+    event.preventDefault();
+
+    const queryNationalId = String(equifaxConsultationForm.queryNationalId || "").trim();
+    const queryFullName = String(equifaxConsultationForm.queryFullName || "").trim();
+
+    if (!queryNationalId || !queryFullName) {
+      setStatus("error", "Para consultar Equifax debes ingresar cedula y nombre completo");
+      return;
+    }
+
+    try {
+      setIsCreatingEquifax(true);
+      const response = await api.createEquifaxConsultation({
+        queryNationalId,
+        queryFullName,
+        queryNotes: equifaxConsultationForm.queryNotes,
+      });
+
+      const createdId = String(response?.consultation?.id || "").trim();
+      setEquifaxConsultationForm(initialEquifaxConsultationForm);
+      setStatus("success", "Consulta Equifax registrada");
+      await loadEquifaxConsultations({ silent: true });
+      if (createdId) {
+        setEquifaxSelectedConsultationId(createdId);
+      }
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo registrar la consulta Equifax");
+    } finally {
+      setIsCreatingEquifax(false);
+    }
+  }
+
+  async function handleRespondEquifaxConsultation(event) {
+    event.preventDefault();
+
+    if (!selectedEquifaxConsultation?.id) {
+      setStatus("error", "Selecciona una consulta Equifax para responder");
+      return;
+    }
+
+    const responseNationalId = String(equifaxResponseForm.responseNationalId || "").trim();
+    const responseFullName = String(equifaxResponseForm.responseFullName || "").trim();
+
+    if (!responseNationalId || !responseFullName) {
+      setStatus("error", "Completa cedula y nombre de la respuesta");
+      return;
+    }
+
+    try {
+      setRespondingEquifaxId(String(selectedEquifaxConsultation.id));
+      await api.respondEquifaxConsultation(selectedEquifaxConsultation.id, {
+        responseNationalId,
+        responseFullName,
+        hasGoodCredit: Boolean(equifaxResponseForm.hasGoodCredit),
+        highEndPhoneEligible: Boolean(equifaxResponseForm.highEndPhoneEligible),
+        maxDebtAmount: equifaxResponseForm.maxDebtAmount,
+        responseNotes: equifaxResponseForm.responseNotes,
+      });
+
+      setStatus("success", "Respuesta Equifax guardada");
+      await loadEquifaxConsultations({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo guardar la respuesta Equifax");
+    } finally {
+      setRespondingEquifaxId("");
     }
   }
 
@@ -1779,6 +1899,29 @@ export default function Dashboard() {
     customers.find((customer) => String(customer.id) === String(contractsCustomerId || "")) || null;
   const contractDocuments = contractsAssets.filter((asset) => String(asset.category || "").toUpperCase() === "CONTRACT");
   const customerPhotos = contractsAssets.filter((asset) => String(asset.category || "").toUpperCase() === "PHOTO");
+  const equifaxNormalizedSearch = equifaxSearch.trim().toLowerCase();
+  const filteredEquifaxConsultations = equifaxConsultations.filter((consultation) => {
+    if (equifaxStatusFilter !== "ALL" && String(consultation.status || "") !== equifaxStatusFilter) {
+      return false;
+    }
+
+    if (!equifaxNormalizedSearch) {
+      return true;
+    }
+
+    return [
+      consultation.queryNationalId,
+      consultation.queryFullName,
+      consultation.responseNationalId,
+      consultation.responseFullName,
+      consultation.requestedByUser?.username,
+      consultation.requestedByUser?.fullName,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(equifaxNormalizedSearch));
+  });
+  const selectedEquifaxConsultation =
+    equifaxConsultations.find((entry) => String(entry.id) === String(equifaxSelectedConsultationId || "")) || null;
   const selectedProvisioningDevice = devices.find((entry) => entry.id === provisioningDeviceId) || null;
   const creditFlowDevices = sortedDevicesByCustomer.filter((device) => {
     if (!creditFlowCustomerId) {
@@ -1849,6 +1992,11 @@ export default function Dashboard() {
       setPendingContractFile(null);
       setPendingPhotoFile(null);
       setContractsOptionsAssetId("");
+      return;
+    }
+
+    if (activeMainView === "equifax") {
+      setEquifaxConsultationForm(initialEquifaxConsultationForm);
     }
   }, [activeMainView]);
 
@@ -1907,6 +2055,36 @@ export default function Dashboard() {
       loadTrashEntries();
     }
   }, [activeMainView]);
+
+  useEffect(() => {
+    if (activeMainView === "equifax") {
+      loadEquifaxConsultations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainView, equifaxStatusFilter]);
+
+  useEffect(() => {
+    if (!selectedEquifaxConsultation) {
+      setEquifaxResponseForm(initialEquifaxResponseForm);
+      return;
+    }
+
+    setEquifaxResponseForm({
+      responseNationalId: String(
+        selectedEquifaxConsultation.responseNationalId || selectedEquifaxConsultation.queryNationalId || ""
+      ),
+      responseFullName: String(
+        selectedEquifaxConsultation.responseFullName || selectedEquifaxConsultation.queryFullName || ""
+      ),
+      hasGoodCredit: selectedEquifaxConsultation.hasGoodCredit ?? true,
+      highEndPhoneEligible: selectedEquifaxConsultation.highEndPhoneEligible ?? false,
+      maxDebtAmount:
+        selectedEquifaxConsultation.maxDebtAmount === null || selectedEquifaxConsultation.maxDebtAmount === undefined
+          ? ""
+          : String(selectedEquifaxConsultation.maxDebtAmount),
+      responseNotes: String(selectedEquifaxConsultation.responseNotes || ""),
+    });
+  }, [selectedEquifaxConsultation]);
 
   useEffect(() => {
     setCustomerPage(1);
@@ -2061,6 +2239,13 @@ export default function Dashboard() {
             onClick={() => setActiveMainView("contracts")}
           >
             Contratos
+          </button>
+          <button
+            type="button"
+            style={sidebarNavButton(activeMainView === "equifax")}
+            onClick={() => setActiveMainView("equifax")}
+          >
+            Consultas Equifax
           </button>
           <button
             type="button"
@@ -3432,6 +3617,232 @@ export default function Dashboard() {
               )}
             </article>
           )}
+        </section>
+      )}
+
+      {activeMainView === "equifax" && (
+        <section style={{ display: "grid", gap: 16 }}>
+          <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+            <h2 style={{ margin: 0 }}>Consultas Equifax</h2>
+            <p style={{ margin: 0, color: "var(--text-soft)" }}>
+              Los usuarios registran cedula y nombre del cliente. El administrador responde con evaluacion crediticia.
+            </p>
+          </article>
+
+          <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+            <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+              <h3 style={{ margin: 0 }}>Nueva consulta</h3>
+              <form onSubmit={handleCreateEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
+                <input
+                  value={equifaxConsultationForm.queryNationalId}
+                  onChange={(event) =>
+                    setEquifaxConsultationForm((value) => ({ ...value, queryNationalId: event.target.value }))
+                  }
+                  placeholder="Cedula del cliente"
+                  style={inputStyle}
+                />
+                <input
+                  value={equifaxConsultationForm.queryFullName}
+                  onChange={(event) =>
+                    setEquifaxConsultationForm((value) => ({ ...value, queryFullName: event.target.value }))
+                  }
+                  placeholder="Nombre completo del cliente"
+                  style={inputStyle}
+                />
+                <textarea
+                  rows={3}
+                  value={equifaxConsultationForm.queryNotes}
+                  onChange={(event) =>
+                    setEquifaxConsultationForm((value) => ({ ...value, queryNotes: event.target.value }))
+                  }
+                  placeholder="Motivo / notas de consulta (opcional)"
+                  style={inputStyle}
+                />
+                <button type="submit" disabled={isCreatingEquifax} style={buttonStyle}>
+                  {isCreatingEquifax ? "Registrando..." : "Enviar consulta"}
+                </button>
+              </form>
+            </article>
+
+            <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
+              <h3 style={{ margin: 0 }}>Bandeja de consultas</h3>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  value={equifaxSearch}
+                  onChange={(event) => setEquifaxSearch(event.target.value)}
+                  placeholder="Buscar por nombre o cedula"
+                  style={{ ...inputStyle, minWidth: 220, flex: 1 }}
+                />
+                <select
+                  value={equifaxStatusFilter}
+                  onChange={(event) => setEquifaxStatusFilter(event.target.value)}
+                  style={{ ...inputStyle, width: 180 }}
+                >
+                  <option value="ALL">Todos</option>
+                  <option value="PENDIENTE">Pendientes</option>
+                  <option value="RESPONDIDA">Respondidas</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => loadEquifaxConsultations()}
+                  disabled={isLoadingEquifax}
+                  style={secondaryButtonStyle}
+                >
+                  {isLoadingEquifax ? "Cargando..." : "Recargar"}
+                </button>
+              </div>
+
+              {isLoadingEquifax ? (
+                <p style={{ margin: 0, color: "var(--text-soft)" }}>Cargando consultas...</p>
+              ) : filteredEquifaxConsultations.length === 0 ? (
+                <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay consultas para los filtros actuales.</p>
+              ) : (
+                <div style={{ display: "grid", gap: 8, maxHeight: 360, overflowY: "auto", paddingRight: 4 }}>
+                  {filteredEquifaxConsultations.map((consultation) => {
+                    const isSelected = String(consultation.id) === String(equifaxSelectedConsultationId);
+                    const isResponded = String(consultation.status) === "RESPONDIDA";
+
+                    return (
+                      <button
+                        key={`equifax-consultation-${consultation.id}`}
+                        type="button"
+                        onClick={() => setEquifaxSelectedConsultationId(String(consultation.id))}
+                        style={{
+                          textAlign: "left",
+                          borderRadius: 10,
+                          border: isSelected ? "1px solid #2563eb" : "1px solid #dbe3ef",
+                          background: isSelected ? "#eff6ff" : "#ffffff",
+                          padding: 10,
+                          cursor: "pointer",
+                          display: "grid",
+                          gap: 4,
+                        }}
+                      >
+                        <strong>{consultation.queryFullName}</strong>
+                        <span style={{ color: "#475569", fontSize: 13 }}>Cedula: {consultation.queryNationalId}</span>
+                        <span style={{ color: "#475569", fontSize: 13 }}>
+                          Estado:{" "}
+                          <strong style={{ color: isResponded ? "#166534" : "#9a3412" }}>
+                            {isResponded ? "RESPONDIDA" : "PENDIENTE"}
+                          </strong>
+                        </span>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>
+                          {consultation.createdAt ? new Date(consultation.createdAt).toLocaleString() : "-"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </article>
+          </section>
+
+          <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+            <h3 style={{ margin: 0 }}>Detalle y respuesta</h3>
+            {!selectedEquifaxConsultation ? (
+              <p style={{ margin: 0, color: "var(--text-soft)" }}>Selecciona una consulta para verla y responderla.</p>
+            ) : (
+              <>
+                <div
+                  style={{
+                    border: "1px solid #dbe3ef",
+                    borderRadius: 10,
+                    background: "#f8fafc",
+                    padding: 12,
+                    display: "grid",
+                    gap: 6,
+                  }}
+                >
+                  <div>
+                    Cliente consultado: <strong>{selectedEquifaxConsultation.queryFullName}</strong>
+                  </div>
+                  <div>Cedula consultada: {selectedEquifaxConsultation.queryNationalId}</div>
+                  <div>Notas: {selectedEquifaxConsultation.queryNotes || "-"}</div>
+                  <div>Solicitante: {selectedEquifaxConsultation.requestedByUser?.fullName || selectedEquifaxConsultation.requestedByUser?.username || "-"}</div>
+                  <div>
+                    Estado actual:{" "}
+                    <strong style={{ color: selectedEquifaxConsultation.status === "RESPONDIDA" ? "#166534" : "#9a3412" }}>
+                      {selectedEquifaxConsultation.status}
+                    </strong>
+                  </div>
+                </div>
+
+                <form onSubmit={handleRespondEquifaxConsultation} style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                    <input
+                      value={equifaxResponseForm.responseNationalId}
+                      onChange={(event) =>
+                        setEquifaxResponseForm((value) => ({ ...value, responseNationalId: event.target.value }))
+                      }
+                      placeholder="Cedula validada"
+                      style={inputStyle}
+                    />
+                    <input
+                      value={equifaxResponseForm.responseFullName}
+                      onChange={(event) =>
+                        setEquifaxResponseForm((value) => ({ ...value, responseFullName: event.target.value }))
+                      }
+                      placeholder="Nombre completo validado"
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(equifaxResponseForm.hasGoodCredit)}
+                        onChange={(event) =>
+                          setEquifaxResponseForm((value) => ({ ...value, hasGoodCredit: event.target.checked }))
+                        }
+                      />
+                      Buenos puntos de credito
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(equifaxResponseForm.highEndPhoneEligible)}
+                        onChange={(event) =>
+                          setEquifaxResponseForm((value) => ({ ...value, highEndPhoneEligible: event.target.checked }))
+                        }
+                      />
+                      Apto para telefono gama alta
+                    </label>
+                  </div>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={equifaxResponseForm.maxDebtAmount}
+                    onChange={(event) =>
+                      setEquifaxResponseForm((value) => ({ ...value, maxDebtAmount: event.target.value }))
+                    }
+                    placeholder="Endeudamiento maximo sugerido (USD)"
+                    style={inputStyle}
+                  />
+
+                  <textarea
+                    rows={3}
+                    value={equifaxResponseForm.responseNotes}
+                    onChange={(event) =>
+                      setEquifaxResponseForm((value) => ({ ...value, responseNotes: event.target.value }))
+                    }
+                    placeholder="Observaciones de respuesta"
+                    style={inputStyle}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={respondingEquifaxId === String(selectedEquifaxConsultation.id)}
+                    style={buttonStyle}
+                  >
+                    {respondingEquifaxId === String(selectedEquifaxConsultation.id) ? "Guardando respuesta..." : "Guardar respuesta"}
+                  </button>
+                </form>
+              </>
+            )}
+          </article>
         </section>
       )}
 
