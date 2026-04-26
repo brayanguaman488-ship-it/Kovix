@@ -5,6 +5,7 @@ import { sendBadRequest, sendNotFound, sendServerError } from "../lib/http.js";
 import { prisma } from "../lib/prisma.js";
 import { registerTrashEntry } from "../lib/trash.js";
 import { asTrimmedString } from "../lib/validation.js";
+import { customerScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -31,13 +32,23 @@ router.use(authMiddleware);
 
 router.get("/", asyncHandler(async (req, res) => {
   const customerId = asTrimmedString(req.query?.customerId);
+  const ownerUserId = asTrimmedString(req.query?.ownerUserId);
 
   if (!customerId) {
     return sendBadRequest(res, "customerId es obligatorio");
   }
 
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: customerId }, ownerUserId),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendNotFound(res, "Cliente no encontrado o fuera de alcance");
+  }
+
   const assets = await prisma.customerAsset.findMany({
-    where: { customerId },
+    where: { customerId: scopedCustomer.id },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -80,6 +91,15 @@ router.post("/", asyncHandler(async (req, res) => {
 
   if (!customer) {
     return sendNotFound(res, "Cliente no encontrado");
+  }
+
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: customerId }),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendNotFound(res, "Cliente no encontrado o fuera de alcance");
   }
 
   let dataBuffer;
@@ -134,6 +154,7 @@ router.get("/:id/content", asyncHandler(async (req, res) => {
     where: { id },
     select: {
       id: true,
+      customerId: true,
       fileName: true,
       mimeType: true,
       data: true,
@@ -142,6 +163,15 @@ router.get("/:id/content", asyncHandler(async (req, res) => {
 
   if (!asset) {
     return sendNotFound(res, "Archivo no encontrado");
+  }
+
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: asset.customerId }),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendNotFound(res, "Archivo no encontrado o fuera de alcance");
   }
 
   res.setHeader("Content-Type", asset.mimeType || "application/octet-stream");
@@ -161,11 +191,20 @@ router.patch("/:id", asyncHandler(async (req, res) => {
 
   const current = await prisma.customerAsset.findUnique({
     where: { id },
-    select: { id: true, category: true },
+    select: { id: true, category: true, customerId: true },
   });
 
   if (!current) {
     return sendNotFound(res, "Archivo no encontrado");
+  }
+
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: current.customerId }),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendNotFound(res, "Archivo no encontrado o fuera de alcance");
   }
 
   if (!isAllowedMimeType(current.category, mimeType)) {
@@ -231,6 +270,15 @@ router.delete("/:id", asyncHandler(async (req, res) => {
 
   if (!current) {
     return sendNotFound(res, "Archivo no encontrado");
+  }
+
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: current.customerId }),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendNotFound(res, "Archivo no encontrado o fuera de alcance");
   }
 
   await prisma.$transaction(async (tx) => {

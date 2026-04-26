@@ -20,6 +20,7 @@ import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "
 import { syncAllDeviceStatuses, syncDeviceStatus } from "../lib/deviceStatus.js";
 import {
   applyHexnodePolicyForStatus,
+  findHexnodeDeviceIdByRemoteIdentifiers,
   generateInstallCode,
   getHexnodeLinkDiagnostics,
   getHexnodeProvisioningQr,
@@ -29,6 +30,7 @@ import {
 import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import { registerTrashEntry } from "../lib/trash.js";
 import authMiddleware from "../middleware/auth.js";
+import { deviceScopeWhere, customerScopeWhere } from "../lib/dataScope.js";
 
 const router = Router();
 const { DeviceStatus, InstallmentStatus } = prismaPackage;
@@ -197,10 +199,13 @@ function buildClientDeviceResponse(device) {
 router.post("/client/bootstrap", asyncHandler(async (req, res) => {
   const rawImei = normalizeDigits(req.body?.imei);
   const rawImei2 = normalizeDigits(req.body?.imei2);
+  const serialNumber = asOptionalTrimmedString(req.body?.serialNumber);
+  const enrollmentSpecificId = asOptionalTrimmedString(req.body?.enrollmentSpecificId);
+  const androidId = asOptionalTrimmedString(req.body?.androidId);
   const imeiCandidates = [rawImei, rawImei2].filter(Boolean);
 
-  if (imeiCandidates.length === 0) {
-    return sendBadRequest(res, "Se requiere imei o imei2 para bootstrap automatico");
+  if (imeiCandidates.length === 0 && !serialNumber && !enrollmentSpecificId && !androidId) {
+    return sendBadRequest(res, "Se requiere al menos un identificador para bootstrap automatico");
   }
 
   const invalidCandidate = imeiCandidates.find((candidate) => !validateImeiFormat(candidate));
@@ -208,27 +213,65 @@ router.post("/client/bootstrap", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "imei debe tener solo digitos (14 a 17 caracteres)");
   }
 
-  const device = await prisma.device.findFirst({
-    where: {
-      OR: imeiCandidates.flatMap((candidate) => ([
-        { imei: candidate },
-        { imei2: candidate },
-      ])),
-    },
-    include: {
-      customer: true,
-      creditContract: {
-        include: {
-          installments: {
-            orderBy: { sequence: "asc" },
+  let matchedBy = "";
+  let matchedHexnodeDeviceId = null;
+  let device = null;
+
+  if (imeiCandidates.length > 0) {
+    device = await prisma.device.findFirst({
+      where: {
+        OR: imeiCandidates.flatMap((candidate) => ([
+          { imei: candidate },
+          { imei2: candidate },
+        ])),
+      },
+      include: {
+        customer: true,
+        creditContract: {
+          include: {
+            installments: {
+              orderBy: { sequence: "asc" },
+            },
           },
         },
       },
-    },
-  });
+    });
+
+    if (device) {
+      matchedBy = imeiCandidates.includes(String(device.imei || "").trim()) ? "imei" : "imei2";
+    }
+  }
+
+  if (!device && isHexnodeConfigured() && (serialNumber || enrollmentSpecificId || androidId)) {
+    matchedHexnodeDeviceId = await findHexnodeDeviceIdByRemoteIdentifiers({
+      serialNumber,
+      enrollmentSpecificId,
+      androidId,
+    });
+
+    if (matchedHexnodeDeviceId) {
+      device = await prisma.device.findFirst({
+        where: { hexnodeDeviceId: matchedHexnodeDeviceId },
+        include: {
+          customer: true,
+          creditContract: {
+            include: {
+              installments: {
+                orderBy: { sequence: "asc" },
+              },
+            },
+          },
+        },
+      });
+
+      if (device) {
+        matchedBy = serialNumber ? "hexnode_serial_number" : "hexnode_remote_identifier";
+      }
+    }
+  }
 
   if (!device) {
-    return sendNotFound(res, "No se encontro un dispositivo registrado para este IMEI");
+    return sendNotFound(res, "No se encontro un dispositivo registrado para los identificadores enviados");
   }
 
   await syncAutomaticAgingStatuses(device.id);
@@ -241,12 +284,18 @@ router.post("/client/bootstrap", asyncHandler(async (req, res) => {
     hexnode = { linked: false, skipped: "auto_link_failed" };
   }
 
+  const patch = {
+    isRegistered: true,
+    lastSeenAt: new Date(),
+  };
+
+  if (!device.hexnodeDeviceId && Number.isFinite(Number(matchedHexnodeDeviceId)) && Number(matchedHexnodeDeviceId) > 0) {
+    patch.hexnodeDeviceId = Number(matchedHexnodeDeviceId);
+  }
+
   const updated = await prisma.device.update({
     where: { id: device.id },
-    data: {
-      isRegistered: true,
-      lastSeenAt: new Date(),
-    },
+    data: patch,
     include: {
       customer: true,
       creditContract: {
@@ -258,10 +307,6 @@ router.post("/client/bootstrap", asyncHandler(async (req, res) => {
       },
     },
   });
-
-  const matchedBy = imeiCandidates.includes(String(updated.imei || "").trim())
-    ? "imei"
-    : "imei2";
 
   return res.json({
     ok: true,
@@ -441,13 +486,23 @@ router.get("/provisioning/hexnode-qr", asyncHandler(async (_req, res) => {
 }));
 
 router.get("/", asyncHandler(async (req, res) => {
+  const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  const where = deviceScopeWhere(req, {}, ownerUserId);
+
   await syncAutomaticAgingStatuses();
   await syncAllDeviceStatuses(null, "Sincronizacion automatica al cargar dispositivos");
 
   const devices = await prisma.device.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          createdByUser: {
+            select: { id: true, username: true, fullName: true, role: true },
+          },
+        },
+      },
       creditContract: {
         include: {
           installments: {
@@ -509,6 +564,15 @@ router.post("/", asyncHandler(async (req, res) => {
 
   if (normalizedImei2 && normalizedImei2 === normalizedImei) {
     return sendBadRequest(res, "imei2 no puede ser igual a imei");
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: normalizedCustomerId }),
+    select: { id: true },
+  });
+
+  if (!customer) {
+    return sendBadRequest(res, "customerId invalido o fuera de alcance");
   }
 
   try {
@@ -639,12 +703,27 @@ router.patch("/:id", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "No hay campos para actualizar");
   }
 
+  const scopedDevice = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
+    select: { id: true },
+  });
+
+  if (!scopedDevice) {
+    return sendNotFound(res, "Dispositivo no encontrado o fuera de alcance");
+  }
+
   try {
     const device = await prisma.device.update({
       where: { id: req.params.id },
       data: payload,
       include: {
-        customer: true,
+        customer: {
+          include: {
+            createdByUser: {
+              select: { id: true, username: true, fullName: true, role: true },
+            },
+          },
+        },
         creditContract: {
           include: {
             installments: {
@@ -672,7 +751,13 @@ router.patch("/:id", asyncHandler(async (req, res) => {
     const refreshed = await prisma.device.findUnique({
       where: { id: req.params.id },
       include: {
-        customer: true,
+        customer: {
+          include: {
+            createdByUser: {
+              select: { id: true, username: true, fullName: true, role: true },
+            },
+          },
+        },
         creditContract: {
           include: {
             installments: {
@@ -703,8 +788,8 @@ router.patch("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
-  const current = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const current = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
     include: {
       customer: {
         select: {
@@ -751,8 +836,8 @@ router.delete("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
-  const device = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const device = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
   });
 
   if (!device) {
@@ -793,8 +878,8 @@ router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
 }));
 
 router.post("/:id/unlink-hexnode", asyncHandler(async (req, res) => {
-  const device = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const device = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
   });
 
   if (!device) {
@@ -817,15 +902,15 @@ router.post("/:id/unlink-hexnode", asyncHandler(async (req, res) => {
   });
 }));
 
-router.post("/link-hexnode-all", asyncHandler(async (_req, res) => {
+router.post("/link-hexnode-all", asyncHandler(async (req, res) => {
   if (!isHexnodeConfigured()) {
     return sendBadRequest(res, "Hexnode no esta configurado en el backend");
   }
 
   const devices = await prisma.device.findMany({
-    where: {
+    where: deviceScopeWhere(req, {
       hexnodeDeviceId: null,
-    },
+    }),
     orderBy: { createdAt: "asc" },
   });
 
@@ -882,8 +967,8 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "Estado invalido");
   }
 
-  const current = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const current = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
   });
 
   if (!current) {
@@ -963,8 +1048,8 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
 }));
 
 router.post("/:id/clear-manual-status", asyncHandler(async (req, res) => {
-  const current = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const current = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
   });
 
   if (!current) {
@@ -991,6 +1076,15 @@ router.post("/:id/clear-manual-status", asyncHandler(async (req, res) => {
 }));
 
 router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
+  const scoped = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
+    select: { id: true },
+  });
+
+  if (!scoped) {
+    return sendNotFound(res, "Dispositivo no encontrado o fuera de alcance");
+  }
+
   await prisma.device.update({
     where: { id: req.params.id },
     data: {
@@ -1015,8 +1109,8 @@ router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
 }));
 
 router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
-  const device = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const device = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
   });
 
   if (!device) {
@@ -1041,8 +1135,8 @@ router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
 }));
 
 router.post("/:id/rotate-client-secret", asyncHandler(async (req, res) => {
-  const device = await prisma.device.findUnique({
-    where: { id: req.params.id },
+  const device = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.id }),
     include: {
       customer: {
         select: {

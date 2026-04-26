@@ -25,6 +25,15 @@ function ensureAdmin(req, res) {
   return true;
 }
 
+function ensureAdminOrGerencia(req, res) {
+  const normalizedRole = String(req.user?.role || "").toUpperCase();
+  if (normalizedRole !== "ADMIN" && normalizedRole !== "GERENCIA") {
+    res.status(403).json({ ok: false, message: "No autorizado" });
+    return false;
+  }
+  return true;
+}
+
 router.post("/login", asyncHandler(async (req, res) => {
   const username = asTrimmedString(req.body?.username);
   const password = String(req.body?.password || "");
@@ -94,6 +103,31 @@ router.get("/users", authMiddleware, asyncHandler(async (req, res) => {
   return res.json({
     ok: true,
     users: users.map((user) => sanitizeUser(user)),
+  });
+}));
+
+router.get("/users/scope-list", authMiddleware, asyncHandler(async (req, res) => {
+  if (!ensureAdminOrGerencia(req, res)) {
+    return;
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: [
+      { role: "asc" },
+      { fullName: "asc" },
+      { username: "asc" },
+    ],
+    select: {
+      id: true,
+      username: true,
+      fullName: true,
+      role: true,
+    },
+  });
+
+  return res.json({
+    ok: true,
+    users,
   });
 }));
 

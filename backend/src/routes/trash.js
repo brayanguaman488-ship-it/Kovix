@@ -3,6 +3,7 @@ import { Router } from "express";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { sendBadRequest } from "../lib/http.js";
 import { prisma } from "../lib/prisma.js";
+import { isTiendaRole } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -17,6 +18,10 @@ router.get("/", asyncHandler(async (req, res) => {
   const where = {};
   if (entityTypeRaw) {
     where.entityType = entityTypeRaw;
+  }
+
+  if (isTiendaRole(req.user?.role)) {
+    where.deletedByUserId = req.user.id;
   }
 
   const entries = await prisma.trashEntry.findMany({
@@ -35,6 +40,17 @@ router.delete("/:id", asyncHandler(async (req, res) => {
   const id = String(req.params?.id || "").trim();
   if (!id) {
     return sendBadRequest(res, "id es obligatorio");
+  }
+
+  if (isTiendaRole(req.user?.role)) {
+    const scopedEntry = await prisma.trashEntry.findFirst({
+      where: { id, deletedByUserId: req.user.id },
+      select: { id: true },
+    });
+
+    if (!scopedEntry) {
+      return sendBadRequest(res, "Registro no encontrado o fuera de alcance");
+    }
   }
 
   await prisma.trashEntry.delete({

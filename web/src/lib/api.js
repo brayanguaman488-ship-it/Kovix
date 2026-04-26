@@ -101,6 +101,9 @@ export const api = {
   getUsers() {
     return request("/auth/users");
   },
+  getScopeUsers() {
+    return request("/auth/users/scope-list");
+  },
   createUser(payload) {
     return request("/auth/users", {
       method: "POST",
@@ -124,8 +127,13 @@ export const api = {
       method: "DELETE",
     });
   },
-  getCustomers() {
-    return request("/customers");
+  getCustomers(params = {}) {
+    const query = new URLSearchParams();
+    if (params.ownerUserId) {
+      query.set("ownerUserId", String(params.ownerUserId));
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/customers${suffix}`);
   },
   createCustomer(payload) {
     return request("/customers", {
@@ -138,8 +146,13 @@ export const api = {
       method: "DELETE",
     });
   },
-  getDevices() {
-    return request("/devices");
+  getDevices(params = {}) {
+    const query = new URLSearchParams();
+    if (params.ownerUserId) {
+      query.set("ownerUserId", String(params.ownerUserId));
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/devices${suffix}`);
   },
   createDevice(payload) {
     return request("/devices", {
@@ -192,8 +205,13 @@ export const api = {
   getHexnodeProvisioningQr() {
     return request("/devices/provisioning/hexnode-qr");
   },
-  getPayments() {
-    return request("/payments");
+  getPayments(params = {}) {
+    const query = new URLSearchParams();
+    if (params.ownerUserId) {
+      query.set("ownerUserId", String(params.ownerUserId));
+    }
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/payments${suffix}`);
   },
   createPayment(payload) {
     return request("/payments", {

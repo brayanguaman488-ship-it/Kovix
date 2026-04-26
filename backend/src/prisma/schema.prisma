@@ -55,6 +55,7 @@ model User {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   statusChanges DeviceStatusHistory[]
+  customers     Customer[]            @relation("CustomerCreatedBy")
   equifaxRequests EquifaxConsultation[] @relation("EquifaxRequestedBy")
   equifaxResponses EquifaxConsultation[] @relation("EquifaxRespondedBy")
 }
@@ -66,12 +67,16 @@ model Customer {
   phone           String
   address         String?
   notes           String?
+  createdByUserId String?
+  createdByUser   User?            @relation("CustomerCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   devices         Device[]
   payments        Payment[]
   creditContracts CreditContract[]
   assets          CustomerAsset[]
+
+  @@index([createdByUserId])
 }
 
 model CustomerAsset {

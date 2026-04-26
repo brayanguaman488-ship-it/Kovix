@@ -14,6 +14,7 @@ import {
 } from "../lib/validation.js";
 import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import { syncDeviceStatus } from "../lib/deviceStatus.js";
+import { paymentScopeWhere, customerScopeWhere, deviceScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -22,12 +23,22 @@ const { PaymentStatus, InstallmentStatus } = prismaPackage;
 router.use(authMiddleware);
 
 router.get("/", asyncHandler(async (req, res) => {
+  const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  const where = paymentScopeWhere(req, {}, ownerUserId);
+
   await syncAutomaticAgingStatuses();
 
   const payments = await prisma.payment.findMany({
+    where,
     orderBy: { dueDate: "asc" },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          createdByUser: {
+            select: { id: true, username: true, fullName: true, role: true },
+          },
+        },
+      },
       device: true,
     },
   });
@@ -65,6 +76,24 @@ router.post("/", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "dueDate invalida");
   }
 
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: normalizedCustomerId }),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendBadRequest(res, "customerId invalido o fuera de alcance");
+  }
+
+  const scopedDevice = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: normalizedDeviceId, customerId: normalizedCustomerId }),
+    select: { id: true },
+  });
+
+  if (!scopedDevice) {
+    return sendBadRequest(res, "deviceId invalido, no pertenece al cliente o fuera de alcance");
+  }
+
   try {
     const payment = await prisma.payment.create({
       data: {
@@ -93,8 +122,8 @@ router.post("/", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/:id/mark-paid", asyncHandler(async (req, res) => {
-  const payment = await prisma.payment.findUnique({
-    where: { id: req.params.id },
+  const payment = await prisma.payment.findFirst({
+    where: paymentScopeWhere(req, { id: req.params.id }),
     include: {
       installment: true,
     },
@@ -111,7 +140,13 @@ router.patch("/:id/mark-paid", asyncHandler(async (req, res) => {
       paidAt: new Date(),
     },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          createdByUser: {
+            select: { id: true, username: true, fullName: true, role: true },
+          },
+        },
+      },
       device: true,
     },
   });
@@ -132,8 +167,8 @@ router.patch("/:id/mark-paid", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
-  const payment = await prisma.payment.findUnique({
-    where: { id: req.params.id },
+  const payment = await prisma.payment.findFirst({
+    where: paymentScopeWhere(req, { id: req.params.id }),
     include: {
       installment: true,
     },
@@ -149,7 +184,13 @@ router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
       status: PaymentStatus.VENCIDO,
     },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          createdByUser: {
+            select: { id: true, username: true, fullName: true, role: true },
+          },
+        },
+      },
       device: true,
     },
   });
@@ -169,8 +210,8 @@ router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
-  const payment = await prisma.payment.findUnique({
-    where: { id: req.params.id },
+  const payment = await prisma.payment.findFirst({
+    where: paymentScopeWhere(req, { id: req.params.id }),
     include: {
       installment: true,
     },
@@ -187,7 +228,13 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
       paidAt: null,
     },
     include: {
-      customer: true,
+      customer: {
+        include: {
+          createdByUser: {
+            select: { id: true, username: true, fullName: true, role: true },
+          },
+        },
+      },
       device: true,
     },
   });
@@ -208,11 +255,18 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
-  const current = await prisma.payment.findUnique({
-    where: { id: req.params.id },
+  const current = await prisma.payment.findFirst({
+    where: paymentScopeWhere(req, { id: req.params.id }),
     include: {
       customer: {
-        select: { id: true, fullName: true, nationalId: true },
+        select: {
+          id: true,
+          fullName: true,
+          nationalId: true,
+          createdByUser: {
+            select: { id: true, username: true, fullName: true, role: true },
+          },
+        },
       },
       device: {
         select: { id: true, installCode: true, brand: true, model: true },

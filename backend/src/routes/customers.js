@@ -5,6 +5,7 @@ import { isPrismaUniqueConstraintError, sendBadRequest, sendNotFound, sendServer
 import { prisma } from "../lib/prisma.js";
 import { registerTrashEntry } from "../lib/trash.js";
 import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
+import { customerScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -12,9 +13,16 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", asyncHandler(async (req, res) => {
+  const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  const where = customerScopeWhere(req, {}, ownerUserId);
+
   const customers = await prisma.customer.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: {
+      createdByUser: {
+        select: { id: true, username: true, fullName: true, role: true },
+      },
       devices: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -37,9 +45,12 @@ router.get("/", asyncHandler(async (req, res) => {
 }));
 
 router.get("/:id", asyncHandler(async (req, res) => {
-  const customer = await prisma.customer.findUnique({
-    where: { id: req.params.id },
+  const customer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: req.params.id }),
     include: {
+      createdByUser: {
+        select: { id: true, username: true, fullName: true, role: true },
+      },
       devices: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -100,6 +111,12 @@ router.post("/", asyncHandler(async (req, res) => {
         phone: normalizedPhone,
         address: asOptionalTrimmedString(address),
         notes: asOptionalTrimmedString(notes),
+        createdByUserId: req.user.id,
+      },
+      include: {
+        createdByUser: {
+          select: { id: true, username: true, fullName: true, role: true },
+        },
       },
     });
 
@@ -153,10 +170,24 @@ router.put("/:id", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "No hay campos para actualizar");
   }
 
+  const current = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: req.params.id }),
+    select: { id: true },
+  });
+
+  if (!current) {
+    return sendNotFound(res, "Cliente no encontrado o fuera de alcance");
+  }
+
   try {
     const customer = await prisma.customer.update({
       where: { id: req.params.id },
       data: payload,
+      include: {
+        createdByUser: {
+          select: { id: true, username: true, fullName: true, role: true },
+        },
+      },
     });
 
     return res.json({ ok: true, customer });
@@ -174,8 +205,8 @@ router.put("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
-  const current = await prisma.customer.findUnique({
-    where: { id: req.params.id },
+  const current = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: req.params.id }),
     include: {
       devices: {
         select: { id: true, installCode: true },

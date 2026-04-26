@@ -15,6 +15,7 @@ import {
 import { syncDeviceStatus } from "../lib/deviceStatus.js";
 import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import { isHexnodeConfigured, resolveHexnodeDeviceMatch } from "../lib/hexnode.js";
+import { deviceScopeWhere, customerScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
@@ -323,6 +324,15 @@ router.post("/contracts", asyncHandler(async (req, res) => {
     return sendNotFound(res, "Dispositivo no encontrado");
   }
 
+  const scopedCustomer = await prisma.customer.findFirst({
+    where: customerScopeWhere(req, { id: device.customerId }),
+    select: { id: true },
+  });
+
+  if (!scopedCustomer) {
+    return sendNotFound(res, "Dispositivo fuera de alcance para este usuario");
+  }
+
   if (device.creditContract && device.creditContract.status === CreditContractStatus.ACTIVO) {
     return sendBadRequest(res, "El dispositivo ya tiene un contrato de credito activo");
   }
@@ -425,6 +435,15 @@ router.post("/contracts", asyncHandler(async (req, res) => {
 }));
 
 router.get("/contracts/:deviceId", asyncHandler(async (req, res) => {
+  const scopedDevice = await prisma.device.findFirst({
+    where: deviceScopeWhere(req, { id: req.params.deviceId }),
+    select: { id: true },
+  });
+
+  if (!scopedDevice) {
+    return sendNotFound(res, "No existe contrato para este dispositivo");
+  }
+
   const contract = await loadContractByDeviceId(req.params.deviceId);
 
   if (!contract) {
@@ -435,8 +454,13 @@ router.get("/contracts/:deviceId", asyncHandler(async (req, res) => {
 }));
 
 router.patch("/installments/:id/approve-payment", asyncHandler(async (req, res) => {
-  const installment = await prisma.installment.findUnique({
-    where: { id: req.params.id },
+  const installment = await prisma.installment.findFirst({
+    where: {
+      id: req.params.id,
+      contract: {
+        device: deviceScopeWhere(req, {}),
+      },
+    },
     include: {
       contract: true,
       payment: true,
@@ -479,8 +503,13 @@ router.patch("/installments/:id/approve-payment", asyncHandler(async (req, res) 
 }));
 
 router.patch("/installments/:id/mark-overdue", asyncHandler(async (req, res) => {
-  const installment = await prisma.installment.findUnique({
-    where: { id: req.params.id },
+  const installment = await prisma.installment.findFirst({
+    where: {
+      id: req.params.id,
+      contract: {
+        device: deviceScopeWhere(req, {}),
+      },
+    },
     include: {
       contract: true,
       payment: true,

@@ -431,6 +431,8 @@ export default function Dashboard() {
   const [equifaxRetentionDays, setEquifaxRetentionDays] = useState(15);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [usersList, setUsersList] = useState([]);
+  const [scopeUsers, setScopeUsers] = useState([]);
+  const [ownerScopeFilter, setOwnerScopeFilter] = useState("all");
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState("");
@@ -445,6 +447,7 @@ export default function Dashboard() {
   const canManageUsers = userRole === "ADMIN";
   const canRespondEquifax = userRole === "ADMIN" || userRole === "GERENCIA";
   const canCreateEquifax = userRole === "TIENDA";
+  const canFilterByStore = userRole === "ADMIN" || userRole === "GERENCIA";
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -498,6 +501,12 @@ export default function Dashboard() {
     setPaymentPage(1);
     setDeviceCustomerFilter("all");
     setStatus("info", "Filtros reiniciados");
+  }
+
+  async function handleStoreScopeFilterChange(nextValue) {
+    const normalized = String(nextValue || "all").trim() || "all";
+    setOwnerScopeFilter(normalized);
+    await loadDashboard({ silent: true });
   }
 
   async function handleCopyShareLink() {
@@ -586,13 +595,21 @@ export default function Dashboard() {
       // Solo si /me falla, se debe redirigir a login.
       const meResponse = await api.me();
       setUser(meResponse.user);
+      const meRole = String(meResponse?.user?.role || "").toUpperCase();
+      const canUseOwnerFilter = meRole === "ADMIN" || meRole === "GERENCIA";
+      const ownerUserId =
+        canUseOwnerFilter && String(ownerScopeFilter || "").trim() && ownerScopeFilter !== "all"
+          ? ownerScopeFilter
+          : "";
+      const scopedParams = ownerUserId ? { ownerUserId } : {};
 
       // 2) Los modulos de datos se cargan de forma tolerante: si uno falla, no
       // expulsamos al usuario de su sesion.
-      const [customersResult, devicesResult, paymentsResult] = await Promise.allSettled([
-        api.getCustomers(),
-        api.getDevices(),
-        api.getPayments(),
+      const [customersResult, devicesResult, paymentsResult, scopesResult] = await Promise.allSettled([
+        api.getCustomers(scopedParams),
+        api.getDevices(scopedParams),
+        api.getPayments(scopedParams),
+        canUseOwnerFilter ? api.getScopeUsers() : Promise.resolve({ users: [] }),
       ]);
 
       if (customersResult.status === "fulfilled") {
@@ -613,10 +630,17 @@ export default function Dashboard() {
         setPayments([]);
       }
 
+      if (scopesResult.status === "fulfilled") {
+        setScopeUsers(scopesResult.value?.users || []);
+      } else if (!canUseOwnerFilter) {
+        setScopeUsers([]);
+      }
+
       const failedModules = [
         customersResult.status === "rejected" ? "clientes" : null,
         devicesResult.status === "rejected" ? "dispositivos" : null,
         paymentsResult.status === "rejected" ? "pagos" : null,
+        scopesResult.status === "rejected" && canUseOwnerFilter ? "usuarios/tiendas" : null,
       ].filter(Boolean);
 
       if (failedModules.length > 0) {
@@ -2281,6 +2305,13 @@ export default function Dashboard() {
   }, [activeMainView, canManageUsers]);
 
   useEffect(() => {
+    if (!canFilterByStore) {
+      setOwnerScopeFilter("all");
+      setScopeUsers([]);
+    }
+  }, [canFilterByStore]);
+
+  useEffect(() => {
     const intervalId = setInterval(() => {
       loadEquifaxConsultations({ silent: true });
     }, 15000);
@@ -2539,6 +2570,37 @@ export default function Dashboard() {
       )}
 
       <StatusMessage message={statusState.message} type={statusState.type} />
+
+      {canFilterByStore && (
+        <section
+          style={{
+            ...cardStyle,
+            display: "grid",
+            gap: 8,
+            border: "1px solid rgba(59, 130, 246, 0.25)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(239,246,255,0.92))",
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <strong>Vista organizada por tienda/usuario</strong>
+            <select
+              value={ownerScopeFilter}
+              onChange={(event) => handleStoreScopeFilterChange(event.target.value)}
+              style={{ ...inputStyle, width: "min(420px, 100%)" }}
+            >
+              <option value="all">Todos (global)</option>
+              {scopeUsers.map((entry) => (
+                <option key={`scope-user-${entry.id}`} value={entry.id}>
+                  {(entry.fullName || entry.username) + ` (${entry.role})`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p style={{ margin: 0, color: "var(--text-soft)" }}>
+            Este filtro aplica a clientes, celulares, pagos, finanzas y contratos.
+          </p>
+        </section>
+      )}
 
       {activeMainView === "control" && (
         <>
