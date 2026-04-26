@@ -347,6 +347,7 @@ function buildCreditInstallmentPreview(form) {
 export default function Dashboard() {
   const router = useRouter();
   const hasHydratedQueryRef = useRef(false);
+  const dashboardLoadSeqRef = useRef(0);
   const advancedToolsRef = useRef(null);
   const [user, setUser] = useState(null);
   const [customers, setCustomers] = useState([]);
@@ -507,7 +508,10 @@ export default function Dashboard() {
   async function handleStoreScopeFilterChange(nextValue) {
     const normalized = String(nextValue || "all").trim() || "all";
     setOwnerScopeFilter(normalized);
-    await loadDashboard({ silent: true });
+    await loadDashboard({
+      silent: true,
+      ownerUserIdOverride: normalized === "all" ? "" : normalized,
+    });
   }
 
   async function handleCopyShareLink() {
@@ -586,7 +590,10 @@ export default function Dashboard() {
   }
 
 
-  async function loadDashboard(options = { silent: false }) {
+  async function loadDashboard(options = { silent: false, ownerUserIdOverride: undefined }) {
+    const loadSeq = dashboardLoadSeqRef.current + 1;
+    dashboardLoadSeqRef.current = loadSeq;
+
     if (options.silent) {
       setIsRefreshing(true);
     }
@@ -595,13 +602,20 @@ export default function Dashboard() {
       // 1) La sesion es la fuente de verdad para mantener al usuario en dashboard.
       // Solo si /me falla, se debe redirigir a login.
       const meResponse = await api.me();
+      if (loadSeq !== dashboardLoadSeqRef.current) {
+        return;
+      }
+
       setUser(meResponse.user);
       const meRole = String(meResponse?.user?.role || "").toUpperCase();
       const canUseOwnerFilter = meRole === "ADMIN" || meRole === "GERENCIA";
-      const ownerUserId =
-        canUseOwnerFilter && String(ownerScopeFilter || "").trim() && ownerScopeFilter !== "all"
-          ? ownerScopeFilter
-          : "";
+      const ownerFilterRaw =
+        options.ownerUserIdOverride !== undefined
+          ? String(options.ownerUserIdOverride || "")
+          : String(ownerScopeFilter || "");
+      const ownerUserId = canUseOwnerFilter && ownerFilterRaw.trim() && ownerFilterRaw !== "all"
+        ? ownerFilterRaw.trim()
+        : "";
       const scopedParams = ownerUserId ? { ownerUserId } : {};
 
       // 2) Los modulos de datos se cargan de forma tolerante: si uno falla, no
@@ -612,6 +626,10 @@ export default function Dashboard() {
         api.getPayments(scopedParams),
         canUseOwnerFilter ? api.getScopeUsers() : Promise.resolve({ users: [] }),
       ]);
+
+      if (loadSeq !== dashboardLoadSeqRef.current) {
+        return;
+      }
 
       if (customersResult.status === "fulfilled") {
         setCustomers(customersResult.value.customers);
@@ -651,7 +669,7 @@ export default function Dashboard() {
         );
       }
     } finally {
-      if (options.silent) {
+      if (options.silent && loadSeq === dashboardLoadSeqRef.current) {
         setIsRefreshing(false);
       }
     }
@@ -702,6 +720,7 @@ export default function Dashboard() {
 
     try {
       setIsLoadingContractsAssets(true);
+      setContractsAssets([]);
       const response = await api.getCustomerAssets(normalizedCustomerId);
       const assets = response?.assets || [];
       setContractsAssets(assets);
@@ -2377,6 +2396,15 @@ export default function Dashboard() {
   }, [canFilterByStore]);
 
   useEffect(() => {
+    if (contractsCustomerId && !customers.some((customer) => String(customer.id) === String(contractsCustomerId))) {
+      setContractsCustomerId("");
+      setContractsAssets([]);
+      setPendingContractFile(null);
+      setPendingPhotoFile(null);
+    }
+  }, [customers, contractsCustomerId]);
+
+  useEffect(() => {
     const intervalId = setInterval(() => {
       loadEquifaxConsultations({ silent: true });
     }, 15000);
@@ -3811,53 +3839,56 @@ export default function Dashboard() {
               ))}
             </select>
 
-            {contractsSelectedCustomer && (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div
-                  style={{
-                    padding: 10,
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    background: "#f8fafc",
-                    color: "#334155",
-                  }}
-                >
-                  Cliente: <strong>{contractsSelectedCustomer.fullName}</strong><br />
-                  Cedula: {contractsSelectedCustomer.nationalId}<br />
-                  Telefono: {contractsSelectedCustomer.phone}
-                </div>
-
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-                  <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
-                    <strong>Subir contrato</strong>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                      onChange={(event) => setPendingContractFile(event.target.files?.[0] || null)}
-                      disabled={!contractsCustomerId || isUploadingContractsBundle}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
-                    <strong>Subir foto cliente</strong>
-                    <input
-                      type="file"
-                      accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                      onChange={(event) => setPendingPhotoFile(event.target.files?.[0] || null)}
-                      disabled={!contractsCustomerId || isUploadingContractsBundle}
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={!pendingContractFile || !pendingPhotoFile || !contractsCustomerId || isUploadingContractsBundle}
-                  onClick={handleConfirmUploadCustomerAssetsBundle}
-                  style={buttonStyle}
-                >
-                  {isUploadingContractsBundle ? "Subiendo archivos..." : "Subir ambos archivos"}
-                </button>
+            <div style={{ display: "grid", gap: 8 }}>
+              <div
+                style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                  color: "#334155",
+                }}
+              >
+                Cliente: <strong>{contractsSelectedCustomer?.fullName || "No seleccionado"}</strong><br />
+                Cedula: {contractsSelectedCustomer?.nationalId || "-"}<br />
+                Telefono: {contractsSelectedCustomer?.phone || "-"}
               </div>
-            )}
+
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+                <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                  <strong>Subir contrato</strong>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    onChange={(event) => setPendingContractFile(event.target.files?.[0] || null)}
+                    disabled={!contractsCustomerId || isUploadingContractsBundle}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                  <strong>Subir foto cliente</strong>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    onChange={(event) => setPendingPhotoFile(event.target.files?.[0] || null)}
+                    disabled={!contractsCustomerId || isUploadingContractsBundle}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={!pendingContractFile || !pendingPhotoFile || !contractsCustomerId || isUploadingContractsBundle}
+                onClick={handleConfirmUploadCustomerAssetsBundle}
+                style={buttonStyle}
+              >
+                {isUploadingContractsBundle ? "Subiendo archivos..." : "Subir ambos archivos"}
+              </button>
+              {!contractsCustomerId && (
+                <p style={{ margin: 0, color: "#92400e" }}>
+                  Selecciona un cliente para habilitar la subida de contrato y foto.
+                </p>
+              )}
+            </div>
           </article>
 
           {isLoadingContractsAssets && (
