@@ -119,6 +119,24 @@ export default function DevicesList({
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Dispositivos</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <article style={{ border: "1px solid #dbeafe", borderRadius: 14, padding: 12, background: "#f8fbff" }}>
+          <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Total</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#1e3a8a" }}>{segmentCounts?.all || 0}</div>
+        </article>
+        <article style={{ border: "1px solid #bbf7d0", borderRadius: 14, padding: 12, background: "#f7fff9" }}>
+          <div style={{ color: "#16a34a", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Activos + pendientes</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#166534" }}>{segmentCounts?.active_pending || 0}</div>
+        </article>
+        <article style={{ border: "1px solid #fed7aa", borderRadius: 14, padding: 12, background: "#fffaf5" }}>
+          <div style={{ color: "#f59e0b", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Solo llamadas</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#b45309" }}>{segmentCounts?.calls_only || 0}</div>
+        </article>
+        <article style={{ border: "1px solid #fecaca", borderRadius: 14, padding: 12, background: "#fff6f6" }}>
+          <div style={{ color: "#ef4444", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Bloqueados</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#b91c1c" }}>{segmentCounts?.blocked || 0}</div>
+        </article>
+      </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -221,6 +239,7 @@ export default function DevicesList({
               key={String(device.id)}
               style={{
                 ...listItemStyle,
+                borderRadius: 16,
                 ...(device.currentStatus === "BLOQUEADO"
                   ? {
                       border: "1px solid rgba(185, 28, 28, 0.34)",
@@ -322,9 +341,12 @@ export default function DevicesList({
                   )}
                 </div>
               </div>
-            <p style={{ margin: "6px 0" }}>Cliente: {device.customer?.fullName}</p>
-            <p style={{ margin: "6px 0" }}>IMEI 1: {device.imei}</p>
-            <p style={{ margin: "6px 0" }}>IMEI 2: {device.imei2 || "No aplica / vacio"}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 6 }}>
+              <p style={{ margin: "6px 0" }}>Cliente: <strong>{device.customer?.fullName}</strong></p>
+              <p style={{ margin: "6px 0" }}>IMEI 1: <strong>{device.imei}</strong></p>
+              <p style={{ margin: "6px 0" }}>IMEI 2: {device.imei2 || "No aplica / vacio"}</p>
+              <p style={{ margin: "6px 0" }}>Codigo: <strong>{device.installCode}</strong></p>
+            </div>
             {editingDeviceId === String(device.id) ? (
               <div style={{ display: "grid", gap: 8, margin: "8px 0" }}>
                 <input
@@ -359,7 +381,6 @@ export default function DevicesList({
                 </div>
               </div>
             ) : null}
-            <p style={{ margin: "6px 0" }}>Codigo: {device.installCode}</p>
             <p style={{ margin: "6px 0" }}>
               Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}{" "}
               {device.hexnodeDeviceId ? (

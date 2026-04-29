@@ -329,7 +329,25 @@ export default function PaymentsList({
 
   return (
     <section style={cardStyle}>
-      <h2 style={sectionTitleStyle}>Pagos</h2>
+      <h2 style={sectionTitleStyle}>Pagos y cobranza</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <article style={{ border: "1px solid #dbeafe", borderRadius: 14, padding: 12, background: "#f8fbff" }}>
+          <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Activos del mes</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#1e3a8a" }}>{monthlyPayments.length}</div>
+        </article>
+        <article style={{ border: "1px solid #bfdbfe", borderRadius: 14, padding: 12, background: "#f6faff" }}>
+          <div style={{ color: "#1d4ed8", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Pendientes</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#1e40af" }}>{pendingPayments.length}</div>
+        </article>
+        <article style={{ border: "1px solid #fed7aa", borderRadius: 14, padding: 12, background: "#fffaf5" }}>
+          <div style={{ color: "#ea580c", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Vencidos</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#c2410c" }}>{overduePayments.length}</div>
+        </article>
+        <article style={{ border: "1px solid #bbf7d0", borderRadius: 14, padding: 12, background: "#f7fff9" }}>
+          <div style={{ color: "#16a34a", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Pagados</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#166534" }}>{paidPaymentsFiltered.length}</div>
+        </article>
+      </div>
       <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
         <input
           value={searchValue || ""}
@@ -444,6 +462,7 @@ export default function PaymentsList({
             key={payment.id}
             style={{
               ...listItemStyle,
+              borderRadius: 16,
               ...(isReopenedFromPaid
                 ? {
                     border: "1px solid rgba(14, 116, 144, 0.36)",
@@ -513,8 +532,10 @@ export default function PaymentsList({
                 )}
               </div>
             </div>
-            <p style={{ margin: "6px 0" }}>Vence: {new Date(payment.dueDate).toLocaleDateString()}</p>
-            <p style={{ margin: "6px 0" }}>Estado: {effectiveStatus}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 6 }}>
+              <p style={{ margin: "6px 0" }}>Vence: <strong>{new Date(payment.dueDate).toLocaleDateString()}</strong></p>
+              <p style={{ margin: "6px 0" }}>Estado: <strong>{effectiveStatus}</strong></p>
+            </div>
             {isReopenedFromPaid && (
               <p
                 style={{

@@ -134,6 +134,20 @@ export default function CustomersList({
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Clientes</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 12 }}>
+        <article style={{ border: "1px solid #dbeafe", borderRadius: 14, padding: 12, background: "#f8fbff" }}>
+          <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Total clientes</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#1e3a8a" }}>{segmentCounts?.all || 0}</div>
+        </article>
+        <article style={{ border: "1px solid #bbf7d0", borderRadius: 14, padding: 12, background: "#f7fff9" }}>
+          <div style={{ color: "#16a34a", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Activos</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#166534" }}>{segmentCounts?.active || 0}</div>
+        </article>
+        <article style={{ border: "1px solid #ddd6fe", borderRadius: 14, padding: 12, background: "#faf8ff" }}>
+          <div style={{ color: "#7c3aed", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Pagados</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#5b21b6" }}>{segmentCounts?.paid || 0}</div>
+        </article>
+      </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
         <span style={{ color: "var(--text-soft)" }}>Total: {totalItems}</span>
         <input
@@ -194,7 +208,7 @@ export default function CustomersList({
       <div style={{ display: "grid", gap: 10 }}>
         {customers.map((customer) => (
           <article key={customer.id} style={listItemStyle}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #e2e8f0", paddingBottom: 8, marginBottom: 8 }}>
               <strong>{customer.fullName}</strong>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <button
@@ -253,21 +267,17 @@ export default function CustomersList({
                 </div>
               </div>
             </div>
-            <p style={{ margin: "6px 0" }}>Documento: {customer.nationalId}</p>
-            <p style={{ margin: "6px 0" }}>Telefono: {customer.phone}</p>
-            <p style={{ margin: "6px 0" }}>
-              Ref. personal 1: {customer.referencePersonalPhone1 || "-"}
-            </p>
-            <p style={{ margin: "6px 0" }}>
-              Ref. personal 2: {customer.referencePersonalPhone2 || "-"}
-            </p>
-            <p style={{ margin: "6px 0" }}>
-              Ref. trabajo: {customer.referenceWorkPhone || "-"}
-            </p>
-            <p style={{ margin: "6px 0" }}>Dispositivos: {customer.devices.length}</p>
-            <p style={{ margin: "6px 0" }}>
-              Estado cartera: <strong>{getCustomerCreditState(customer)}</strong>
-            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+              <p style={{ margin: "4px 0" }}>Documento: <strong>{customer.nationalId}</strong></p>
+              <p style={{ margin: "4px 0" }}>Telefono: <strong>{customer.phone}</strong></p>
+              <p style={{ margin: "4px 0" }}>Ref. personal 1: {customer.referencePersonalPhone1 || "-"}</p>
+              <p style={{ margin: "4px 0" }}>Ref. personal 2: {customer.referencePersonalPhone2 || "-"}</p>
+              <p style={{ margin: "4px 0" }}>Ref. trabajo: {customer.referenceWorkPhone || "-"}</p>
+              <p style={{ margin: "4px 0" }}>Dispositivos: <strong>{customer.devices.length}</strong></p>
+              <p style={{ margin: "4px 0" }}>
+                Estado cartera: <strong>{getCustomerCreditState(customer)}</strong>
+              </p>
+            </div>
 
             {expandedCustomerId === customer.id && (
               <div style={{ display: "grid", gap: 12, marginTop: 10 }}>
