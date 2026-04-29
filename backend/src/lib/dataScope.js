@@ -6,6 +6,11 @@ export function isTiendaRole(role) {
   return normalizeRole(role) === "TIENDA";
 }
 
+export function isScopedRole(role) {
+  const normalized = normalizeRole(role);
+  return normalized === "TIENDA" || normalized === "ADMINISTRADOR";
+}
+
 export function canFilterByOwner(role) {
   const normalized = normalizeRole(role);
   return normalized === "ADMIN" || normalized === "GERENCIA";
@@ -29,7 +34,7 @@ export function customerScopeWhere(req, baseWhere = {}, ownerUserId = "") {
   const role = normalizeRole(req?.user?.role);
   const requestedOwner = String(ownerUserId || "").trim();
 
-  if (isTiendaRole(role)) {
+  if (isScopedRole(role)) {
     return mergeAnd(baseWhere, { createdByUserId: req.user.id });
   }
 
@@ -44,7 +49,7 @@ export function deviceScopeWhere(req, baseWhere = {}, ownerUserId = "") {
   const role = normalizeRole(req?.user?.role);
   const requestedOwner = String(ownerUserId || "").trim();
 
-  if (isTiendaRole(role)) {
+  if (isScopedRole(role)) {
     return mergeAnd(baseWhere, { customer: { createdByUserId: req.user.id } });
   }
 
@@ -59,7 +64,7 @@ export function paymentScopeWhere(req, baseWhere = {}, ownerUserId = "") {
   const role = normalizeRole(req?.user?.role);
   const requestedOwner = String(ownerUserId || "").trim();
 
-  if (isTiendaRole(role)) {
+  if (isScopedRole(role)) {
     return mergeAnd(baseWhere, { customer: { createdByUserId: req.user.id } });
   }
 

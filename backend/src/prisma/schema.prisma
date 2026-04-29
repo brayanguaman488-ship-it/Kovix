@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   ADMIN
   GERENCIA
+  ADMINISTRADOR
   TIENDA
 }
 
@@ -46,6 +47,12 @@ enum EquifaxConsultationStatus {
   RESPONDIDA
 }
 
+enum DeletionRequestStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
 model User {
   id            String                @id @default(cuid())
   username      String                @unique
@@ -59,6 +66,8 @@ model User {
   customers     Customer[]            @relation("CustomerCreatedBy")
   equifaxRequests EquifaxConsultation[] @relation("EquifaxRequestedBy")
   equifaxResponses EquifaxConsultation[] @relation("EquifaxRespondedBy")
+  deletionRequests DeletionRequest[]     @relation("DeletionRequestedBy")
+  deletionResolutions DeletionRequest[]  @relation("DeletionResolvedBy")
 }
 
 model Customer {
@@ -239,4 +248,24 @@ model EquifaxConsultation {
 
   @@index([status, createdAt])
   @@index([queryNationalId])
+}
+
+model DeletionRequest {
+  id                  String                @id @default(cuid())
+  entityType          String
+  entityId            String
+  summary             String?
+  observation         String
+  status              DeletionRequestStatus @default(PENDIENTE)
+  requestedByUserId   String?
+  requestedByUser     User?                 @relation("DeletionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  resolvedByUserId    String?
+  resolvedByUser      User?                 @relation("DeletionResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  resolutionNotes     String?
+  resolvedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
 }

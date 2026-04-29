@@ -7,6 +7,7 @@ import { registerTrashEntry } from "../lib/trash.js";
 import { asTrimmedString } from "../lib/validation.js";
 import { customerScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
+import { blockTiendaDelete } from "./deletionRequests.js";
 
 const router = Router();
 
@@ -254,6 +255,10 @@ router.patch("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
+  if (blockTiendaDelete(req, res)) {
+    return;
+  }
+
   const id = asTrimmedString(req.params?.id);
   const current = await prisma.customerAsset.findUnique({
     where: { id },

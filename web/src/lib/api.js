@@ -276,6 +276,25 @@ export const api = {
       method: "DELETE",
     });
   },
+  getDeletionRequests(params = {}) {
+    const query = new URLSearchParams();
+    if (params.status) query.set("status", params.status);
+    if (params.search) query.set("search", params.search);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/deletion-requests${suffix}`);
+  },
+  createDeletionRequest(payload) {
+    return request("/deletion-requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  resolveDeletionRequest(requestId, payload) {
+    return request(`/deletion-requests/${encodeURIComponent(requestId)}/resolve`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
   async getCustomerAssetContent(assetId, disposition = "inline") {
     const response = await requestRaw(
       `/customer-assets/${encodeURIComponent(assetId)}/content?disposition=${encodeURIComponent(disposition)}`,

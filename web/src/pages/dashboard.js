@@ -445,14 +445,18 @@ export default function Dashboard() {
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
+  const [deletionRequests, setDeletionRequests] = useState([]);
+  const [isLoadingDeletionRequests, setIsLoadingDeletionRequests] = useState(false);
+  const [resolvingDeletionRequestId, setResolvingDeletionRequestId] = useState("");
   const userRole = String(user?.role || "").toUpperCase();
   const canManageUsers = userRole === "ADMIN";
-  const canRespondEquifax = userRole === "ADMIN" || userRole === "GERENCIA";
+  const canRespondEquifax = userRole === "ADMIN" || userRole === "GERENCIA" || userRole === "ADMINISTRADOR";
   const canCreateEquifax = userRole === "TIENDA";
   const canFilterByStore = userRole === "ADMIN" || userRole === "GERENCIA";
+  const canReviewDeletionRequests = userRole === "ADMIN" || userRole === "GERENCIA";
   const scopedFilterUsers = scopeUsers.filter((entry) => {
     const role = String(entry?.role || "").toUpperCase();
-    return role === "TIENDA" || role === "GERENCIA";
+    return role === "TIENDA" || role === "GERENCIA" || role === "ADMINISTRADOR";
   });
 
   function setStatus(type, message) {
@@ -832,6 +836,19 @@ export default function Dashboard() {
       return;
     }
 
+    if (userRole === "TIENDA") {
+      try {
+        await requestDeletion(
+          "customer_asset",
+          asset.id,
+          `${asset?.category || "ARCHIVO"}: ${asset?.fileName || asset?.id || ""}`
+        );
+      } catch (error) {
+        setStatus("error", error.message || "No se pudo crear la solicitud de eliminacion");
+      }
+      return;
+    }
+
     const confirmed = window.confirm(`Eliminar archivo "${asset.fileName}"?`);
     if (!confirmed) {
       return;
@@ -926,6 +943,74 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo eliminar el registro de papelera");
     } finally {
       setDeletingTrashEntryId("");
+    }
+  }
+
+  async function loadDeletionRequests(options = { silent: false }) {
+    try {
+      if (!options.silent) {
+        setIsLoadingDeletionRequests(true);
+      }
+      const response = await api.getDeletionRequests({ status: "ALL" });
+      setDeletionRequests(response?.requests || []);
+    } catch (error) {
+      if (!options.silent) {
+        setStatus("error", error.message || "No se pudieron cargar las solicitudes de eliminacion");
+      }
+      setDeletionRequests([]);
+    } finally {
+      if (!options.silent) {
+        setIsLoadingDeletionRequests(false);
+      }
+    }
+  }
+
+  async function requestDeletion(entityType, entityId, summary) {
+    const observation = window.prompt("Observacion de solicitud de eliminacion (obligatoria):", "");
+    if (observation === null) {
+      return false;
+    }
+
+    const trimmed = String(observation || "").trim();
+    if (trimmed.length < 5) {
+      setStatus("error", "La observacion debe tener al menos 5 caracteres");
+      return false;
+    }
+
+    await api.createDeletionRequest({
+      entityType,
+      entityId,
+      summary,
+      observation: trimmed,
+    });
+
+    setStatus("success", "Solicitud de eliminacion enviada a administracion");
+    return true;
+  }
+
+  async function handleResolveDeletionRequest(requestEntry, status) {
+    const requestId = String(requestEntry?.id || "").trim();
+    if (!requestId) {
+      return;
+    }
+
+    const resolutionNotes = window.prompt(
+      status === "APROBADA" ? "Notas de aprobacion (opcional):" : "Motivo de rechazo (opcional):",
+      ""
+    );
+
+    try {
+      setResolvingDeletionRequestId(requestId);
+      await api.resolveDeletionRequest(requestId, {
+        status,
+        resolutionNotes: String(resolutionNotes || "").trim(),
+      });
+      setStatus("success", `Solicitud ${status === "APROBADA" ? "aprobada" : "rechazada"}`);
+      await loadDeletionRequests({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo resolver la solicitud");
+    } finally {
+      setResolvingDeletionRequestId("");
     }
   }
 
@@ -1772,6 +1857,19 @@ export default function Dashboard() {
   }
 
   async function handleDeleteCustomer(customer) {
+    if (userRole === "TIENDA") {
+      try {
+        await requestDeletion(
+          "customer",
+          customer?.id,
+          `${customer?.fullName || ""} (${customer?.nationalId || ""})`
+        );
+      } catch (error) {
+        setStatus("error", error.message || "No se pudo crear la solicitud de eliminacion");
+      }
+      return;
+    }
+
     const confirmed = window.confirm(
       `Enviar cliente "${customer?.fullName || ""}" a papelera?\nSe purgara automaticamente en 30 dias.`
     );
@@ -1795,6 +1893,20 @@ export default function Dashboard() {
   }
 
   async function handleDeleteDevice(device) {
+    if (userRole === "TIENDA") {
+      const storeTitle = `${device?.brand || ""} ${device?.model || ""}`.trim();
+      try {
+        await requestDeletion(
+          "device",
+          device?.id,
+          `${storeTitle} (${device?.installCode || device?.id || ""})`
+        );
+      } catch (error) {
+        setStatus("error", error.message || "No se pudo crear la solicitud de eliminacion");
+      }
+      return;
+    }
+
     const title = `${device?.brand || ""} ${device?.model || ""}`.trim();
     const confirmed = window.confirm(
       `Enviar dispositivo "${title}" a papelera?\nSe purgara automaticamente en 30 dias.`
@@ -1818,6 +1930,19 @@ export default function Dashboard() {
   }
 
   async function handleDeletePayment(payment) {
+    if (userRole === "TIENDA") {
+      try {
+        await requestDeletion(
+          "payment",
+          payment?.id,
+          `${payment?.customer?.fullName || "cliente"} - ${Number(payment?.amount || 0).toFixed(2)}`
+        );
+      } catch (error) {
+        setStatus("error", error.message || "No se pudo crear la solicitud de eliminacion");
+      }
+      return;
+    }
+
     const confirmed = window.confirm(
       `Enviar este pago de ${payment?.customer?.fullName || "cliente"} a papelera?\nSe purgara automaticamente en 30 dias.`
     );
@@ -2375,8 +2500,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (activeMainView === "trash") {
       loadTrashEntries();
+      if (canReviewDeletionRequests || userRole === "TIENDA") {
+        loadDeletionRequests({ silent: true });
+      }
     }
-  }, [activeMainView]);
+  }, [activeMainView, canReviewDeletionRequests, userRole]);
 
   useEffect(() => {
     if (activeMainView === "equifax") {
@@ -4541,8 +4669,8 @@ export default function Dashboard() {
                     style={inputStyle}
                   >
                     <option value="TIENDA">TIENDA</option>
+                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
                     <option value="GERENCIA">GERENCIA</option>
-                    <option value="ADMIN">ADMIN</option>
                   </select>
                   <button type="submit" disabled={isSavingUser} style={buttonStyle}>
                     {isSavingUser ? "Guardando..." : "Crear usuario"}
@@ -4612,9 +4740,21 @@ export default function Dashboard() {
                                 fontSize: 12,
                                 fontWeight: 700,
                                 color:
-                                  entry.role === "ADMIN" ? "#1e3a8a" : entry.role === "GERENCIA" ? "#7c2d12" : "#166534",
+                                  entry.role === "ADMIN"
+                                    ? "#1e3a8a"
+                                    : entry.role === "GERENCIA"
+                                      ? "#7c2d12"
+                                      : entry.role === "ADMINISTRADOR"
+                                        ? "#1d4ed8"
+                                        : "#166534",
                                 background:
-                                  entry.role === "ADMIN" ? "#dbeafe" : entry.role === "GERENCIA" ? "#ffedd5" : "#dcfce7",
+                                  entry.role === "ADMIN"
+                                    ? "#dbeafe"
+                                    : entry.role === "GERENCIA"
+                                      ? "#ffedd5"
+                                      : entry.role === "ADMINISTRADOR"
+                                        ? "#e0ecff"
+                                        : "#dcfce7",
                                 borderRadius: 999,
                                 padding: "4px 8px",
                               }}
@@ -4744,6 +4884,65 @@ export default function Dashboard() {
           <p style={{ margin: 0, color: "var(--text-soft)" }}>
             Los elementos eliminados se envian a papelera y se purgan automaticamente cada 30 dias.
           </p>
+          <article style={{ border: "1px solid #e2e8f0", borderRadius: 10, background: "#ffffff", padding: 12, display: "grid", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <strong>Solicitudes de eliminacion</strong>
+              <button
+                type="button"
+                onClick={() => loadDeletionRequests()}
+                disabled={isLoadingDeletionRequests}
+                style={{ ...secondaryButtonStyle, minHeight: 34, borderRadius: 8, padding: "6px 10px" }}
+              >
+                {isLoadingDeletionRequests ? "Cargando..." : "Recargar"}
+              </button>
+            </div>
+            {isLoadingDeletionRequests ? (
+              <p style={{ margin: 0, color: "var(--text-soft)" }}>Cargando solicitudes...</p>
+            ) : deletionRequests.length === 0 ? (
+              <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay solicitudes registradas.</p>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {deletionRequests.map((requestEntry) => {
+                  const requestId = String(requestEntry?.id || "");
+                  const isPending = String(requestEntry?.status || "") === "PENDIENTE";
+                  return (
+                    <article key={`deletion-request-${requestId}`} style={{ border: "1px solid #e2e8f0", borderRadius: 8, background: "#f8fafc", padding: 10, display: "grid", gap: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                        <strong>{requestEntry?.summary || `${requestEntry?.entityType || "registro"} ${requestEntry?.entityId || ""}`}</strong>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: isPending ? "#92400e" : requestEntry?.status === "APROBADA" ? "#166534" : "#991b1b" }}>
+                          {String(requestEntry?.status || "")}
+                        </span>
+                      </div>
+                      <div style={{ color: "#475569", fontSize: 13 }}>
+                        Solicitado por: {requestEntry?.requestedByUser?.fullName || requestEntry?.requestedByUser?.username || "-"}
+                      </div>
+                      <div style={{ color: "#334155", fontSize: 13 }}>Observacion: {requestEntry?.observation || "-"}</div>
+                      {canReviewDeletionRequests && isPending && (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleResolveDeletionRequest(requestEntry, "APROBADA")}
+                            disabled={resolvingDeletionRequestId === requestId}
+                            style={{ ...buttonStyle, minHeight: 34, borderRadius: 8, padding: "6px 10px" }}
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleResolveDeletionRequest(requestEntry, "RECHAZADA")}
+                            disabled={resolvingDeletionRequestId === requestId}
+                            style={{ ...secondaryButtonStyle, minHeight: 34, borderRadius: 8, padding: "6px 10px" }}
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </article>
           {isLoadingTrashEntries ? (
             <p style={{ margin: 0, color: "var(--text-soft)" }}>Cargando papelera...</p>
           ) : trashEntries.length === 0 ? (

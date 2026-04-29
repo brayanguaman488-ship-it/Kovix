@@ -16,6 +16,7 @@ import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import { syncDeviceStatus } from "../lib/deviceStatus.js";
 import { paymentScopeWhere, customerScopeWhere, deviceScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
+import { blockTiendaDelete } from "./deletionRequests.js";
 
 const router = Router();
 const { PaymentStatus, InstallmentStatus } = prismaPackage;
@@ -255,6 +256,10 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
+  if (blockTiendaDelete(req, res)) {
+    return;
+  }
+
   const current = await prisma.payment.findFirst({
     where: paymentScopeWhere(req, { id: req.params.id }),
     include: {

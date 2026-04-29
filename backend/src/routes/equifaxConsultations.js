@@ -14,7 +14,7 @@ const GERENCIA_ROLE = "GERENCIA";
 
 function canRespondEquifax(role) {
   const normalizedRole = String(role || "").toUpperCase();
-  return normalizedRole === ADMIN_ROLE || normalizedRole === GERENCIA_ROLE;
+  return normalizedRole === ADMIN_ROLE || normalizedRole === GERENCIA_ROLE || normalizedRole === "ADMINISTRADOR";
 }
 
 router.use(authMiddleware);

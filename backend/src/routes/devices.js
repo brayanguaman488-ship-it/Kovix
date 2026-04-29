@@ -31,6 +31,7 @@ import { syncAutomaticAgingStatuses } from "../lib/creditAging.js";
 import { registerTrashEntry } from "../lib/trash.js";
 import authMiddleware from "../middleware/auth.js";
 import { deviceScopeWhere, customerScopeWhere } from "../lib/dataScope.js";
+import { blockTiendaDelete } from "./deletionRequests.js";
 
 const router = Router();
 const { DeviceStatus, InstallmentStatus } = prismaPackage;
@@ -788,6 +789,10 @@ router.patch("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
+  if (blockTiendaDelete(req, res)) {
+    return;
+  }
+
   const current = await prisma.device.findFirst({
     where: deviceScopeWhere(req, { id: req.params.id }),
     include: {

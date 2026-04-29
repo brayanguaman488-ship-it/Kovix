@@ -7,6 +7,7 @@ import { registerTrashEntry } from "../lib/trash.js";
 import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
 import { customerScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
+import { blockTiendaDelete } from "./deletionRequests.js";
 
 const router = Router();
 
@@ -205,6 +206,10 @@ router.put("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler(async (req, res) => {
+  if (blockTiendaDelete(req, res)) {
+    return;
+  }
+
   const current = await prisma.customer.findFirst({
     where: customerScopeWhere(req, { id: req.params.id }),
     include: {

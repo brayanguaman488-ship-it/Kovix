@@ -15,7 +15,7 @@ import {
 
 const router = Router();
 const ADMIN_ROLE = "ADMIN";
-const ALLOWED_ROLES = ["ADMIN", "GERENCIA", "TIENDA"];
+const ALLOWED_ROLES = ["ADMIN", "GERENCIA", "ADMINISTRADOR", "TIENDA"];
 const MAX_AVATAR_DATA_URL_LENGTH = 1_500_000;
 
 function normalizeAvatarDataUrl(value) {
@@ -188,7 +188,7 @@ router.post("/users", authMiddleware, asyncHandler(async (req, res) => {
   }
 
   if (!ALLOWED_ROLES.includes(role)) {
-    return sendBadRequest(res, "role invalido. Usa ADMIN, GERENCIA o TIENDA");
+    return sendBadRequest(res, "role invalido. Usa ADMIN, GERENCIA, ADMINISTRADOR o TIENDA");
   }
 
   try {
