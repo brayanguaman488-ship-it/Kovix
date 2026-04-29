@@ -450,6 +450,10 @@ export default function Dashboard() {
   const canRespondEquifax = userRole === "ADMIN" || userRole === "GERENCIA";
   const canCreateEquifax = userRole === "TIENDA";
   const canFilterByStore = userRole === "ADMIN" || userRole === "GERENCIA";
+  const scopedFilterUsers = scopeUsers.filter((entry) => {
+    const role = String(entry?.role || "").toUpperCase();
+    return role === "TIENDA" || role === "GERENCIA";
+  });
 
   function setStatus(type, message) {
     setStatusState({ type, message });
@@ -2682,7 +2686,7 @@ export default function Dashboard() {
               style={{ ...inputStyle, width: "min(420px, 100%)" }}
             >
               <option value="all">Todos (global)</option>
-              {scopeUsers.map((entry) => (
+              {scopedFilterUsers.map((entry) => (
                 <option key={`scope-user-${entry.id}`} value={entry.id}>
                   {(entry.fullName || entry.username) + ` (${entry.role})`}
                 </option>
@@ -2690,9 +2694,7 @@ export default function Dashboard() {
             </select>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {scopeUsers
-              .filter((entry) => String(entry.role || "").toUpperCase() === "TIENDA")
-              .slice(0, 12)
+            {scopedFilterUsers.slice(0, 12)
               .map((entry) => {
                 const isActive = String(ownerScopeFilter) === String(entry.id);
                 return (
@@ -2742,6 +2744,31 @@ export default function Dashboard() {
                 );
               })}
           </div>
+          {ownerScopeFilter !== "all" && customers.length === 0 && devices.length === 0 && payments.length === 0 && (
+            <div
+              style={{
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid #fbbf24",
+                background: "#fffbeb",
+                color: "#92400e",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <span>No hay registros asignados a este usuario en el filtro actual.</span>
+              <button
+                type="button"
+                onClick={() => handleStoreScopeFilterChange("all")}
+                style={{ ...secondaryButtonStyle, minHeight: 36, borderRadius: 8 }}
+              >
+                Ver todos
+              </button>
+            </div>
+          )}
           <p style={{ margin: 0, color: "var(--text-soft)" }}>
             Este filtro aplica a clientes, celulares, pagos, finanzas y contratos.
           </p>
