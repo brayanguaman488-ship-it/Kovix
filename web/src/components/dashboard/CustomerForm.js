@@ -2,14 +2,45 @@ import { buttonStyle, cardStyle, inputStyle, sectionTitleStyle } from "./styles"
 
 export default function CustomerForm({ form, customers, onChange, onSubmit, isSubmitting }) {
   const countryCodeOptions = [
-    { code: "+593", label: "🇪🇨 Ecuador (+593)" },
-    { code: "+1", label: "🇺🇸 Estados Unidos (+1)" },
-    { code: "+52", label: "🇲🇽 México (+52)" },
-    { code: "+51", label: "🇵🇪 Perú (+51)" },
-    { code: "+57", label: "🇨🇴 Colombia (+57)" },
-    { code: "+56", label: "🇨🇱 Chile (+56)" },
-    { code: "+34", label: "🇪🇸 España (+34)" },
+    { code: "+593", iso2: "ec", label: "Ecuador (+593)" },
+    { code: "+1", iso2: "us", label: "Estados Unidos (+1)" },
+    { code: "+52", iso2: "mx", label: "México (+52)" },
+    { code: "+51", iso2: "pe", label: "Perú (+51)" },
+    { code: "+57", iso2: "co", label: "Colombia (+57)" },
+    { code: "+56", iso2: "cl", label: "Chile (+56)" },
+    { code: "+34", iso2: "es", label: "España (+34)" },
   ];
+
+  function getOptionByCode(code) {
+    return countryCodeOptions.find((entry) => entry.code === code) || countryCodeOptions[0];
+  }
+
+  function renderCountrySelector(value, onChangeHandler, id) {
+    const selected = getOptionByCode(value || "+593");
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "28px 1fr", alignItems: "center", gap: 8 }}>
+        <img
+          src={`https://flagcdn.com/w40/${selected.iso2}.png`}
+          alt={selected.label}
+          width={24}
+          height={18}
+          style={{ borderRadius: 3, border: "1px solid rgba(148,163,184,0.45)", objectFit: "cover" }}
+        />
+        <select
+          id={id}
+          value={selected.code}
+          onChange={onChangeHandler}
+          style={inputStyle}
+        >
+          {countryCodeOptions.map((entry) => (
+            <option key={`${id}-${entry.code}`} value={entry.code}>
+              {entry.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
 
   return (
     <section style={cardStyle}>
@@ -36,17 +67,11 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
         <div style={{ display: "grid", gap: 6 }}>
           <strong style={{ fontSize: 13 }}>Referencia personal 1</strong>
           <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
-            <select
-              value={form.referencePersonalPhone1CountryCode || "+593"}
-              onChange={(event) => onChange({ ...form, referencePersonalPhone1CountryCode: event.target.value })}
-              style={inputStyle}
-            >
-              {countryCodeOptions.map((entry) => (
-                <option key={`country-code-rp1-${entry.code}`} value={entry.code}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
+            {renderCountrySelector(
+              form.referencePersonalPhone1CountryCode || "+593",
+              (event) => onChange({ ...form, referencePersonalPhone1CountryCode: event.target.value }),
+              "country-code-rp1"
+            )}
             <input
               placeholder="Numero referencia personal 1"
               value={form.referencePersonalPhone1Number || ""}
@@ -58,17 +83,11 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
         <div style={{ display: "grid", gap: 6 }}>
           <strong style={{ fontSize: 13 }}>Referencia personal 2</strong>
           <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
-            <select
-              value={form.referencePersonalPhone2CountryCode || "+593"}
-              onChange={(event) => onChange({ ...form, referencePersonalPhone2CountryCode: event.target.value })}
-              style={inputStyle}
-            >
-              {countryCodeOptions.map((entry) => (
-                <option key={`country-code-rp2-${entry.code}`} value={entry.code}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
+            {renderCountrySelector(
+              form.referencePersonalPhone2CountryCode || "+593",
+              (event) => onChange({ ...form, referencePersonalPhone2CountryCode: event.target.value }),
+              "country-code-rp2"
+            )}
             <input
               placeholder="Numero referencia personal 2"
               value={form.referencePersonalPhone2Number || ""}
@@ -80,17 +99,11 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
         <div style={{ display: "grid", gap: 6 }}>
           <strong style={{ fontSize: 13 }}>Referencia de trabajo</strong>
           <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
-            <select
-              value={form.referenceWorkPhoneCountryCode || "+593"}
-              onChange={(event) => onChange({ ...form, referenceWorkPhoneCountryCode: event.target.value })}
-              style={inputStyle}
-            >
-              {countryCodeOptions.map((entry) => (
-                <option key={`country-code-rw-${entry.code}`} value={entry.code}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
+            {renderCountrySelector(
+              form.referenceWorkPhoneCountryCode || "+593",
+              (event) => onChange({ ...form, referenceWorkPhoneCountryCode: event.target.value }),
+              "country-code-rw"
+            )}
             <input
               placeholder="Numero referencia trabajo"
               value={form.referenceWorkPhoneNumber || ""}
