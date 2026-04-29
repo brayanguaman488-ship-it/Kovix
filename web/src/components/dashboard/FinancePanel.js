@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+ï»¿import { useMemo, useState } from "react";
 
 import { cardStyle, sectionTitleStyle } from "./styles";
 
@@ -214,7 +214,7 @@ export default function FinancePanel({ payments, devices = [] }) {
     const active = licenseSummary.tiers
       .filter((tier) => tier.activeDevices > 0)
       .map((tier) => `${tier.activeDevices} ${tier.label.replace("Gama ", "").toLowerCase()}`);
-    return active.length ? active.join(" • ") : "Sin equipos";
+    return active.length ? active.join(" â€¢ ") : "Sin equipos";
   }, [licenseSummary]);
 
   return (
@@ -257,7 +257,7 @@ export default function FinancePanel({ payments, devices = [] }) {
 
       <article style={{ marginTop: 14, border: "1px solid #dbe4ef", borderRadius: 16, background: "#ffffff", display: "grid", gap: 0, gridTemplateColumns: "minmax(280px, 420px) 1fr", overflow: "hidden" }}>
         <section style={{ padding: 16, borderRight: "1px solid #e2e8f0", display: "grid", gap: 10 }}>
-          <h3 style={{ margin: 0 }}>Distribución de cuotas ({monthLabel} {selectedYear})</h3>
+          <h3 style={{ margin: 0 }}>DistribuciÃ³n de cuotas ({monthLabel} {selectedYear})</h3>
           <div style={{ display: "grid", placeItems: "center", padding: "6px 0" }}>
             <div style={{ width: 220, height: 220, borderRadius: "50%", background: financeDistribution.gradient, position: "relative" }}>
               <div style={{ position: "absolute", inset: 44, borderRadius: "50%", background: "#ffffff", display: "grid", placeItems: "center", textAlign: "center", color: "#334155", fontWeight: 600, lineHeight: 1.3 }}>
@@ -366,3 +366,4 @@ export default function FinancePanel({ payments, devices = [] }) {
     </section>
   );
 }
+
