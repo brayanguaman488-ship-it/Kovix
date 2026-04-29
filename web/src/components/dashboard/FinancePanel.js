@@ -19,14 +19,10 @@ const MONTH_LABELS = [
 
 function resolvePaymentStatus(payment) {
   const status = String(payment?.status || "").toUpperCase();
-  if (status !== "PENDIENTE") {
-    return status;
-  }
+  if (status !== "PENDIENTE") return status;
 
   const dueDate = new Date(payment?.dueDate);
-  if (Number.isNaN(dueDate.getTime())) {
-    return status;
-  }
+  if (Number.isNaN(dueDate.getTime())) return status;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -56,7 +52,6 @@ export default function FinancePanel({ payments, devices = [] }) {
         })
         .filter(Boolean)
     );
-
     set.add(String(now.getFullYear()));
     return [...set].sort((a, b) => Number(b) - Number(a));
   }, [payments, now]);
@@ -64,13 +59,11 @@ export default function FinancePanel({ payments, devices = [] }) {
   const scopedPayments = useMemo(() => {
     return payments.filter((payment) => {
       const dueDate = new Date(payment?.dueDate);
-      if (Number.isNaN(dueDate.getTime())) {
-        return false;
-      }
-
-      const yearMatch = String(dueDate.getFullYear()) === selectedYear;
-      const monthMatch = String(dueDate.getMonth() + 1).padStart(2, "0") === selectedMonth;
-      return yearMatch && monthMatch;
+      if (Number.isNaN(dueDate.getTime())) return false;
+      return (
+        String(dueDate.getFullYear()) === selectedYear &&
+        String(dueDate.getMonth() + 1).padStart(2, "0") === selectedMonth
+      );
     });
   }, [payments, selectedMonth, selectedYear]);
 
@@ -104,10 +97,8 @@ export default function FinancePanel({ payments, devices = [] }) {
         continue;
       }
 
-      if (status === "PENDIENTE") {
-        summary.pendingAmount += amount;
-        summary.pendingCount += 1;
-      }
+      summary.pendingAmount += amount;
+      summary.pendingCount += 1;
     }
 
     return summary;
@@ -122,51 +113,47 @@ export default function FinancePanel({ payments, devices = [] }) {
   }
 
   const cards = [
-    {
-      key: "pending",
-      label: "Pendiente por cobrar",
-      amount: totals.pendingAmount,
-      count: totals.pendingCount,
-      style: {
-        border: "1px solid rgba(30, 64, 175, 0.25)",
-        background: "linear-gradient(180deg, rgba(219, 234, 254, 0.84), rgba(239, 246, 255, 0.92))",
-        color: "#1e3a8a",
-      },
-    },
-    {
-      key: "overdue",
-      label: "Vencido por cobrar",
-      amount: totals.overdueAmount,
-      count: totals.overdueCount,
-      style: {
-        border: "1px solid rgba(180, 83, 9, 0.24)",
-        background: "linear-gradient(180deg, rgba(255, 237, 213, 0.86), rgba(255, 247, 237, 0.93))",
-        color: "#9a3412",
-      },
-    },
-    {
-      key: "paid",
-      label: "Pagado",
-      amount: totals.paidAmount,
-      count: totals.paidCount,
-      style: {
-        border: "1px solid rgba(5, 150, 105, 0.24)",
-        background: "linear-gradient(180deg, rgba(209, 250, 229, 0.84), rgba(236, 253, 245, 0.93))",
-        color: "#065f46",
-      },
-    },
-    {
-      key: "total",
-      label: "Total del mes",
-      amount: totals.totalAmount,
-      count: totals.totalCount,
-      style: {
-        border: "1px solid rgba(51, 65, 85, 0.24)",
-        background: "linear-gradient(180deg, rgba(226, 232, 240, 0.88), rgba(241, 245, 249, 0.93))",
-        color: "#0f172a",
-      },
-    },
+    { key: "pending", label: "Pendiente por cobrar", amount: totals.pendingAmount, count: totals.pendingCount, color: "#2563eb", bg: "#eff6ff" },
+    { key: "overdue", label: "Vencido por cobrar", amount: totals.overdueAmount, count: totals.overdueCount, color: "#c2410c", bg: "#fff7ed" },
+    { key: "paid", label: "Pagado", amount: totals.paidAmount, count: totals.paidCount, color: "#15803d", bg: "#ecfdf5" },
+    { key: "total", label: "Total del mes", amount: totals.totalAmount, count: totals.totalCount, color: "#4338ca", bg: "#eef2ff" },
   ];
+
+  const financeDistribution = useMemo(() => {
+    const total = totals.totalAmount > 0 ? totals.totalAmount : 1;
+    const pendingPercent = (totals.pendingAmount / total) * 100;
+    const overduePercent = (totals.overdueAmount / total) * 100;
+    const paidPercent = (totals.paidAmount / total) * 100;
+
+    return {
+      pendingPercent,
+      overduePercent,
+      paidPercent,
+      gradient: `conic-gradient(#2563eb 0% ${pendingPercent}%, #f97316 ${pendingPercent}% ${pendingPercent + overduePercent}%, #22c55e ${pendingPercent + overduePercent}% 100%)`,
+    };
+  }, [totals]);
+
+  const recentMovements = useMemo(() => {
+    return [...scopedPayments]
+      .sort((a, b) => new Date(b?.dueDate).getTime() - new Date(a?.dueDate).getTime())
+      .slice(0, 6)
+      .map((payment) => {
+        const status = resolvePaymentStatus(payment);
+        const concept =
+          status === "PAGADO"
+            ? `Pago de cuota #${String(payment?.id || "").slice(-4)}`
+            : status === "VENCIDO"
+              ? `Cuota vencida #${String(payment?.id || "").slice(-4)}`
+              : `Cuota pendiente #${String(payment?.id || "").slice(-4)}`;
+        return {
+          id: payment?.id,
+          date: payment?.dueDate,
+          concept,
+          status,
+          amount: Number(payment?.amount || 0),
+        };
+      });
+  }, [scopedPayments]);
 
   const licenseSummary = useMemo(() => {
     const tiers = [
@@ -176,53 +163,34 @@ export default function FinancePanel({ payments, devices = [] }) {
       { key: "gama_ultra", label: "Gama ultra", min: 1501, max: Number.POSITIVE_INFINITY, monthly: 30 },
     ];
 
-    const byTier = Object.fromEntries(
-      tiers.map((tier) => [tier.key, { ...tier, activeDevices: 0, monthlyTotal: 0 }])
-    );
-
-    const totals = {
-      activeDevices: 0,
-      monthlyTotal: 0,
-    };
+    const byTier = Object.fromEntries(tiers.map((tier) => [tier.key, { ...tier, activeDevices: 0, monthlyTotal: 0 }]));
+    const totalsLic = { activeDevices: 0, monthlyTotal: 0 };
 
     for (const device of devices || []) {
       const contract = device?.creditContract;
-      if (!contract) {
-        continue;
-      }
+      if (!contract) continue;
 
       const installments = Array.isArray(contract?.installments) ? contract.installments : [];
       const hasPendingDebt = installments.some((entry) => {
         const status = String(entry?.status || "").toUpperCase();
         return status !== "PAGADO" && status !== "CANCELADO";
       });
-
       if (!hasPendingDebt) continue;
 
       const totalCredit = Number(contract?.principalAmount || 0);
       const selectedTier = tiers.find((tier) => totalCredit >= tier.min && totalCredit <= tier.max) || tiers[0];
-
       byTier[selectedTier.key].activeDevices += 1;
       byTier[selectedTier.key].monthlyTotal += selectedTier.monthly;
-      totals.activeDevices += 1;
-      totals.monthlyTotal += selectedTier.monthly;
+      totalsLic.activeDevices += 1;
+      totalsLic.monthlyTotal += selectedTier.monthly;
     }
 
-    return {
-      tiers: Object.values(byTier),
-      totals,
-    };
+    return { tiers: Object.values(byTier), totals: totalsLic };
   }, [devices]);
 
   const licenseDistribution = useMemo(() => {
     const total = Math.max(1, licenseSummary.totals.activeDevices);
-    const colors = {
-      gama_baja: "#1d4ed8",
-      gama_media: "#14b8a6",
-      gama_alta: "#94a3b8",
-      gama_ultra: "#cbd5e1",
-    };
-
+    const colors = { gama_baja: "#1d4ed8", gama_media: "#14b8a6", gama_alta: "#94a3b8", gama_ultra: "#cbd5e1" };
     const slices = [];
     let cursor = 0;
     for (const tier of licenseSummary.tiers) {
@@ -233,11 +201,7 @@ export default function FinancePanel({ payments, devices = [] }) {
       slices.push(`${colors[tier.key] || "#94a3b8"} ${cursor}% ${next}%`);
       cursor = next;
     }
-
-    if (slices.length === 0) {
-      slices.push("#e2e8f0 0% 100%");
-    }
-
+    if (slices.length === 0) slices.push("#e2e8f0 0% 100%");
     return `conic-gradient(${slices.join(", ")})`;
   }, [licenseSummary]);
 
@@ -250,7 +214,7 @@ export default function FinancePanel({ payments, devices = [] }) {
     const active = licenseSummary.tiers
       .filter((tier) => tier.activeDevices > 0)
       .map((tier) => `${tier.activeDevices} ${tier.label.replace("Gama ", "").toLowerCase()}`);
-    return active.length ? active.join(" â€¢ ") : "Sin equipos";
+    return active.length ? active.join(" • ") : "Sin equipos";
   }, [licenseSummary]);
 
   return (
@@ -263,45 +227,17 @@ export default function FinancePanel({ payments, devices = [] }) {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => handleShiftMonth(-1)}
-            style={{ border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", cursor: "pointer" }}
-          >
-            Mes anterior
-          </button>
-          <select
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
-            style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
-          >
+          <button type="button" onClick={() => handleShiftMonth(-1)} style={{ border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", cursor: "pointer" }}>Mes anterior</button>
+          <select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}>
             {MONTH_LABELS.map((label, index) => {
               const value = String(index + 1).padStart(2, "0");
-              return (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              );
+              return <option key={value} value={value}>{label}</option>;
             })}
           </select>
-          <select
-            value={selectedYear}
-            onChange={(event) => setSelectedYear(event.target.value)}
-            style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}
-          >
-            {yearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
+          <select value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} style={{ border: "1px solid var(--line-soft)", borderRadius: 9, padding: "8px 10px" }}>
+            {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
           </select>
-          <button
-            type="button"
-            onClick={() => handleShiftMonth(1)}
-            style={{ border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", cursor: "pointer" }}
-          >
-            Mes siguiente
-          </button>
+          <button type="button" onClick={() => handleShiftMonth(1)} style={{ border: "1px solid var(--line)", borderRadius: 9, padding: "8px 10px", cursor: "pointer" }}>Mes siguiente</button>
         </div>
       </div>
 
@@ -311,77 +247,102 @@ export default function FinancePanel({ payments, devices = [] }) {
 
       <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))" }}>
         {cards.map((card) => (
-          <article
-            key={card.key}
-            style={{
-              borderRadius: 14,
-              padding: "12px 14px",
-              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.36)",
-              ...card.style,
-            }}
-          >
-            <div style={{ fontSize: 12, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.85 }}>
-              {card.label}
-            </div>
-            <div style={{ marginTop: 5, fontSize: 24, fontWeight: 800 }}>{formatCurrency(card.amount)}</div>
-            <div style={{ marginTop: 4, fontSize: 13, opacity: 0.88 }}>Cuotas: {card.count}</div>
+          <article key={card.key} style={{ borderRadius: 14, padding: "12px 14px", border: `1px solid ${card.color}33`, background: card.bg }}>
+            <div style={{ fontSize: 12, letterSpacing: 0.7, textTransform: "uppercase", color: card.color, fontWeight: 700 }}>{card.label}</div>
+            <div style={{ marginTop: 5, fontSize: 40 - 12, fontWeight: 800, color: card.color }}>{formatCurrency(card.amount)}</div>
+            <div style={{ marginTop: 4, fontSize: 13, color: "#334155" }}>Cuotas: {card.count}</div>
           </article>
         ))}
       </div>
 
+      <article style={{ marginTop: 14, border: "1px solid #dbe4ef", borderRadius: 16, background: "#ffffff", display: "grid", gap: 0, gridTemplateColumns: "minmax(280px, 420px) 1fr", overflow: "hidden" }}>
+        <section style={{ padding: 16, borderRight: "1px solid #e2e8f0", display: "grid", gap: 10 }}>
+          <h3 style={{ margin: 0 }}>Distribución de cuotas ({monthLabel} {selectedYear})</h3>
+          <div style={{ display: "grid", placeItems: "center", padding: "6px 0" }}>
+            <div style={{ width: 220, height: 220, borderRadius: "50%", background: financeDistribution.gradient, position: "relative" }}>
+              <div style={{ position: "absolute", inset: 44, borderRadius: "50%", background: "#ffffff", display: "grid", placeItems: "center", textAlign: "center", color: "#334155", fontWeight: 600, lineHeight: 1.3 }}>
+                <div>
+                  Total del mes
+                  <div style={{ fontSize: 32, fontWeight: 800, color: "#1e3a8a" }}>{formatCurrency(totals.totalAmount)}</div>
+                  <div>100%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+              <span style={{ color: "#2563eb", fontWeight: 700 }}>Pendiente por cobrar</span><span>{formatCurrency(totals.pendingAmount)}</span><span style={{ color: "#2563eb", fontWeight: 700 }}>{financeDistribution.pendingPercent.toFixed(1)}%</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+              <span style={{ color: "#f97316", fontWeight: 700 }}>Vencido por cobrar</span><span>{formatCurrency(totals.overdueAmount)}</span><span style={{ color: "#f97316", fontWeight: 700 }}>{financeDistribution.overduePercent.toFixed(1)}%</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+              <span style={{ color: "#22c55e", fontWeight: 700 }}>Pagado</span><span>{formatCurrency(totals.paidAmount)}</span><span style={{ color: "#22c55e", fontWeight: 700 }}>{financeDistribution.paidPercent.toFixed(1)}%</span>
+            </div>
+          </div>
+        </section>
+
+        <section style={{ padding: 16, display: "grid", gap: 10 }}>
+          <h3 style={{ margin: 0 }}>Movimientos recientes</h3>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Concepto</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Monto</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuotas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentMovements.map((entry) => (
+                  <tr key={`movement-${entry.id}`}>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{entry.date ? new Date(entry.date).toLocaleDateString() : "-"}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{entry.concept}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                      <span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 700, background: entry.status === "PAGADO" ? "#dcfce7" : entry.status === "VENCIDO" ? "#ffedd5" : "#dbeafe", color: entry.status === "PAGADO" ? "#166534" : entry.status === "VENCIDO" ? "#9a3412" : "#1e3a8a" }}>
+                        {entry.status === "PAGADO" ? "Pagado" : entry.status === "VENCIDO" ? "Vencido" : "Pendiente"}
+                      </span>
+                    </td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 700 }}>{formatCurrency(entry.amount)}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>1</td>
+                  </tr>
+                ))}
+                {recentMovements.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>No hay movimientos recientes en este periodo.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </article>
+
       <article style={{ marginTop: 14, border: "1px solid #dbe4ef", borderRadius: 20, padding: 18, background: "#ffffff", display: "grid", gap: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: 40 - 22 }}>Licencias activas</h3>
-            <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>
-              Se contabilizan unicamente equipos vigentes con deuda pendiente.
-            </p>
+            <h3 style={{ margin: 0, fontSize: 18 }}>Licencias activas</h3>
+            <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>Se contabilizan unicamente equipos vigentes con deuda pendiente.</p>
           </div>
-          <button type="button" style={{ border: "1px solid #cbd5e1", borderRadius: 12, padding: "10px 14px", background: "#ffffff", cursor: "pointer" }}>
-            Actualizar
-          </button>
+          <button type="button" style={{ border: "1px solid #cbd5e1", borderRadius: 12, padding: "10px 14px", background: "#ffffff", cursor: "pointer" }}>Actualizar</button>
         </div>
 
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}>
-            <div style={{ color: "#475569" }}>Equipos activos</div>
-            <div style={{ marginTop: 6, fontSize: 38 - 8, fontWeight: 800, color: "#1d4ed8" }}>{licenseSummary.totals.activeDevices}</div>
-          </article>
-          <article style={{ border: "1px solid #2563eb", borderRadius: 14, padding: 12, color: "#ffffff", background: "linear-gradient(135deg, #1d4ed8, #38bdf8)" }}>
-            <div>Total mensual</div>
-            <div style={{ marginTop: 6, fontSize: 38 - 8, fontWeight: 800 }}>{formatCurrency(licenseSummary.totals.monthlyTotal)}</div>
-          </article>
-          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}>
-            <div style={{ color: "#475569" }}>Promedio por equipo</div>
-            <div style={{ marginTop: 6, fontSize: 38 - 8, fontWeight: 800, color: "#1d4ed8" }}>{formatCurrency(averagePerDevice)}</div>
-          </article>
-          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}>
-            <div style={{ color: "#475569" }}>Distribucion</div>
-            <div style={{ marginTop: 6, fontSize: 22, fontWeight: 700, color: "#1d4ed8" }}>{activeDistributionText}</div>
-          </article>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}><div style={{ color: "#475569" }}>Equipos activos</div><div style={{ marginTop: 6, fontSize: 30, fontWeight: 800, color: "#1d4ed8" }}>{licenseSummary.totals.activeDevices}</div></article>
+          <article style={{ border: "1px solid #2563eb", borderRadius: 14, padding: 12, color: "#ffffff", background: "linear-gradient(135deg, #1d4ed8, #38bdf8)" }}><div>Total mensual</div><div style={{ marginTop: 6, fontSize: 30, fontWeight: 800 }}>{formatCurrency(licenseSummary.totals.monthlyTotal)}</div></article>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}><div style={{ color: "#475569" }}>Promedio por equipo</div><div style={{ marginTop: 6, fontSize: 30, fontWeight: 800, color: "#1d4ed8" }}>{formatCurrency(averagePerDevice)}</div></article>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}><div style={{ color: "#475569" }}>Distribucion</div><div style={{ marginTop: 6, fontSize: 22, fontWeight: 700, color: "#1d4ed8" }}>{activeDistributionText}</div></article>
         </div>
 
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(220px, 320px) 1fr" }}>
           <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 14, background: "#f8fafc" }}>
             <h4 style={{ margin: "0 0 10px" }}>Distribucion por gama</h4>
-            <div style={{ display: "grid", placeItems: "center" }}>
-              <div style={{ width: 180, height: 180, borderRadius: "50%", background: licenseDistribution, position: "relative" }}>
-                <div style={{ position: "absolute", inset: 34, background: "#f8fafc", borderRadius: "50%" }} />
-              </div>
-            </div>
+            <div style={{ display: "grid", placeItems: "center" }}><div style={{ width: 180, height: 180, borderRadius: "50%", background: licenseDistribution, position: "relative" }}><div style={{ position: "absolute", inset: 34, background: "#f8fafc", borderRadius: "50%" }} /></div></div>
           </article>
 
           <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, overflowX: "auto", background: "#ffffff" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 580 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Gama</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipos</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Precio unitario</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Subtotal mensual</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
-                </tr>
-              </thead>
+              <thead><tr style={{ background: "#f8fafc" }}><th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Gama</th><th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipos</th><th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Precio unitario</th><th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Subtotal mensual</th><th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th></tr></thead>
               <tbody>
                 {licenseSummary.tiers.map((tier) => (
                   <tr key={`license-row-${tier.key}`}>
@@ -389,17 +350,7 @@ export default function FinancePanel({ payments, devices = [] }) {
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{tier.activeDevices} equipos</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatCurrency(tier.monthly)}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatCurrency(tier.monthlyTotal)}</td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      <span style={{
-                        borderRadius: 999,
-                        padding: "4px 10px",
-                        fontWeight: 700,
-                        background: tier.activeDevices > 0 ? "#dcfce7" : "#e2e8f0",
-                        color: tier.activeDevices > 0 ? "#166534" : "#475569",
-                      }}>
-                        {tier.activeDevices > 0 ? "Activo" : "Sin equipos"}
-                      </span>
-                    </td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}><span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 700, background: tier.activeDevices > 0 ? "#dcfce7" : "#e2e8f0", color: tier.activeDevices > 0 ? "#166534" : "#475569" }}>{tier.activeDevices > 0 ? "Activo" : "Sin equipos"}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -408,12 +359,8 @@ export default function FinancePanel({ payments, devices = [] }) {
         </div>
 
         <article style={{ border: "1px solid #c7d2fe", borderRadius: 14, padding: 14, background: "linear-gradient(180deg, #eff6ff, #f8fafc)", display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 34 - 8, fontWeight: 700 }}>
-            Total licencias: <span style={{ color: "#1d4ed8" }}>{licenseSummary.totals.activeDevices} equipos</span>
-          </div>
-          <div style={{ fontSize: 42 - 6, fontWeight: 800, color: "#1d4ed8" }}>
-            {formatCurrency(licenseSummary.totals.monthlyTotal)} <span style={{ fontSize: 22, color: "#334155" }}>/ mes</span>
-          </div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>Total licencias: <span style={{ color: "#1d4ed8" }}>{licenseSummary.totals.activeDevices} equipos</span></div>
+          <div style={{ fontSize: 36, fontWeight: 800, color: "#1d4ed8" }}>{formatCurrency(licenseSummary.totals.monthlyTotal)} <span style={{ fontSize: 22, color: "#334155" }}>/ mes</span></div>
         </article>
       </article>
     </section>
