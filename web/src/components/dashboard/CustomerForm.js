@@ -1,6 +1,8 @@
 import { buttonStyle, cardStyle, inputStyle, sectionTitleStyle } from "./styles";
 
 export default function CustomerForm({ form, customers, onChange, onSubmit, isSubmitting }) {
+  const countryCodeOptions = ["+593", "+51", "+57", "+52", "+1", "+34"];
+
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Registrar cliente</h2>
@@ -23,6 +25,66 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
           onChange={(event) => onChange({ ...form, phone: event.target.value })}
           style={inputStyle}
         />
+        <div style={{ display: "grid", gap: 6 }}>
+          <strong style={{ fontSize: 13 }}>Referencia personal 1</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
+            <select
+              value={form.referencePersonalPhone1CountryCode || "+593"}
+              onChange={(event) => onChange({ ...form, referencePersonalPhone1CountryCode: event.target.value })}
+              style={inputStyle}
+            >
+              {countryCodeOptions.map((code) => (
+                <option key={`country-code-rp1-${code}`} value={code}>{code}</option>
+              ))}
+            </select>
+            <input
+              placeholder="Numero referencia personal 1"
+              value={form.referencePersonalPhone1Number || ""}
+              onChange={(event) => onChange({ ...form, referencePersonalPhone1Number: event.target.value })}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <strong style={{ fontSize: 13 }}>Referencia personal 2</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
+            <select
+              value={form.referencePersonalPhone2CountryCode || "+593"}
+              onChange={(event) => onChange({ ...form, referencePersonalPhone2CountryCode: event.target.value })}
+              style={inputStyle}
+            >
+              {countryCodeOptions.map((code) => (
+                <option key={`country-code-rp2-${code}`} value={code}>{code}</option>
+              ))}
+            </select>
+            <input
+              placeholder="Numero referencia personal 2"
+              value={form.referencePersonalPhone2Number || ""}
+              onChange={(event) => onChange({ ...form, referencePersonalPhone2Number: event.target.value })}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <strong style={{ fontSize: 13 }}>Referencia de trabajo</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
+            <select
+              value={form.referenceWorkPhoneCountryCode || "+593"}
+              onChange={(event) => onChange({ ...form, referenceWorkPhoneCountryCode: event.target.value })}
+              style={inputStyle}
+            >
+              {countryCodeOptions.map((code) => (
+                <option key={`country-code-rw-${code}`} value={code}>{code}</option>
+              ))}
+            </select>
+            <input
+              placeholder="Numero referencia trabajo"
+              value={form.referenceWorkPhoneNumber || ""}
+              onChange={(event) => onChange({ ...form, referenceWorkPhoneNumber: event.target.value })}
+              style={inputStyle}
+            />
+          </div>
+        </div>
         <input
           placeholder="Direccion"
           value={form.address}

@@ -85,7 +85,16 @@ router.get("/:id", asyncHandler(async (req, res) => {
 }));
 
 router.post("/", asyncHandler(async (req, res) => {
-  const { fullName, nationalId, phone, address, notes } = req.body || {};
+  const {
+    fullName,
+    nationalId,
+    phone,
+    referencePersonalPhone1,
+    referencePersonalPhone2,
+    referenceWorkPhone,
+    address,
+    notes,
+  } = req.body || {};
   const normalizedFullName = asTrimmedString(fullName);
   const normalizedNationalId = asTrimmedString(nationalId);
   const normalizedPhone = asTrimmedString(phone);
@@ -110,6 +119,9 @@ router.post("/", asyncHandler(async (req, res) => {
         fullName: normalizedFullName,
         nationalId: normalizedNationalId,
         phone: normalizedPhone,
+        referencePersonalPhone1: asOptionalTrimmedString(referencePersonalPhone1),
+        referencePersonalPhone2: asOptionalTrimmedString(referencePersonalPhone2),
+        referenceWorkPhone: asOptionalTrimmedString(referenceWorkPhone),
         address: asOptionalTrimmedString(address),
         notes: asOptionalTrimmedString(notes),
         createdByUserId: req.user.id,
@@ -132,7 +144,16 @@ router.post("/", asyncHandler(async (req, res) => {
 }));
 
 router.put("/:id", asyncHandler(async (req, res) => {
-  const { fullName, nationalId, phone, address, notes } = req.body || {};
+  const {
+    fullName,
+    nationalId,
+    phone,
+    referencePersonalPhone1,
+    referencePersonalPhone2,
+    referenceWorkPhone,
+    address,
+    notes,
+  } = req.body || {};
   const payload = {};
 
   if (fullName !== undefined) {
@@ -161,6 +182,18 @@ router.put("/:id", asyncHandler(async (req, res) => {
 
   if (address !== undefined) {
     payload.address = asOptionalTrimmedString(address);
+  }
+
+  if (referencePersonalPhone1 !== undefined) {
+    payload.referencePersonalPhone1 = asOptionalTrimmedString(referencePersonalPhone1);
+  }
+
+  if (referencePersonalPhone2 !== undefined) {
+    payload.referencePersonalPhone2 = asOptionalTrimmedString(referencePersonalPhone2);
+  }
+
+  if (referenceWorkPhone !== undefined) {
+    payload.referenceWorkPhone = asOptionalTrimmedString(referenceWorkPhone);
   }
 
   if (notes !== undefined) {
@@ -238,6 +271,9 @@ router.delete("/:id", asyncHandler(async (req, res) => {
           fullName: current.fullName,
           nationalId: current.nationalId,
           phone: current.phone,
+          referencePersonalPhone1: current.referencePersonalPhone1,
+          referencePersonalPhone2: current.referencePersonalPhone2,
+          referenceWorkPhone: current.referenceWorkPhone,
           devicesCount: current.devices.length,
           paymentsCount: current.payments.length,
         },

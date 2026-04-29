@@ -255,6 +255,15 @@ export default function CustomersList({
             </div>
             <p style={{ margin: "6px 0" }}>Documento: {customer.nationalId}</p>
             <p style={{ margin: "6px 0" }}>Telefono: {customer.phone}</p>
+            <p style={{ margin: "6px 0" }}>
+              Ref. personal 1: {customer.referencePersonalPhone1 || "-"}
+            </p>
+            <p style={{ margin: "6px 0" }}>
+              Ref. personal 2: {customer.referencePersonalPhone2 || "-"}
+            </p>
+            <p style={{ margin: "6px 0" }}>
+              Ref. trabajo: {customer.referenceWorkPhone || "-"}
+            </p>
             <p style={{ margin: "6px 0" }}>Dispositivos: {customer.devices.length}</p>
             <p style={{ margin: "6px 0" }}>
               Estado cartera: <strong>{getCustomerCreditState(customer)}</strong>

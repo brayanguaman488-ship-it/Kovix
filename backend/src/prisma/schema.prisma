@@ -75,6 +75,9 @@ model Customer {
   fullName        String
   nationalId      String           @unique
   phone           String
+  referencePersonalPhone1 String?
+  referencePersonalPhone2 String?
+  referenceWorkPhone      String?
   address         String?
   notes           String?
   createdByUserId String?

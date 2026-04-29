@@ -19,6 +19,12 @@ const initialCustomerForm = {
   fullName: "",
   nationalId: "",
   phone: "",
+  referencePersonalPhone1CountryCode: "+593",
+  referencePersonalPhone1Number: "",
+  referencePersonalPhone2CountryCode: "+593",
+  referencePersonalPhone2Number: "",
+  referenceWorkPhoneCountryCode: "+593",
+  referenceWorkPhoneNumber: "",
   address: "",
   notes: "",
 };
@@ -1403,6 +1409,18 @@ export default function Dashboard() {
     const fullName = customerForm.fullName.trim();
     const nationalId = customerForm.nationalId.trim();
     const phone = customerForm.phone.trim();
+    const refPersonal1Number = String(customerForm.referencePersonalPhone1Number || "").trim();
+    const refPersonal2Number = String(customerForm.referencePersonalPhone2Number || "").trim();
+    const refWorkNumber = String(customerForm.referenceWorkPhoneNumber || "").trim();
+    const referencePersonalPhone1 = refPersonal1Number
+      ? `${customerForm.referencePersonalPhone1CountryCode || "+593"} ${refPersonal1Number}`
+      : "";
+    const referencePersonalPhone2 = refPersonal2Number
+      ? `${customerForm.referencePersonalPhone2CountryCode || "+593"} ${refPersonal2Number}`
+      : "";
+    const referenceWorkPhone = refWorkNumber
+      ? `${customerForm.referenceWorkPhoneCountryCode || "+593"} ${refWorkNumber}`
+      : "";
 
     if (!fullName || !nationalId || !phone) {
       setStatus("error", "Cliente: fullName, nationalId y phone son obligatorios");
@@ -1416,6 +1434,9 @@ export default function Dashboard() {
         fullName,
         nationalId,
         phone,
+        referencePersonalPhone1,
+        referencePersonalPhone2,
+        referenceWorkPhone,
       });
       const createdCustomerId = String(response?.customer?.id || "").trim();
       setCustomerForm(initialCustomerForm);
