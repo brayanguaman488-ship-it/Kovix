@@ -1,7 +1,15 @@
 import { buttonStyle, cardStyle, inputStyle, sectionTitleStyle } from "./styles";
 
 export default function CustomerForm({ form, customers, onChange, onSubmit, isSubmitting }) {
-  const countryCodeOptions = ["+593", "+51", "+57", "+52", "+1", "+34"];
+  const countryCodeOptions = [
+    { code: "+593", label: "🇪🇨 Ecuador (+593)" },
+    { code: "+1", label: "🇺🇸 Estados Unidos (+1)" },
+    { code: "+52", label: "🇲🇽 México (+52)" },
+    { code: "+51", label: "🇵🇪 Perú (+51)" },
+    { code: "+57", label: "🇨🇴 Colombia (+57)" },
+    { code: "+56", label: "🇨🇱 Chile (+56)" },
+    { code: "+34", label: "🇪🇸 España (+34)" },
+  ];
 
   return (
     <section style={cardStyle}>
@@ -33,8 +41,10 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
               onChange={(event) => onChange({ ...form, referencePersonalPhone1CountryCode: event.target.value })}
               style={inputStyle}
             >
-              {countryCodeOptions.map((code) => (
-                <option key={`country-code-rp1-${code}`} value={code}>{code}</option>
+              {countryCodeOptions.map((entry) => (
+                <option key={`country-code-rp1-${entry.code}`} value={entry.code}>
+                  {entry.label}
+                </option>
               ))}
             </select>
             <input
@@ -53,8 +63,10 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
               onChange={(event) => onChange({ ...form, referencePersonalPhone2CountryCode: event.target.value })}
               style={inputStyle}
             >
-              {countryCodeOptions.map((code) => (
-                <option key={`country-code-rp2-${code}`} value={code}>{code}</option>
+              {countryCodeOptions.map((entry) => (
+                <option key={`country-code-rp2-${entry.code}`} value={entry.code}>
+                  {entry.label}
+                </option>
               ))}
             </select>
             <input
@@ -73,8 +85,10 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
               onChange={(event) => onChange({ ...form, referenceWorkPhoneCountryCode: event.target.value })}
               style={inputStyle}
             >
-              {countryCodeOptions.map((code) => (
-                <option key={`country-code-rw-${code}`} value={code}>{code}</option>
+              {countryCodeOptions.map((entry) => (
+                <option key={`country-code-rw-${entry.code}`} value={entry.code}>
+                  {entry.label}
+                </option>
               ))}
             </select>
             <input
