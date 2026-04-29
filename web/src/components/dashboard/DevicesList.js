@@ -228,7 +228,7 @@ export default function DevicesList({
           {isLinkingAllHexnodeDevices ? "Vinculando..." : "Vincular todos con Hexnode"}
         </button>
       </div>
-      <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ display: "grid", gap: 12 }}>
         {devices.map((device) => {
           const paymentStatus = devicePaymentSignalMap?.get(device.id);
           const paymentSignal = getPaymentSignalBadge(paymentStatus);
@@ -240,6 +240,8 @@ export default function DevicesList({
               style={{
                 ...listItemStyle,
                 borderRadius: 16,
+                background: "#ffffff",
+                padding: 14,
                 ...(device.currentStatus === "BLOQUEADO"
                   ? {
                       border: "1px solid rgba(185, 28, 28, 0.34)",
@@ -253,18 +255,17 @@ export default function DevicesList({
             >
               <div
                 style={{
-                  display: "flex",
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
                   gap: 8,
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
                   borderBottom: "1px solid #e2e8f0",
                   paddingBottom: 8,
                   marginBottom: 8,
                 }}
               >
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <strong style={{ marginRight: 10 }}>
+                  <strong style={{ marginRight: 10, fontSize: 32, lineHeight: 1.05, color: "#0f172a" }}>
                     {device.brand} {device.model}
                   </strong>
                   {paymentSignal && (
@@ -344,7 +345,7 @@ export default function DevicesList({
                   )}
                 </div>
               </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: 8, marginBottom: 6 }}>
               <p style={{ margin: "6px 0" }}>Cliente: <strong>{device.customer?.fullName}</strong></p>
               <p style={{ margin: "6px 0" }}>IMEI 1: <strong>{device.imei}</strong></p>
               <p style={{ margin: "6px 0" }}>IMEI 2: {device.imei2 || "No aplica / vacio"}</p>
@@ -384,7 +385,7 @@ export default function DevicesList({
                 </div>
               </div>
             ) : null}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: 8, marginBottom: 8 }}>
             <p style={{ margin: "6px 0" }}>
               Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}{" "}
               {device.hexnodeDeviceId ? (
@@ -410,47 +411,48 @@ export default function DevicesList({
               Modo: {device.manualStatusOverride ? "MANUAL" : "AUTOMATICO"}
             </p>
             </div>
-            {device.manualStatusOverride && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              {device.manualStatusOverride && (
+                <button
+                  type="button"
+                  onClick={() => onClearManualStatus(String(device.id))}
+                  disabled={clearingManualStatusDeviceId === String(device.id)}
+                  style={{ ...secondaryButtonStyle, minHeight: 40 }}
+                >
+                  {clearingManualStatusDeviceId === String(device.id)
+                    ? "Activando automatico..."
+                    : "Volver a automatico"}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => onClearManualStatus(String(device.id))}
-                disabled={clearingManualStatusDeviceId === String(device.id)}
-                style={{ ...secondaryButtonStyle, minHeight: 40, marginBottom: 6 }}
+                onClick={() => onRotateSecret(device.id)}
+                style={{
+                  ...buttonStyle,
+                  background: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+                  border: "1px solid #c2410c",
+                  boxShadow: "0 10px 22px rgba(180, 83, 9, 0.26)",
+                  minHeight: 42,
+                }}
+                disabled={rotatingSecretDeviceId === device.id}
               >
-                {clearingManualStatusDeviceId === String(device.id)
-                  ? "Activando automatico..."
-                  : "Volver a automatico"}
+                {rotatingSecretDeviceId === device.id ? "Rotando..." : "Rotar secret"}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onRotateSecret(device.id)}
-              style={{
-                ...buttonStyle,
-                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)",
-                border: "1px solid #92400e",
-                boxShadow: "0 10px 22px rgba(180, 83, 9, 0.26)",
-                minHeight: 42,
-              }}
-              disabled={rotatingSecretDeviceId === device.id}
-            >
-              {rotatingSecretDeviceId === device.id ? "Rotando..." : "Rotar secret"}
-            </button>
-            <button
-              type="button"
-              onClick={() => onToggleHexnodeDeviceLink(device)}
-              style={{
-                ...secondaryButtonStyle,
-                minHeight: 42,
-                borderRadius: 10,
-                marginTop: 8,
-              }}
-              disabled={linkingHexnodeDeviceId === device.id}
-            >
-              {linkingHexnodeDeviceId === device.id
-                ? (device.hexnodeDeviceId ? "Desvinculando..." : "Vinculando...")
-                : (device.hexnodeDeviceId ? "Desvincular de Hexnode" : "Vincular con Hexnode")}
-            </button>
+              <button
+                type="button"
+                onClick={() => onToggleHexnodeDeviceLink(device)}
+                style={{
+                  ...secondaryButtonStyle,
+                  minHeight: 42,
+                  borderRadius: 10,
+                }}
+                disabled={linkingHexnodeDeviceId === device.id}
+              >
+                {linkingHexnodeDeviceId === device.id
+                  ? (device.hexnodeDeviceId ? "Desvinculando..." : "Vinculando...")
+                  : (device.hexnodeDeviceId ? "Desvincular de Hexnode" : "Vincular con Hexnode")}
+              </button>
+            </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
               {statuses.map((status) => (
                 <button

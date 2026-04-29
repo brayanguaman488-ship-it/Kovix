@@ -205,9 +205,9 @@ export default function CustomersList({
           <option value="created_asc">Mas antiguos</option>
         </select>
       </div>
-      <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ display: "grid", gap: 12 }}>
         {customers.map((customer) => (
-          <article key={customer.id} style={listItemStyle}>
+          <article key={customer.id} style={{ ...listItemStyle, borderRadius: 16, background: "#ffffff", padding: 14 }}>
             <div style={{ display: "grid", gridTemplateColumns: "68px minmax(0,1fr) auto", alignItems: "center", gap: 12 }}>
               <div
                 style={{
@@ -225,7 +225,7 @@ export default function CustomersList({
               </div>
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <strong style={{ fontSize: 24, lineHeight: 1.1 }}>{customer.fullName}</strong>
+                  <strong style={{ fontSize: 30, lineHeight: 1.05, color: "#0f172a" }}>{customer.fullName}</strong>
                   <span
                     style={{
                       fontSize: 12,
@@ -301,7 +301,7 @@ export default function CustomersList({
                 </div>
               </div>
             </div>
-            <div style={{ marginTop: 10, borderTop: "1px solid #e2e8f0", paddingTop: 10, display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 10, alignItems: "stretch" }}>
+            <div style={{ marginTop: 12, borderTop: "1px solid #e2e8f0", paddingTop: 12, display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 10, alignItems: "stretch" }}>
               <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, background: "#fcfdff" }}>
                 <p style={{ margin: "3px 0", color: "#475569" }}>Ref. personal 1: {customer.referencePersonalPhone1 || "-"}</p>
                 <p style={{ margin: "3px 0", color: "#475569" }}>Ref. personal 2: {customer.referencePersonalPhone2 || "-"}</p>
@@ -315,10 +315,7 @@ export default function CustomersList({
                 <div style={{ color: "#64748b", fontSize: 13 }}>Estado cartera</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: "#166534" }}>{getCustomerCreditState(customer)}</div>
               </div>
-              <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
-                <button type="button" style={{ ...secondaryButtonStyle, minHeight: 36 }}>Ver dispositivos</button>
-                <button type="button" style={{ ...secondaryButtonStyle, minHeight: 36 }}>Opciones</button>
-              </div>
+              <div />
             </div>
 
             {expandedCustomerId === customer.id && (

@@ -463,6 +463,8 @@ export default function PaymentsList({
             style={{
               ...listItemStyle,
               borderRadius: 16,
+              background: "#ffffff",
+              padding: 14,
               ...(isReopenedFromPaid
                 ? {
                     border: "1px solid rgba(14, 116, 144, 0.36)",
@@ -473,13 +475,13 @@ export default function PaymentsList({
                 : {}),
             }}
           >
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.9fr 1fr auto", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.7fr 0.7fr 0.7fr auto", alignItems: "center", gap: 10, borderBottom: "1px solid #e2e8f0", paddingBottom: 10 }}>
               <div>
-                <strong style={{ fontSize: 28, lineHeight: 1 }}>{payment.customer?.fullName}</strong>
+                <strong style={{ fontSize: 30, lineHeight: 1.05, color: "#0f172a" }}>{payment.customer?.fullName}</strong>
                 <p style={{ margin: "6px 0 0", color: "#64748b" }}>Cedula: {payment.customer?.nationalId || "-"}</p>
                 {payment.device && (
                   <p style={{ margin: "3px 0 0", color: "#64748b" }}>
-                    Equipo: {payment.device.brand} {payment.device.model}
+                    Equipo: {payment.device.brand} {payment.device.model} ({payment.device.installCode})
                   </p>
                 )}
               </div>
@@ -489,11 +491,32 @@ export default function PaymentsList({
               </div>
               <div>
                 <div style={{ color: "#64748b" }}>Estado</div>
-                <strong>{effectiveStatus}</strong>
+                <strong
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    display: "inline-block",
+                    fontSize: 12,
+                    background:
+                      effectiveStatus === "PAGADO"
+                        ? "#dcfce7"
+                        : effectiveStatus === "VENCIDO"
+                          ? "#ffedd5"
+                          : "#dbeafe",
+                    color:
+                      effectiveStatus === "PAGADO"
+                        ? "#166534"
+                        : effectiveStatus === "VENCIDO"
+                          ? "#9a3412"
+                          : "#1e3a8a",
+                  }}
+                >
+                  {effectiveStatus}
+                </strong>
               </div>
               <div>
                 <div style={{ color: "#64748b" }}>Monto</div>
-                <strong style={{ fontSize: 36 }}>${Number(payment.amount).toFixed(2)}</strong>
+                <strong style={{ fontSize: 42, color: "#0f172a" }}>${Number(payment.amount).toFixed(2)}</strong>
               </div>
               <div style={{ position: "relative" }}>
                 <button
