@@ -4013,9 +4013,9 @@ export default function Dashboard() {
       {activeMainView === "contracts" && (
         <section style={{ display: "grid", gap: 16 }}>
           <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>Contratos</h3>
+            <h3 style={{ margin: 0, fontSize: 40, lineHeight: 1.05 }}>Expediente digital</h3>
             <p style={{ margin: 0, color: "var(--text-soft)" }}>
-              Apartado independiente para contratos y foto del cliente.
+              Contratos, documentos y evidencia fotografica del cliente.
             </p>
 
             <input
@@ -4037,13 +4037,13 @@ export default function Dashboard() {
               ))}
             </select>
 
-            <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 10 }}>
               <div
                 style={{
-                  padding: 10,
-                  borderRadius: 8,
+                  padding: 12,
+                  borderRadius: 12,
                   border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
+                  background: "#ffffff",
                   color: "#334155",
                 }}
               >
@@ -4052,8 +4052,8 @@ export default function Dashboard() {
                 Telefono: {contractsSelectedCustomer?.phone || "-"}
               </div>
 
-              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-                <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+              <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+                <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, background: "#ffffff" }}>
                   <strong>Subir contrato</strong>
                   <input
                     type="file"
@@ -4063,7 +4063,7 @@ export default function Dashboard() {
                   />
                 </div>
 
-                <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                <div style={{ display: "grid", gap: 8, border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, background: "#ffffff" }}>
                   <strong>Subir foto cliente</strong>
                   <input
                     type="file"
@@ -4077,7 +4077,7 @@ export default function Dashboard() {
                 type="button"
                 disabled={!pendingContractFile || !pendingPhotoFile || !contractsCustomerId || isUploadingContractsBundle}
                 onClick={handleConfirmUploadCustomerAssetsBundle}
-                style={buttonStyle}
+                style={{ ...buttonStyle, minHeight: 48 }}
               >
                 {isUploadingContractsBundle ? "Subiendo archivos..." : "Subir ambos archivos"}
               </button>
@@ -4097,7 +4097,7 @@ export default function Dashboard() {
 
           {!isLoadingContractsAssets && contractsCustomerId && (
             <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-              <h4 style={{ margin: 0 }}>Tarjeta del cliente</h4>
+              <h4 style={{ margin: 0, fontSize: 28 }}>Documentos guardados</h4>
               {contractsAssets.length === 0 ? (
                 <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay archivos cargados para este cliente.</p>
               ) : (
@@ -4296,12 +4296,38 @@ export default function Dashboard() {
       {activeMainView === "equifax" && (
         <section style={{ display: "grid", gap: 16 }}>
           <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
-            <h2 style={{ margin: 0 }}>Consultas Equifax</h2>
+            <h2 style={{ margin: 0, fontSize: 44, lineHeight: 1.02 }}>Evaluacion crediticia</h2>
             <p style={{ margin: 0, color: "var(--text-soft)" }}>
               {canRespondEquifax
-                ? "Recibes consultas de tiendas y respondes evaluacion crediticia."
+                ? "Revisa solicitudes enviadas por tiendas, analiza el perfil del cliente y responde la aprobacion del credito."
                 : "Registra consultas con cedula y nombre. El administrador revisa y responde."}
             </p>
+          </article>
+
+          <article
+            style={{
+              ...cardStyle,
+              display: "grid",
+              gap: 10,
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            }}
+          >
+            <div style={{ border: "1px solid #dbeafe", borderRadius: 12, padding: 10, background: "#f8fbff" }}>
+              <div style={{ fontSize: 13, color: "#2563eb", fontWeight: 700 }}>Pendientes</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "#1e3a8a" }}>{pendingEquifaxConsultations.length}</div>
+            </div>
+            <div style={{ border: "1px solid #dbeafe", borderRadius: 12, padding: 10, background: "#f8fbff" }}>
+              <div style={{ fontSize: 13, color: "#2563eb", fontWeight: 700 }}>En revision</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "#1e3a8a" }}>0</div>
+            </div>
+            <div style={{ border: "1px solid #bbf7d0", borderRadius: 12, padding: 10, background: "#f7fff9" }}>
+              <div style={{ fontSize: 13, color: "#16a34a", fontWeight: 700 }}>Respondidas</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "#166534" }}>{respondedEquifaxConsultations.length}</div>
+            </div>
+            <div style={{ border: "1px solid #fed7aa", borderRadius: 12, padding: 10, background: "#fffaf5" }}>
+              <div style={{ fontSize: 13, color: "#ea580c", fontWeight: 700 }}>Observadas</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "#c2410c" }}>0</div>
+            </div>
           </article>
 
           <section
@@ -4348,7 +4374,7 @@ export default function Dashboard() {
             )}
 
             <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
-              <h3 style={{ margin: 0 }}>Bandeja de consultas</h3>
+              <h3 style={{ margin: 0, fontSize: 30 }}>Bandeja de solicitudes</h3>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <input
                   value={equifaxSearch}
@@ -4376,7 +4402,9 @@ export default function Dashboard() {
                   <div style={{ display: "grid", gap: 8 }}>
                     <strong>Pendientes ({pendingEquifaxConsultations.length})</strong>
                     {pendingEquifaxConsultations.length === 0 ? (
-                      <p style={{ margin: 0, color: "var(--text-soft)" }}>No hay pendientes.</p>
+                      <div style={{ border: "1px dashed #cbd5e1", borderRadius: 12, padding: 18, textAlign: "center", color: "#64748b" }}>
+                        No hay solicitudes pendientes.
+                      </div>
                     ) : (
                       <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
                         {pendingEquifaxConsultations.map((consultation) => {
@@ -4448,7 +4476,7 @@ export default function Dashboard() {
           </section>
 
           <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-            <h3 style={{ margin: 0 }}>{canRespondEquifax ? "Detalle y respuesta" : "Detalle de consulta"}</h3>
+            <h3 style={{ margin: 0, fontSize: 30 }}>{canRespondEquifax ? "Detalle de la solicitud" : "Detalle de consulta"}</h3>
             {!selectedEquifaxConsultation ? (
               <p style={{ margin: 0, color: "var(--text-soft)" }}>
                 {canRespondEquifax
@@ -4922,11 +4950,44 @@ export default function Dashboard() {
       )}
 
       {activeMainView === "trash" && (
-        <section style={{ ...cardStyle, display: "grid", gap: 10 }}>
-          <h2 style={{ margin: 0 }}>Papelera</h2>
+        <section style={{ ...cardStyle, display: "grid", gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 42, lineHeight: 1.02 }}>Papelera y recuperacion</h2>
           <p style={{ margin: 0, color: "var(--text-soft)" }}>
             Los elementos eliminados se envian a papelera y se purgan automaticamente cada 30 dias.
           </p>
+          <article
+            style={{
+              display: "grid",
+              gap: 10,
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            }}
+          >
+            <div style={{ border: "1px solid #dbeafe", borderRadius: 12, padding: 10, background: "#f8fbff" }}>
+              <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Registros en papelera</div>
+              <div style={{ fontSize: 34, fontWeight: 800, color: "#1e3a8a" }}>{trashEntries.length}</div>
+            </div>
+            <div style={{ border: "1px solid #ddd6fe", borderRadius: 12, padding: 10, background: "#faf8ff" }}>
+              <div style={{ color: "#7c3aed", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Solicitudes pendientes</div>
+              <div style={{ fontSize: 34, fontWeight: 800, color: "#5b21b6" }}>
+                {deletionRequests.filter((entry) => String(entry?.status || "") === "PENDIENTE").length}
+              </div>
+            </div>
+            <div style={{ border: "1px solid #fed7aa", borderRadius: 12, padding: 10, background: "#fffaf5" }}>
+              <div style={{ color: "#ea580c", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Proximos a purgar</div>
+              <div style={{ fontSize: 34, fontWeight: 800, color: "#c2410c" }}>
+                {trashEntries.filter((entry) => {
+                  const deleteAfter = new Date(entry?.deleteAfter || 0).getTime();
+                  if (!deleteAfter) return false;
+                  const days = Math.ceil((deleteAfter - Date.now()) / (1000 * 60 * 60 * 24));
+                  return days >= 0 && days <= 7;
+                }).length}
+              </div>
+            </div>
+            <div style={{ border: "1px solid #bbf7d0", borderRadius: 12, padding: 10, background: "#f7fff9" }}>
+              <div style={{ color: "#16a34a", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purga automatica</div>
+              <div style={{ fontSize: 34, fontWeight: 800, color: "#166534" }}>30 dias</div>
+            </div>
+          </article>
           <article style={{ border: "1px solid #e2e8f0", borderRadius: 10, background: "#ffffff", padding: 12, display: "grid", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
               <strong>Solicitudes de eliminacion</strong>
