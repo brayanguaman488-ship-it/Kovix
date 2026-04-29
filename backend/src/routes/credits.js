@@ -66,6 +66,9 @@ function addMonths(date, monthsToAdd) {
 }
 
 function buildContractSummary(contract) {
+  const cashPrice = contract.cashPrice === null || contract.cashPrice === undefined
+    ? null
+    : Number(contract.cashPrice);
   const principalAmount = Number(contract.principalAmount);
   const downPaymentAmount = Number(contract.downPaymentAmount || 0);
   const persistedFinanced = Number(contract.financedAmount || 0);
@@ -100,6 +103,7 @@ function buildContractSummary(contract) {
     purchaseDate: contract.purchaseDate,
     cutOffDate: contract.startDate,
     registeredAt: contract.createdAt,
+    cashPrice,
     principalAmount,
     downPaymentAmount,
     financedAmount,
@@ -256,6 +260,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
   const {
     deviceId,
     purchaseDate,
+    cashPrice,
     principalAmount,
     downPaymentAmount,
     installmentCount,
@@ -265,6 +270,9 @@ router.post("/contracts", asyncHandler(async (req, res) => {
 
   const normalizedDeviceId = asTrimmedString(deviceId);
   const parsedAmount = parsePositiveAmount(principalAmount);
+  const parsedCashPrice = cashPrice === undefined || cashPrice === null || cashPrice === ""
+    ? null
+    : Number(cashPrice);
   const parsedPurchaseDate = parseDate(purchaseDate);
   const parsedDownPayment = downPaymentAmount === undefined || downPaymentAmount === null || downPaymentAmount === ""
     ? 0
@@ -290,6 +298,10 @@ router.post("/contracts", asyncHandler(async (req, res) => {
 
   if (!parsedAmount) {
     return sendBadRequest(res, "principalAmount debe ser mayor que 0");
+  }
+
+  if (parsedCashPrice !== null && (!Number.isFinite(parsedCashPrice) || parsedCashPrice < 0)) {
+    return sendBadRequest(res, "cashPrice debe ser mayor o igual que 0");
   }
 
   if (!Number.isFinite(parsedDownPayment) || parsedDownPayment < 0) {
@@ -346,6 +358,7 @@ router.post("/contracts", asyncHandler(async (req, res) => {
         data: {
           customerId: device.customerId,
           deviceId: device.id,
+          cashPrice: parsedCashPrice,
           principalAmount: parsedAmount,
           downPaymentAmount: parsedDownPayment,
           financedAmount,

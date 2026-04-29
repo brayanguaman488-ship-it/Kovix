@@ -162,6 +162,7 @@ model CreditContract {
   customer         Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
   deviceId         String               @unique
   device           Device               @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  cashPrice        Decimal?             @db.Decimal(10, 2)
   principalAmount  Decimal              @db.Decimal(10, 2)
   downPaymentAmount Decimal             @db.Decimal(10, 2) @default(0)
   financedAmount   Decimal              @db.Decimal(10, 2) @default(0)

@@ -52,6 +52,7 @@ function createInitialCreditForm() {
   return {
     deviceId: "",
     purchaseDate: getTodayIsoDate(),
+    cashPrice: "",
     principalAmount: "",
     downPaymentAmount: "",
     installmentCount: "",
@@ -1514,6 +1515,7 @@ export default function Dashboard() {
     event.preventDefault();
     const deviceId = creditForm.deviceId.trim();
     const purchaseDate = creditForm.purchaseDate;
+    const cashPrice = creditForm.cashPrice === "" ? null : Number(creditForm.cashPrice);
     const principalAmount = Number(creditForm.principalAmount);
     const downPaymentAmount = creditForm.downPaymentAmount ? Number(creditForm.downPaymentAmount) : 0;
     const installmentCount = Number(creditForm.installmentCount);
@@ -1526,6 +1528,11 @@ export default function Dashboard() {
 
     if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
       setStatus("error", "Credito: principalAmount debe ser mayor que 0");
+      return;
+    }
+
+    if (cashPrice !== null && (!Number.isFinite(cashPrice) || cashPrice < 0)) {
+      setStatus("error", "Credito: costo al contado debe ser mayor o igual que 0");
       return;
     }
 
@@ -1550,6 +1557,7 @@ export default function Dashboard() {
         ...creditForm,
         deviceId,
         purchaseDate,
+        cashPrice,
         principalAmount,
         downPaymentAmount,
         installmentCount,
@@ -3307,6 +3315,19 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
+            {userRole === "TIENDA" && (
+              <input
+                placeholder="Costo al contado (USD)"
+                type="number"
+                min="0"
+                step="0.01"
+                value={creditForm.cashPrice}
+                onChange={(event) =>
+                  setCreditForm((value) => ({ ...value, cashPrice: event.target.value }))
+                }
+                style={inputStyle}
+              />
+            )}
             <input
               placeholder="Monto total (USD)"
               type="number"
@@ -3826,6 +3847,7 @@ export default function Dashboard() {
                   <div>Fecha de registro: {selectedCreditContract.summary?.registeredAt ? new Date(selectedCreditContract.summary.registeredAt).toLocaleDateString() : "-"}</div>
                   <div>Fecha de compra: {selectedCreditContract.summary?.purchaseDate ? new Date(selectedCreditContract.summary.purchaseDate).toLocaleDateString() : "-"}</div>
                   <div>Fecha de corte: {selectedCreditContract.summary?.cutOffDate ? new Date(selectedCreditContract.summary.cutOffDate).toLocaleDateString() : "-"}</div>
+                  <div>Costo al contado: {selectedCreditContract.summary?.cashPrice === null || selectedCreditContract.summary?.cashPrice === undefined ? "-" : `$${Number(selectedCreditContract.summary.cashPrice).toFixed(2)} USD`}</div>
                   <div>Precio del equipo: ${Number(selectedCreditContract.summary?.principalAmount || 0).toFixed(2)} USD</div>
                   <div>Entrada: ${Number(selectedCreditContract.summary?.downPaymentAmount || 0).toFixed(2)} USD</div>
                   <div>Monto financiado: ${Number(selectedCreditContract.summary?.financedAmount || 0).toFixed(2)} USD</div>
@@ -3984,7 +4006,7 @@ export default function Dashboard() {
             activeSection="payments"
             onSelectSection={() => {}}
           />
-          <FinancePanel payments={sortedPayments} />
+          <FinancePanel payments={sortedPayments} devices={sortedDevices} />
         </section>
       )}
 
