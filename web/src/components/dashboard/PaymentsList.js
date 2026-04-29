@@ -353,7 +353,7 @@ export default function PaymentsList({
           value={searchValue || ""}
           onChange={(event) => onSearchChange?.(event.target.value)}
           placeholder="Buscar pagos por nombre o cedula"
-          style={{ ...inputStyle, width: 360, minWidth: 240, flex: "0 1 360px" }}
+          style={{ ...inputStyle, width: "100%", maxWidth: 520 }}
         />
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[
@@ -445,7 +445,7 @@ export default function PaymentsList({
         </div>
       </div>
 
-      <p style={{ margin: "0 0 10px", color: "var(--text-soft)" }}>
+      <p style={{ margin: "0 0 10px", color: "var(--text-soft)", fontSize: 18 }}>
         Mostrando <strong>{activeLabel}</strong>: {activeList.length}
       </p>
 
@@ -473,10 +473,28 @@ export default function PaymentsList({
                 : {}),
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <strong>
-                {payment.customer?.fullName} - ${Number(payment.amount).toFixed(2)}
-              </strong>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 0.9fr 0.9fr 1fr auto", alignItems: "center", gap: 10 }}>
+              <div>
+                <strong style={{ fontSize: 28, lineHeight: 1 }}>{payment.customer?.fullName}</strong>
+                <p style={{ margin: "6px 0 0", color: "#64748b" }}>Cedula: {payment.customer?.nationalId || "-"}</p>
+                {payment.device && (
+                  <p style={{ margin: "3px 0 0", color: "#64748b" }}>
+                    Equipo: {payment.device.brand} {payment.device.model}
+                  </p>
+                )}
+              </div>
+              <div>
+                <div style={{ color: "#64748b" }}>Vence el</div>
+                <strong>{new Date(payment.dueDate).toLocaleDateString()}</strong>
+              </div>
+              <div>
+                <div style={{ color: "#64748b" }}>Estado</div>
+                <strong>{effectiveStatus}</strong>
+              </div>
+              <div>
+                <div style={{ color: "#64748b" }}>Monto</div>
+                <strong style={{ fontSize: 36 }}>${Number(payment.amount).toFixed(2)}</strong>
+              </div>
               <div style={{ position: "relative" }}>
                 <button
                   type="button"
@@ -532,10 +550,6 @@ export default function PaymentsList({
                 )}
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 6 }}>
-              <p style={{ margin: "6px 0" }}>Vence: <strong>{new Date(payment.dueDate).toLocaleDateString()}</strong></p>
-              <p style={{ margin: "6px 0" }}>Estado: <strong>{effectiveStatus}</strong></p>
-            </div>
             {isReopenedFromPaid && (
               <p
                 style={{
@@ -546,11 +560,6 @@ export default function PaymentsList({
                 }}
               >
                 Reabierta desde pagados
-              </p>
-            )}
-            {payment.device && (
-              <p style={{ margin: "6px 0", color: "var(--text-soft)" }}>
-                Equipo: {payment.device.brand} {payment.device.model} ({payment.device.installCode})
               </p>
             )}
             {renderActions(payment)}

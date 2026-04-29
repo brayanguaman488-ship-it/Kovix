@@ -223,7 +223,7 @@ export default function DevicesList({
           type="button"
           onClick={onLinkAllHexnodeDevices}
           disabled={isLinkingAllHexnodeDevices}
-          style={{ ...secondaryButtonStyle, minHeight: 38, borderRadius: 8 }}
+          style={{ ...buttonStyle, minHeight: 42, borderRadius: 10, marginLeft: "auto" }}
         >
           {isLinkingAllHexnodeDevices ? "Vinculando..." : "Vincular todos con Hexnode"}
         </button>
@@ -258,6 +258,9 @@ export default function DevicesList({
                   alignItems: "center",
                   justifyContent: "space-between",
                   flexWrap: "wrap",
+                  borderBottom: "1px solid #e2e8f0",
+                  paddingBottom: 8,
+                  marginBottom: 8,
                 }}
               >
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -341,7 +344,7 @@ export default function DevicesList({
                   )}
                 </div>
               </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: 8 }}>
               <p style={{ margin: "6px 0" }}>Cliente: <strong>{device.customer?.fullName}</strong></p>
               <p style={{ margin: "6px 0" }}>IMEI 1: <strong>{device.imei}</strong></p>
               <p style={{ margin: "6px 0" }}>IMEI 2: {device.imei2 || "No aplica / vacio"}</p>
@@ -381,6 +384,7 @@ export default function DevicesList({
                 </div>
               </div>
             ) : null}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: 8 }}>
             <p style={{ margin: "6px 0" }}>
               Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}{" "}
               {device.hexnodeDeviceId ? (
@@ -405,6 +409,7 @@ export default function DevicesList({
             <p style={{ margin: "6px 0" }}>
               Modo: {device.manualStatusOverride ? "MANUAL" : "AUTOMATICO"}
             </p>
+            </div>
             {device.manualStatusOverride && (
               <button
                 type="button"

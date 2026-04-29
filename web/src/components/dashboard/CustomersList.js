@@ -134,7 +134,7 @@ export default function CustomersList({
   return (
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Clientes</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
         <article style={{ border: "1px solid #dbeafe", borderRadius: 14, padding: 12, background: "#f8fbff" }}>
           <div style={{ color: "#2563eb", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Total clientes</div>
           <div style={{ fontSize: 28, fontWeight: 800, color: "#1e3a8a" }}>{segmentCounts?.all || 0}</div>
@@ -208,8 +208,42 @@ export default function CustomersList({
       <div style={{ display: "grid", gap: 10 }}>
         {customers.map((customer) => (
           <article key={customer.id} style={listItemStyle}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, borderBottom: "1px solid #e2e8f0", paddingBottom: 8, marginBottom: 8 }}>
-              <strong>{customer.fullName}</strong>
+            <div style={{ display: "grid", gridTemplateColumns: "68px minmax(0,1fr) auto", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 999,
+                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+                  color: "#1e40af",
+                  display: "grid",
+                  placeItems: "center",
+                  fontWeight: 800,
+                }}
+              >
+                {getInitials(customer.fullName)}
+              </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: 24, lineHeight: 1.1 }}>{customer.fullName}</strong>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      borderRadius: 999,
+                      padding: "2px 10px",
+                      background: getCustomerCreditState(customer) === "ACTIVO" ? "#dcfce7" : "#e2e8f0",
+                      color: getCustomerCreditState(customer) === "ACTIVO" ? "#166534" : "#334155",
+                    }}
+                  >
+                    {getCustomerCreditState(customer)}
+                  </span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 6 }}>
+                  <p style={{ margin: "2px 0", color: "#334155" }}>Documento: <strong>{customer.nationalId}</strong></p>
+                  <p style={{ margin: "2px 0", color: "#334155" }}>Telefono: <strong>{customer.phone}</strong></p>
+                </div>
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <button
                   type="button"
@@ -267,16 +301,24 @@ export default function CustomersList({
                 </div>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-              <p style={{ margin: "4px 0" }}>Documento: <strong>{customer.nationalId}</strong></p>
-              <p style={{ margin: "4px 0" }}>Telefono: <strong>{customer.phone}</strong></p>
-              <p style={{ margin: "4px 0" }}>Ref. personal 1: {customer.referencePersonalPhone1 || "-"}</p>
-              <p style={{ margin: "4px 0" }}>Ref. personal 2: {customer.referencePersonalPhone2 || "-"}</p>
-              <p style={{ margin: "4px 0" }}>Ref. trabajo: {customer.referenceWorkPhone || "-"}</p>
-              <p style={{ margin: "4px 0" }}>Dispositivos: <strong>{customer.devices.length}</strong></p>
-              <p style={{ margin: "4px 0" }}>
-                Estado cartera: <strong>{getCustomerCreditState(customer)}</strong>
-              </p>
+            <div style={{ marginTop: 10, borderTop: "1px solid #e2e8f0", paddingTop: 10, display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 10, alignItems: "stretch" }}>
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, background: "#fcfdff" }}>
+                <p style={{ margin: "3px 0", color: "#475569" }}>Ref. personal 1: {customer.referencePersonalPhone1 || "-"}</p>
+                <p style={{ margin: "3px 0", color: "#475569" }}>Ref. personal 2: {customer.referencePersonalPhone2 || "-"}</p>
+                <p style={{ margin: "3px 0", color: "#475569" }}>Ref. trabajo: {customer.referenceWorkPhone || "-"}</p>
+              </div>
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, background: "#fcfdff", display: "grid", alignContent: "center" }}>
+                <div style={{ color: "#64748b", fontSize: 13 }}>Dispositivos</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: "#1e40af" }}>{customer.devices.length}</div>
+              </div>
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, background: "#fcfdff", display: "grid", alignContent: "center" }}>
+                <div style={{ color: "#64748b", fontSize: 13 }}>Estado cartera</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#166534" }}>{getCustomerCreditState(customer)}</div>
+              </div>
+              <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+                <button type="button" style={{ ...secondaryButtonStyle, minHeight: 36 }}>Ver dispositivos</button>
+                <button type="button" style={{ ...secondaryButtonStyle, minHeight: 36 }}>Opciones</button>
+              </div>
             </div>
 
             {expandedCustomerId === customer.id && (
@@ -319,3 +361,11 @@ export default function CustomersList({
     </section>
   );
 }
+  function getInitials(name) {
+    return String(name || "")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("");
+  }
