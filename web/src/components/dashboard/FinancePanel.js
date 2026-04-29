@@ -214,6 +214,45 @@ export default function FinancePanel({ payments, devices = [] }) {
     };
   }, [devices]);
 
+  const licenseDistribution = useMemo(() => {
+    const total = Math.max(1, licenseSummary.totals.activeDevices);
+    const colors = {
+      gama_baja: "#1d4ed8",
+      gama_media: "#14b8a6",
+      gama_alta: "#94a3b8",
+      gama_ultra: "#cbd5e1",
+    };
+
+    const slices = [];
+    let cursor = 0;
+    for (const tier of licenseSummary.tiers) {
+      const count = Number(tier.activeDevices || 0);
+      if (count <= 0) continue;
+      const portion = (count / total) * 100;
+      const next = cursor + portion;
+      slices.push(`${colors[tier.key] || "#94a3b8"} ${cursor}% ${next}%`);
+      cursor = next;
+    }
+
+    if (slices.length === 0) {
+      slices.push("#e2e8f0 0% 100%");
+    }
+
+    return `conic-gradient(${slices.join(", ")})`;
+  }, [licenseSummary]);
+
+  const averagePerDevice = useMemo(() => {
+    if (!licenseSummary.totals.activeDevices) return 0;
+    return licenseSummary.totals.monthlyTotal / licenseSummary.totals.activeDevices;
+  }, [licenseSummary]);
+
+  const activeDistributionText = useMemo(() => {
+    const active = licenseSummary.tiers
+      .filter((tier) => tier.activeDevices > 0)
+      .map((tier) => `${tier.activeDevices} ${tier.label.replace("Gama ", "").toLowerCase()}`);
+    return active.length ? active.join(" • ") : "Sin equipos";
+  }, [licenseSummary]);
+
   return (
     <section style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
@@ -290,43 +329,92 @@ export default function FinancePanel({ payments, devices = [] }) {
         ))}
       </div>
 
-      <article
-        style={{
-          marginTop: 14,
-          border: "1px solid rgba(15, 23, 42, 0.14)",
-          borderRadius: 14,
-          padding: "12px 14px",
-          background: "linear-gradient(180deg, rgba(248,250,252,0.95), rgba(241,245,249,0.98))",
-        }}
-      >
-        <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>Licencias</h3>
-        <p style={{ margin: "0 0 10px", color: "var(--text-soft)" }}>
-          Se contabilizan solo celulares vigentes (con deuda pendiente).
-        </p>
-        <div style={{ display: "grid", gap: 8 }}>
-          {licenseSummary.tiers.map((tier) => (
-            <div
-              key={tier.key}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto auto",
-                gap: 10,
-                alignItems: "center",
-                border: "1px solid rgba(148, 163, 184, 0.35)",
-                borderRadius: 10,
-                padding: "8px 10px",
-                background: "#ffffff",
-              }}
-            >
-              <strong>{tier.label}</strong>
-              <span>{tier.activeDevices} equipos</span>
-              <span>{formatCurrency(tier.monthlyTotal)}/mes</span>
+      <article style={{ marginTop: 14, border: "1px solid #dbe4ef", borderRadius: 20, padding: 18, background: "#ffffff", display: "grid", gap: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 40 - 22 }}>Licencias activas</h3>
+            <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>
+              Se contabilizan unicamente equipos vigentes con deuda pendiente.
+            </p>
+          </div>
+          <button type="button" style={{ border: "1px solid #cbd5e1", borderRadius: 12, padding: "10px 14px", background: "#ffffff", cursor: "pointer" }}>
+            Actualizar
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}>
+            <div style={{ color: "#475569" }}>Equipos activos</div>
+            <div style={{ marginTop: 6, fontSize: 38 - 8, fontWeight: 800, color: "#1d4ed8" }}>{licenseSummary.totals.activeDevices}</div>
+          </article>
+          <article style={{ border: "1px solid #2563eb", borderRadius: 14, padding: 12, color: "#ffffff", background: "linear-gradient(135deg, #1d4ed8, #38bdf8)" }}>
+            <div>Total mensual</div>
+            <div style={{ marginTop: 6, fontSize: 38 - 8, fontWeight: 800 }}>{formatCurrency(licenseSummary.totals.monthlyTotal)}</div>
+          </article>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}>
+            <div style={{ color: "#475569" }}>Promedio por equipo</div>
+            <div style={{ marginTop: 6, fontSize: 38 - 8, fontWeight: 800, color: "#1d4ed8" }}>{formatCurrency(averagePerDevice)}</div>
+          </article>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 12, background: "#f8fafc" }}>
+            <div style={{ color: "#475569" }}>Distribucion</div>
+            <div style={{ marginTop: 6, fontSize: 22, fontWeight: 700, color: "#1d4ed8" }}>{activeDistributionText}</div>
+          </article>
+        </div>
+
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(220px, 320px) 1fr" }}>
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, padding: 14, background: "#f8fafc" }}>
+            <h4 style={{ margin: "0 0 10px" }}>Distribucion por gama</h4>
+            <div style={{ display: "grid", placeItems: "center" }}>
+              <div style={{ width: 180, height: 180, borderRadius: "50%", background: licenseDistribution, position: "relative" }}>
+                <div style={{ position: "absolute", inset: 34, background: "#f8fafc", borderRadius: "50%" }} />
+              </div>
             </div>
-          ))}
+          </article>
+
+          <article style={{ border: "1px solid #dbe4ef", borderRadius: 14, overflowX: "auto", background: "#ffffff" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 580 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Gama</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipos</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Precio unitario</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Subtotal mensual</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {licenseSummary.tiers.map((tier) => (
+                  <tr key={`license-row-${tier.key}`}>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{tier.label}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{tier.activeDevices} equipos</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatCurrency(tier.monthly)}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatCurrency(tier.monthlyTotal)}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                      <span style={{
+                        borderRadius: 999,
+                        padding: "4px 10px",
+                        fontWeight: 700,
+                        background: tier.activeDevices > 0 ? "#dcfce7" : "#e2e8f0",
+                        color: tier.activeDevices > 0 ? "#166534" : "#475569",
+                      }}>
+                        {tier.activeDevices > 0 ? "Activo" : "Sin equipos"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </article>
         </div>
-        <div style={{ marginTop: 10, fontWeight: 700 }}>
-          Total licencias: {licenseSummary.totals.activeDevices} equipos | {formatCurrency(licenseSummary.totals.monthlyTotal)}/mes
-        </div>
+
+        <article style={{ border: "1px solid #c7d2fe", borderRadius: 14, padding: 14, background: "linear-gradient(180deg, #eff6ff, #f8fafc)", display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 34 - 8, fontWeight: 700 }}>
+            Total licencias: <span style={{ color: "#1d4ed8" }}>{licenseSummary.totals.activeDevices} equipos</span>
+          </div>
+          <div style={{ fontSize: 42 - 6, fontWeight: 800, color: "#1d4ed8" }}>
+            {formatCurrency(licenseSummary.totals.monthlyTotal)} <span style={{ fontSize: 22, color: "#334155" }}>/ mes</span>
+          </div>
+        </article>
       </article>
     </section>
   );
