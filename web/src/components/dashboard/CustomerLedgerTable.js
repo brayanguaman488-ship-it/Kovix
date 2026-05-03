@@ -264,7 +264,7 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
           ))}
         </select>
         <select value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} style={{ ...inputStyle, width: 160 }}>
-          <option value="all">Todos los anos</option>
+          <option value="all">Todos los años</option>
           {yearOptions.map((year) => (
             <option key={year} value={year}>
               {year}
@@ -280,7 +280,7 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
         </select>
       </div>
       <p style={{ margin: "0 0 12px", color: "var(--text-soft)", fontSize: 13 }}>
-        Mes y ano filtran clientes por fecha de ingreso. Los pagos se muestran siempre de forma global por cliente.
+        Mes y año filtran clientes por fecha de ingreso. Los pagos se muestran siempre de forma global por cliente.
       </p>
 
       <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 14, background: "#ffffff" }}>
