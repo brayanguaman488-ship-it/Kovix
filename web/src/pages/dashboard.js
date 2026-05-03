@@ -142,12 +142,163 @@ const sidebarNavButton = (active) => ({
   background: active ? "rgba(255,255,255,0.14)" : "transparent",
   color: active ? "#ffffff" : "rgba(255,255,255,0.82)",
   padding: "12px 14px",
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
   textAlign: "left",
   fontWeight: active ? 700 : 500,
   fontSize: 17,
   cursor: "pointer",
   transition: "all 0.18s ease",
 });
+const sidebarNavIconStyle = {
+  width: 22,
+  minWidth: 22,
+  height: 22,
+  display: "grid",
+  placeItems: "center",
+};
+
+function DashboardNavIcon({ name }) {
+  const commonProps = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    focusable: "false",
+  };
+
+  if (name === "renewal") {
+    return (
+      <svg {...commonProps}>
+        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+        <path d="M21 3v6h-6" />
+      </svg>
+    );
+  }
+
+  if (name === "control") {
+    return (
+      <svg {...commonProps}>
+        <path d="M3 12h18" />
+        <path d="M3 6h18" />
+        <path d="M3 18h18" />
+        <circle cx="8" cy="6" r="2" />
+        <circle cx="16" cy="12" r="2" />
+        <circle cx="10" cy="18" r="2" />
+      </svg>
+    );
+  }
+
+  if (name === "customers") {
+    return (
+      <svg {...commonProps}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    );
+  }
+
+  if (name === "devices") {
+    return (
+      <svg {...commonProps}>
+        <rect width="10" height="18" x="7" y="3" rx="2" />
+        <path d="M11 18h2" />
+      </svg>
+    );
+  }
+
+  if (name === "payments") {
+    return (
+      <svg {...commonProps}>
+        <rect width="20" height="14" x="2" y="5" rx="2" />
+        <path d="M2 10h20" />
+        <path d="M7 15h.01" />
+        <path d="M11 15h2" />
+      </svg>
+    );
+  }
+
+  if (name === "finance") {
+    return (
+      <svg {...commonProps}>
+        <path d="M3 3v18h18" />
+        <path d="m19 9-5 5-4-4-3 3" />
+      </svg>
+    );
+  }
+
+  if (name === "contracts") {
+    return (
+      <svg {...commonProps}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13h8" />
+        <path d="M8 17h5" />
+      </svg>
+    );
+  }
+
+  if (name === "equifax") {
+    return (
+      <svg {...commonProps}>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    );
+  }
+
+  if (name === "users") {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </svg>
+    );
+  }
+
+  if (name === "trash") {
+    return (
+      <svg {...commonProps}>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+      </svg>
+    );
+  }
+
+  if (name === "chevron") {
+    return (
+      <svg {...commonProps}>
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...commonProps}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+function SidebarIcon({ name }) {
+  return (
+    <span style={sidebarNavIconStyle}>
+      <DashboardNavIcon name={name} />
+    </span>
+  );
+}
 
 function paginate(items, page, pageSize) {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
@@ -2707,6 +2858,7 @@ export default function Dashboard() {
               setIsAdvancedOpen(true);
             }}
           >
+            <SidebarIcon name="payments" />
             Credito nuevo
           </button>
           <button
@@ -2716,6 +2868,7 @@ export default function Dashboard() {
               setActiveMainView("credit_renewal");
             }}
           >
+            <SidebarIcon name="renewal" />
             Renovacion de credito
           </button>
           <button
@@ -2730,7 +2883,18 @@ export default function Dashboard() {
               setIsControlNavExpanded((value) => !value);
             }}
           >
-            Centro de control {isControlNavExpanded ? "▾" : "▸"}
+            <SidebarIcon name="control" />
+            <span style={{ flex: 1 }}>Centro de control</span>
+            <span
+              style={{
+                display: "grid",
+                placeItems: "center",
+                transform: isControlNavExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                transition: "transform 0.18s ease",
+              }}
+            >
+              <DashboardNavIcon name="chevron" />
+            </span>
           </button>
           {activeMainView === "control" && isControlNavExpanded && (
             <>
@@ -2739,6 +2903,7 @@ export default function Dashboard() {
                 style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "customers")}
                 onClick={() => openControlSection("customers")}
               >
+                <SidebarIcon name="customers" />
                 Clientes
               </button>
               <button
@@ -2746,6 +2911,7 @@ export default function Dashboard() {
                 style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "devices")}
                 onClick={() => openControlSection("devices")}
               >
+                <SidebarIcon name="devices" />
                 Celulares
               </button>
               <button
@@ -2753,6 +2919,7 @@ export default function Dashboard() {
                 style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "payments")}
                 onClick={() => openControlSection("payments")}
               >
+                <SidebarIcon name="payments" />
                 Pagos
               </button>
             </>
@@ -2762,6 +2929,7 @@ export default function Dashboard() {
             style={sidebarNavButton(activeMainView === "finance")}
             onClick={() => setActiveMainView("finance")}
           >
+            <SidebarIcon name="finance" />
             Finanzas
           </button>
           <button
@@ -2769,6 +2937,7 @@ export default function Dashboard() {
             style={sidebarNavButton(activeMainView === "contracts")}
             onClick={() => setActiveMainView("contracts")}
           >
+            <SidebarIcon name="contracts" />
             Contratos
           </button>
           <button
@@ -2776,6 +2945,7 @@ export default function Dashboard() {
             style={sidebarNavButton(activeMainView === "equifax")}
             onClick={() => setActiveMainView("equifax")}
           >
+            <SidebarIcon name="equifax" />
             Consultas Equifax
           </button>
           {canManageUsers && (
@@ -2784,6 +2954,7 @@ export default function Dashboard() {
               style={sidebarNavButton(activeMainView === "users")}
               onClick={() => setActiveMainView("users")}
             >
+              <SidebarIcon name="users" />
               Usuarios
             </button>
           )}
@@ -2792,6 +2963,7 @@ export default function Dashboard() {
             style={sidebarNavButton(activeMainView === "trash")}
             onClick={() => setActiveMainView("trash")}
           >
+            <SidebarIcon name="trash" />
             Papelera
           </button>
         </nav>
