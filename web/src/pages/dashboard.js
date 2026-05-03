@@ -3429,38 +3429,132 @@ export default function Dashboard() {
               <button type="button" onClick={() => loadHexnodeProvisioningQr()} style={secondaryButtonStyle}>
                 Recargar QR Hexnode
               </button>
-              <div
-                style={{
-                  padding: 10,
-                  borderRadius: 8,
-                  border: "1px solid var(--line)",
-                  background: "var(--panel-soft)",
-                  color: "var(--text-soft)",
-                  fontSize: 14,
-                }}
-              >
-                Portal: <strong>{hexnodeProvisioning?.portalUrl || "No configurado"}</strong><br />
-                Estado:{" "}
-                <strong>{hexnodeProvisioning?.configured ? "Configurado" : "Falta configurar variable en backend"}</strong>
-                {canManageUsers ? (
-                  <>
-                    <br />
-                    Codigo/valor enrollment:{" "}
-                    <strong
+              {canManageUsers ? (
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid var(--line)",
+                    background: "var(--panel-soft)",
+                    color: "var(--text-soft)",
+                    fontSize: 14,
+                  }}
+                >
+                  Portal: <strong>{hexnodeProvisioning?.portalUrl || "No configurado"}</strong><br />
+                  Estado:{" "}
+                  <strong>{hexnodeProvisioning?.configured ? "Configurado" : "Falta configurar variable en backend"}</strong>
+                  <br />
+                  Codigo/valor enrollment:{" "}
+                  <strong
+                    style={{
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {hexnodeProvisioning?.qrValue || "No disponible"}
+                  </strong>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    position: "relative",
+                    minHeight: 180,
+                    borderRadius: 18,
+                    border: "1px solid rgba(29, 78, 216, 0.22)",
+                    background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 58%, #ecfeff 100%)",
+                    overflow: "hidden",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 18,
+                  }}
+                >
+                  <style jsx>{`
+                    @keyframes kovixPhoneFloat {
+                      0%, 100% { transform: translateY(0) rotate(-2deg); }
+                      50% { transform: translateY(-8px) rotate(2deg); }
+                    }
+                    @keyframes kovixQrPulse {
+                      0%, 100% { opacity: 0.6; transform: scale(1); }
+                      50% { opacity: 1; transform: scale(1.08); }
+                    }
+                    @keyframes kovixScan {
+                      0% { transform: translateY(-36px); opacity: 0; }
+                      20%, 80% { opacity: 1; }
+                      100% { transform: translateY(36px); opacity: 0; }
+                    }
+                  `}</style>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background:
+                        "radial-gradient(circle at 20% 20%, rgba(14,165,233,0.18), transparent 28%), radial-gradient(circle at 82% 70%, rgba(37,99,235,0.13), transparent 30%)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "grid",
+                      gridTemplateColumns: "92px minmax(0, 1fr)",
+                      gap: 18,
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <div
                       style={{
-                        wordBreak: "break-all",
+                        width: 82,
+                        height: 136,
+                        borderRadius: 22,
+                        border: "3px solid #1e3a8a",
+                        background: "#ffffff",
+                        boxShadow: "0 18px 32px rgba(30, 58, 138, 0.22)",
+                        display: "grid",
+                        placeItems: "center",
+                        animation: "kovixPhoneFloat 3.2s ease-in-out infinite",
                       }}
                     >
-                      {hexnodeProvisioning?.qrValue || "No disponible"}
-                    </strong>
-                  </>
-                ) : (
-                  <>
-                    <br />
-                    Codigo/valor enrollment: <strong>Oculto por seguridad</strong>
-                  </>
-                )}
-              </div>
+                      <div
+                        style={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: 10,
+                          border: "2px solid #0f172a",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: 3,
+                          padding: 5,
+                          animation: "kovixQrPulse 2.2s ease-in-out infinite",
+                        }}
+                      >
+                        {Array.from({ length: 9 }).map((_, index) => (
+                          <span
+                            key={`qr-dot-${index}`}
+                            style={{
+                              borderRadius: 2,
+                              background: [0, 2, 4, 6, 8].includes(index) ? "#0f172a" : "#bfdbfe",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      <strong style={{ fontSize: 18, color: "#0f172a" }}>QR listo para enrolamiento</strong>
+                      <span style={{ color: "var(--text-soft)", lineHeight: 1.45 }}>
+                        Genera el codigo QR y escanealo desde el celular. Los datos internos permanecen protegidos.
+                      </span>
+                      <span
+                        style={{
+                          width: 150,
+                          height: 3,
+                          borderRadius: 999,
+                          background: "linear-gradient(90deg, transparent, #1d4ed8, transparent)",
+                          animation: "kovixScan 1.8s ease-in-out infinite",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -3535,8 +3629,10 @@ export default function Dashboard() {
               type="button"
               onClick={handleCopyProvisioningJson}
               style={secondaryButtonStyle}
+              disabled={!canManageUsers}
+              title={canManageUsers ? "Copiar JSON" : "Solo administradores pueden copiar el JSON"}
             >
-              Copiar JSON
+              {canManageUsers ? "Copiar JSON" : "JSON oculto"}
             </button>
           </div>
         </article>
@@ -3562,13 +3658,27 @@ export default function Dashboard() {
             />
           )}
 
-          <textarea
-            readOnly
-            value={provisioningQrJson}
-            placeholder="Aqui se mostrara el JSON de aprovisionamiento"
-            rows={14}
-            style={inputStyle}
-          />
+          {canManageUsers ? (
+            <textarea
+              readOnly
+              value={provisioningQrJson}
+              placeholder="Aqui se mostrara el JSON de aprovisionamiento"
+              rows={14}
+              style={inputStyle}
+            />
+          ) : (
+            <div
+              style={{
+                ...inputStyle,
+                minHeight: 64,
+                display: "grid",
+                alignContent: "center",
+                color: "var(--text-soft)",
+              }}
+            >
+              JSON de aprovisionamiento oculto por seguridad.
+            </div>
+          )}
         </article>
       </section>
 
