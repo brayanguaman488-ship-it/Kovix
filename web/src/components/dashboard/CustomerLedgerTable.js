@@ -39,14 +39,26 @@ function formatMoney(value) {
 
 function buildReferenceText(customer) {
   const references = [
-    customer?.referencePersonalPhone1,
-    customer?.referencePersonalPhone2,
-    customer?.referenceWorkPhone,
+    { label: "Personal 1", value: customer?.referencePersonalPhone1 },
+    { label: "Personal 2", value: customer?.referencePersonalPhone2 },
+    { label: "Laboral", value: customer?.referenceWorkPhone },
   ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
+    .map((entry) => ({ ...entry, value: String(entry.value || "").trim() }))
+    .filter((entry) => entry.value);
 
-  return references.length > 0 ? references.join(" | ") : "-";
+  if (references.length === 0) {
+    return "-";
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 3 }}>
+      {references.map((entry) => (
+        <div key={entry.label}>
+          <strong>{entry.label}:</strong> {entry.value}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function getRowStatus(payments) {
@@ -97,20 +109,20 @@ function getStatusBadgeStyle(status) {
 export default function CustomerLedgerTable({ customers = [], devices = [], payments = [] }) {
   const now = new Date();
   const [search, setSearch] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"));
-  const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState("all");
+  const [selectedYear, setSelectedYear] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
 
   const yearOptions = useMemo(() => {
     const years = new Set([String(now.getFullYear())]);
-    payments.forEach((payment) => {
-      const dueDate = new Date(payment?.dueDate);
-      if (!Number.isNaN(dueDate.getTime())) {
-        years.add(String(dueDate.getFullYear()));
+    customers.forEach((customer) => {
+      const createdAt = new Date(customer?.createdAt);
+      if (!Number.isNaN(createdAt.getTime())) {
+        years.add(String(createdAt.getFullYear()));
       }
     });
     return [...years].sort((a, b) => Number(b) - Number(a));
-  }, [payments, now]);
+  }, [customers, now]);
 
   const rows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -118,6 +130,7 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
     return customers
       .map((customer) => {
         const customerId = String(customer?.id || "");
+        const createdAt = new Date(customer?.createdAt);
         const customerDevices = devices.filter(
           (device) => String(device?.customer?.id || device?.customerId || "") === customerId
         );
@@ -126,25 +139,14 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
           const paymentNationalId = String(payment?.customer?.nationalId || "");
           return paymentCustomerId === customerId || paymentNationalId === String(customer?.nationalId || "");
         });
-        const periodPayments = customerPayments.filter((payment) => {
-          const dueDate = new Date(payment?.dueDate);
-          if (Number.isNaN(dueDate.getTime())) {
-            return false;
-          }
-
-          const monthMatches =
-            selectedMonth === "all" || String(dueDate.getMonth() + 1).padStart(2, "0") === selectedMonth;
-          const yearMatches = selectedYear === "all" || String(dueDate.getFullYear()) === selectedYear;
-          return monthMatches && yearMatches;
-        });
-        const paidAmount = periodPayments
+        const paidAmount = customerPayments
           .filter((payment) => resolvePaymentStatus(payment) === "PAGADO")
           .reduce((total, payment) => total + Number(payment?.amount || 0), 0);
-        const pendingAmount = periodPayments
+        const pendingAmount = customerPayments
           .filter((payment) => resolvePaymentStatus(payment) !== "PAGADO")
           .reduce((total, payment) => total + Number(payment?.amount || 0), 0);
-        const status = getRowStatus(periodPayments);
-        const latestDueDate = periodPayments
+        const status = getRowStatus(customerPayments);
+        const latestDueDate = customerPayments
           .map((payment) => new Date(payment?.dueDate))
           .filter((date) => !Number.isNaN(date.getTime()))
           .sort((a, b) => b - a)[0];
@@ -152,14 +154,30 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
         return {
           customer,
           devices: customerDevices,
-          payments: periodPayments,
+          payments: customerPayments,
           paidAmount,
           pendingAmount,
           status,
           latestDueDate,
+          createdAt,
         };
       })
       .filter((row) => {
+        const createdAt = row.createdAt;
+        if (Number.isNaN(createdAt.getTime())) {
+          if (selectedMonth !== "all" || selectedYear !== "all") {
+            return false;
+          }
+        } else {
+          const monthMatches =
+            selectedMonth === "all" || String(createdAt.getMonth() + 1).padStart(2, "0") === selectedMonth;
+          const yearMatches = selectedYear === "all" || String(createdAt.getFullYear()) === selectedYear;
+
+          if (!monthMatches || !yearMatches) {
+            return false;
+          }
+        }
+
         if (selectedStatus !== "all" && row.status !== selectedStatus) {
           return false;
         }
@@ -208,7 +226,7 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
     <section style={cardStyle}>
       <h2 style={sectionTitleStyle}>Listado global de clientes</h2>
       <p style={{ marginTop: -6, color: "var(--text-soft)" }}>
-        Tabla consolidada de clientes con celular, referencias y estado de pagos por periodo.
+        Tabla consolidada de clientes con celular, referencias y estado global de pagos.
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -261,12 +279,15 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
           <option value="SIN_PAGOS">Sin pagos</option>
         </select>
       </div>
+      <p style={{ margin: "0 0 12px", color: "var(--text-soft)", fontSize: 13 }}>
+        Mes y ano filtran clientes por fecha de ingreso. Los pagos se muestran siempre de forma global por cliente.
+      </p>
 
       <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 14, background: "#ffffff" }}>
         <table style={{ width: "100%", minWidth: 1080, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Cliente", "Celular", "Referencias", "Periodo", "Estado", "Pagado", "Por cobrar", "Ultimo vencimiento"].map((label) => (
+              {["Cliente", "Celular", "Referencias", "Ingreso", "Estado", "Pagado", "Por cobrar", "Ultimo vencimiento"].map((label) => (
                 <th key={label} style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0", color: "#334155" }}>
                   {label}
                 </th>
@@ -293,9 +314,8 @@ export default function CustomerLedgerTable({ customers = [], devices = [], paym
                     {buildReferenceText(row.customer)}
                   </td>
                   <td style={{ padding: 10, borderBottom: "1px solid #eef2f7", verticalAlign: "top" }}>
-                    {selectedMonth === "all" ? "Todos" : MONTH_LABELS[Number(selectedMonth) - 1]}{" "}
-                    {selectedYear === "all" ? "" : selectedYear}
-                    <div style={{ color: "#64748b", fontSize: 13 }}>{row.payments.length} cuota(s)</div>
+                    {Number.isNaN(row.createdAt.getTime()) ? "-" : row.createdAt.toLocaleDateString()}
+                    <div style={{ color: "#64748b", fontSize: 13 }}>{row.payments.length} cuota(s) global</div>
                   </td>
                   <td style={{ padding: 10, borderBottom: "1px solid #eef2f7", verticalAlign: "top" }}>
                     <span style={{ ...badgeStyle, display: "inline-block", borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 800 }}>
