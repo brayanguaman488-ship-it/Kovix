@@ -57,6 +57,7 @@ function createInitialCreditForm() {
     principalAmount: "",
     downPaymentAmount: "",
     installmentCount: "",
+    interestRateMode: "17",
     cutOffDate: "",
     notes: "",
   };
@@ -88,6 +89,12 @@ const initialUserForm = {
 const PAGE_SIZE = 6;
 const DEVICE_OWNER_COMPONENT_NAME = "com.kovix.client/.admin.KovixDeviceAdminReceiver";
 const DEVICE_OWNER_PACKAGE_NAME = "com.kovix.client";
+const interestRateOptions = [
+  { value: "17", label: "17% mensual", rate: 0.17 },
+  { value: "15", label: "15% mensual", rate: 0.15 },
+  { value: "12", label: "12% mensual", rate: 0.12 },
+  { value: "custom", label: "Personalizado", rate: null },
+];
 const sectionGridStyle = {
   display: "grid",
   gap: 16,
@@ -453,31 +460,30 @@ function getTrashEntityLabel(entityType) {
 }
 
 function buildCreditInstallmentPreview(form) {
-  const principalAmount = Number(form?.principalAmount || 0);
-  const downPaymentAmount = Number(form?.downPaymentAmount || 0);
-  const installmentCount = Number(form?.installmentCount || 0);
-  const cutOffDate = String(form?.cutOffDate || "");
-
-  if (
-    !Number.isFinite(principalAmount) ||
-    principalAmount <= 0 ||
-    !Number.isFinite(downPaymentAmount) ||
-    downPaymentAmount < 0 ||
-    downPaymentAmount >= principalAmount ||
-    !Number.isInteger(installmentCount) ||
-    installmentCount <= 0 ||
-    !cutOffDate
-  ) {
+  const calculation = calculateCreditAmounts(form);
+  if (!calculation.ok) {
     return null;
   }
+
+  const {
+    principalAmount,
+    downPaymentAmount,
+    installmentCount,
+    cutOffDate,
+    financedAmount,
+    cashPrice,
+    interestRate,
+    monthlyInterest,
+    totalInterest,
+    totalToPay,
+    isCustom,
+  } = calculation;
 
   const start = new Date(`${cutOffDate}T00:00:00`);
   if (Number.isNaN(start.getTime())) {
     return null;
   }
 
-  const financedAmountRaw = principalAmount - downPaymentAmount;
-  const financedAmount = Number(financedAmountRaw.toFixed(2));
   const baseInstallment = Number((financedAmount / installmentCount).toFixed(2));
   let allocated = 0;
   const installments = [];
@@ -498,8 +504,90 @@ function buildCreditInstallmentPreview(form) {
   }
 
   return {
+    principalAmount,
+    cashPrice,
+    downPaymentAmount,
     financedAmount,
+    interestRate,
+    monthlyInterest,
+    totalInterest,
+    totalToPay,
+    isCustom,
     installments,
+  };
+}
+
+function calculateCreditAmounts(form) {
+  const interestMode = String(form?.interestRateMode || "17");
+  const isCustom = interestMode === "custom";
+  const cashPrice = Number(form?.cashPrice || 0);
+  const principalAmountInput = Number(form?.principalAmount || 0);
+  const downPaymentAmount = Number(form?.downPaymentAmount || 0);
+  const installmentCount = Number(form?.installmentCount || 0);
+  const cutOffDate = String(form?.cutOffDate || "");
+  const selectedRate = interestRateOptions.find((entry) => entry.value === interestMode) || interestRateOptions[0];
+
+  if (!Number.isFinite(downPaymentAmount) || downPaymentAmount < 0) {
+    return { ok: false, reason: "down_payment_invalid" };
+  }
+
+  if (!Number.isInteger(installmentCount) || installmentCount <= 0 || !cutOffDate) {
+    return { ok: false, reason: "installments_invalid" };
+  }
+
+  if (isCustom) {
+    if (!Number.isFinite(principalAmountInput) || principalAmountInput <= 0) {
+      return { ok: false, reason: "principal_invalid" };
+    }
+    if (downPaymentAmount >= principalAmountInput) {
+      return { ok: false, reason: "down_payment_too_high" };
+    }
+
+    const financedAmount = Number((principalAmountInput - downPaymentAmount).toFixed(2));
+    return {
+      ok: true,
+      isCustom,
+      cashPrice: Number.isFinite(cashPrice) && cashPrice >= 0 ? cashPrice : null,
+      principalAmount: Number(principalAmountInput.toFixed(2)),
+      downPaymentAmount,
+      installmentCount,
+      cutOffDate,
+      financedAmount,
+      interestRate: null,
+      monthlyInterest: 0,
+      totalInterest: 0,
+      totalToPay: financedAmount,
+    };
+  }
+
+  if (!Number.isFinite(cashPrice) || cashPrice <= 0) {
+    return { ok: false, reason: "cash_price_invalid" };
+  }
+
+  if (downPaymentAmount >= cashPrice) {
+    return { ok: false, reason: "down_payment_too_high" };
+  }
+
+  const financedCapital = Number((cashPrice - downPaymentAmount).toFixed(2));
+  const interestRate = Number(selectedRate.rate || 0);
+  const monthlyInterest = Number((financedCapital * interestRate).toFixed(2));
+  const totalInterest = Number((monthlyInterest * installmentCount).toFixed(2));
+  const totalToPay = Number((financedCapital + totalInterest).toFixed(2));
+  const principalAmount = Number((totalToPay + downPaymentAmount).toFixed(2));
+
+  return {
+    ok: true,
+    isCustom,
+    cashPrice,
+    principalAmount,
+    downPaymentAmount,
+    installmentCount,
+    cutOffDate,
+    financedAmount: totalToPay,
+    interestRate,
+    monthlyInterest,
+    totalInterest,
+    totalToPay,
   };
 }
 
@@ -604,6 +692,7 @@ export default function Dashboard() {
   const [trashEntries, setTrashEntries] = useState([]);
   const [isLoadingTrashEntries, setIsLoadingTrashEntries] = useState(false);
   const [deletingTrashEntryId, setDeletingTrashEntryId] = useState("");
+  const [restoringTrashEntryId, setRestoringTrashEntryId] = useState("");
   const [deletionRequests, setDeletionRequests] = useState([]);
   const [isLoadingDeletionRequests, setIsLoadingDeletionRequests] = useState(false);
   const [resolvingDeletionRequestId, setResolvingDeletionRequestId] = useState("");
@@ -1102,6 +1191,25 @@ export default function Dashboard() {
       setStatus("error", error.message || "No se pudo eliminar el registro de papelera");
     } finally {
       setDeletingTrashEntryId("");
+    }
+  }
+
+  async function handleRestoreTrashEntry(entryId) {
+    const id = String(entryId || "").trim();
+    if (!id) {
+      return;
+    }
+
+    try {
+      setRestoringTrashEntryId(id);
+      await api.restoreTrashEntry(id);
+      setTrashEntries((prev) => prev.filter((entry) => String(entry.id) !== id));
+      setStatus("success", "Registro restaurado correctamente");
+      await loadDashboard({ silent: true });
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo restaurar el registro");
+    } finally {
+      setRestoringTrashEntryId("");
     }
   }
 
@@ -1667,24 +1775,30 @@ export default function Dashboard() {
     event.preventDefault();
     const deviceId = creditForm.deviceId.trim();
     const purchaseDate = creditForm.purchaseDate;
-    const cashPrice = creditForm.cashPrice === "" ? null : Number(creditForm.cashPrice);
-    const principalAmount = Number(creditForm.principalAmount);
-    const downPaymentAmount = creditForm.downPaymentAmount ? Number(creditForm.downPaymentAmount) : 0;
-    const installmentCount = Number(creditForm.installmentCount);
+    const calculation = calculateCreditAmounts(creditForm);
+    const cashPrice = calculation.ok ? calculation.cashPrice : null;
+    const principalAmount = calculation.ok ? calculation.principalAmount : 0;
+    const downPaymentAmount = calculation.ok ? calculation.downPaymentAmount : 0;
+    const installmentCount = calculation.ok ? calculation.installmentCount : Number(creditForm.installmentCount);
     const startDate = creditForm.cutOffDate;
 
-    if (!deviceId || !purchaseDate || !creditForm.principalAmount || !creditForm.installmentCount || !startDate) {
-      setStatus("error", "Credito: deviceId, purchaseDate, principalAmount, installmentCount y cutOffDate son obligatorios");
+    if (!deviceId || !purchaseDate || !creditForm.installmentCount || !startDate) {
+      setStatus("error", "Credito: deviceId, purchaseDate, numero de cuotas y cutOffDate son obligatorios");
+      return;
+    }
+
+    if (!calculation.ok) {
+      setStatus(
+        "error",
+        creditForm.interestRateMode === "custom"
+          ? "Credito: completa monto total personalizado, entrada, cuotas y fecha de corte"
+          : "Credito: completa costo al contado, entrada, cuotas, tasa y fecha de corte"
+      );
       return;
     }
 
     if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
-      setStatus("error", "Credito: principalAmount debe ser mayor que 0");
-      return;
-    }
-
-    if (cashPrice !== null && (!Number.isFinite(cashPrice) || cashPrice < 0)) {
-      setStatus("error", "Credito: costo al contado debe ser mayor o igual que 0");
+      setStatus("error", "Credito: total a pagar debe ser mayor que 0");
       return;
     }
 
@@ -1694,7 +1808,7 @@ export default function Dashboard() {
     }
 
     if (downPaymentAmount >= principalAmount) {
-      setStatus("error", "Credito: la entrada debe ser menor que el monto total");
+      setStatus("error", "Credito: la entrada debe ser menor que el total a pagar");
       return;
     }
 
@@ -1799,9 +1913,11 @@ export default function Dashboard() {
     event.preventDefault();
     const deviceId = renewalCreditForm.deviceId.trim();
     const purchaseDate = renewalCreditForm.purchaseDate;
-    const principalAmount = Number(renewalCreditForm.principalAmount);
-    const downPaymentAmount = renewalCreditForm.downPaymentAmount ? Number(renewalCreditForm.downPaymentAmount) : 0;
-    const installmentCount = Number(renewalCreditForm.installmentCount);
+    const calculation = calculateCreditAmounts(renewalCreditForm);
+    const cashPrice = calculation.ok ? calculation.cashPrice : null;
+    const principalAmount = calculation.ok ? calculation.principalAmount : 0;
+    const downPaymentAmount = calculation.ok ? calculation.downPaymentAmount : 0;
+    const installmentCount = calculation.ok ? calculation.installmentCount : Number(renewalCreditForm.installmentCount);
     const startDate = renewalCreditForm.cutOffDate;
 
     if (!renewalCreatedDeviceId) {
@@ -1814,13 +1930,18 @@ export default function Dashboard() {
       return;
     }
 
-    if (!deviceId || !purchaseDate || !renewalCreditForm.principalAmount || !renewalCreditForm.installmentCount || !startDate) {
-      setStatus("error", "Renovacion credito: deviceId, purchaseDate, principalAmount, installmentCount y cutOffDate son obligatorios");
+    if (!deviceId || !purchaseDate || !renewalCreditForm.installmentCount || !startDate) {
+      setStatus("error", "Renovacion credito: deviceId, purchaseDate, numero de cuotas y cutOffDate son obligatorios");
       return;
     }
 
-    if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
-      setStatus("error", "Renovacion credito: principalAmount debe ser mayor que 0");
+    if (!calculation.ok) {
+      setStatus(
+        "error",
+        renewalCreditForm.interestRateMode === "custom"
+          ? "Renovacion credito: completa monto total personalizado, entrada, cuotas y fecha de corte"
+          : "Renovacion credito: completa costo al contado, entrada, cuotas, tasa y fecha de corte"
+      );
       return;
     }
 
@@ -1830,7 +1951,7 @@ export default function Dashboard() {
     }
 
     if (downPaymentAmount >= principalAmount) {
-      setStatus("error", "Renovacion credito: la entrada debe ser menor que el monto total");
+      setStatus("error", "Renovacion credito: la entrada debe ser menor que el total a pagar");
       return;
     }
 
@@ -1845,6 +1966,7 @@ export default function Dashboard() {
         ...renewalCreditForm,
         deviceId,
         purchaseDate,
+        cashPrice,
         principalAmount,
         downPaymentAmount,
         installmentCount,
@@ -3489,27 +3611,14 @@ export default function Dashboard() {
                 </option>
               ))}
             </select>
-            {userRole === "TIENDA" && (
-              <input
-                placeholder="Costo al contado (USD)"
-                type="number"
-                min="0"
-                step="0.01"
-                value={creditForm.cashPrice}
-                onChange={(event) =>
-                  setCreditForm((value) => ({ ...value, cashPrice: event.target.value }))
-                }
-                style={inputStyle}
-              />
-            )}
             <input
-              placeholder="Monto total (USD)"
+              placeholder="Costo al contado (USD)"
               type="number"
               min="0"
               step="0.01"
-              value={creditForm.principalAmount}
+              value={creditForm.cashPrice}
               onChange={(event) =>
-                setCreditForm((value) => ({ ...value, principalAmount: event.target.value }))
+                setCreditForm((value) => ({ ...value, cashPrice: event.target.value }))
               }
               style={inputStyle}
             />
@@ -3524,6 +3633,32 @@ export default function Dashboard() {
               }
               style={inputStyle}
             />
+            <select
+              value={creditForm.interestRateMode}
+              onChange={(event) =>
+                setCreditForm((value) => ({ ...value, interestRateMode: event.target.value }))
+              }
+              style={inputStyle}
+            >
+              {interestRateOptions.map((entry) => (
+                <option key={`interest-rate-${entry.value}`} value={entry.value}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
+            {creditForm.interestRateMode === "custom" && (
+              <input
+                placeholder="Monto total personalizado (USD)"
+                type="number"
+                min="0"
+                step="0.01"
+                value={creditForm.principalAmount}
+                onChange={(event) =>
+                  setCreditForm((value) => ({ ...value, principalAmount: event.target.value }))
+                }
+                style={inputStyle}
+              />
+            )}
             <input
               placeholder="Numero de cuotas"
               type="number"
@@ -3573,7 +3708,17 @@ export default function Dashboard() {
               >
                 <strong>Generador de tabla de cuotas (vista previa)</strong>
                 <div style={{ color: "#1e3a8a" }}>
-                  Monto financiado: ${creditInstallmentPreview.financedAmount.toFixed(2)} USD
+                  Costo al contado: ${Number(creditInstallmentPreview.cashPrice || 0).toFixed(2)} USD | Entrada: $
+                  {creditInstallmentPreview.downPaymentAmount.toFixed(2)} USD
+                </div>
+                {!creditInstallmentPreview.isCustom && (
+                  <div style={{ color: "#1e3a8a" }}>
+                    Interes mensual: {(creditInstallmentPreview.interestRate * 100).toFixed(0)}% | Interes total: $
+                    {creditInstallmentPreview.totalInterest.toFixed(2)} USD
+                  </div>
+                )}
+                <div style={{ color: "#1e3a8a" }}>
+                  Total financiado en cuotas: ${creditInstallmentPreview.financedAmount.toFixed(2)} USD
                 </div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 460 }}>
@@ -3608,7 +3753,7 @@ export default function Dashboard() {
                   color: "#475569",
                 }}
               >
-                Completa monto total, entrada, numero de cuotas y fecha de corte para generar la tabla de cuotas.
+                Completa costo al contado, entrada, tasa, numero de cuotas y fecha de corte para generar la tabla de cuotas.
               </div>
             )}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -3765,13 +3910,13 @@ export default function Dashboard() {
                   ))}
                 </select>
                 <input
-                  placeholder="Monto total (USD)"
+                  placeholder="Costo al contado (USD)"
                   type="number"
                   min="0"
                   step="0.01"
-                  value={renewalCreditForm.principalAmount}
+                  value={renewalCreditForm.cashPrice}
                   onChange={(event) =>
-                    setRenewalCreditForm((value) => ({ ...value, principalAmount: event.target.value }))
+                    setRenewalCreditForm((value) => ({ ...value, cashPrice: event.target.value }))
                   }
                   style={inputStyle}
                 />
@@ -3786,6 +3931,32 @@ export default function Dashboard() {
                   }
                   style={inputStyle}
                 />
+                <select
+                  value={renewalCreditForm.interestRateMode}
+                  onChange={(event) =>
+                    setRenewalCreditForm((value) => ({ ...value, interestRateMode: event.target.value }))
+                  }
+                  style={inputStyle}
+                >
+                  {interestRateOptions.map((entry) => (
+                    <option key={`renewal-interest-rate-${entry.value}`} value={entry.value}>
+                      {entry.label}
+                    </option>
+                  ))}
+                </select>
+                {renewalCreditForm.interestRateMode === "custom" && (
+                  <input
+                    placeholder="Monto total personalizado (USD)"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={renewalCreditForm.principalAmount}
+                    onChange={(event) =>
+                      setRenewalCreditForm((value) => ({ ...value, principalAmount: event.target.value }))
+                    }
+                    style={inputStyle}
+                  />
+                )}
                 <input
                   placeholder="Numero de cuotas"
                   type="number"
@@ -3839,7 +4010,17 @@ export default function Dashboard() {
                   >
                     <strong>Generador de tabla de cuotas (vista previa)</strong>
                     <div style={{ color: "#1e3a8a" }}>
-                      Monto financiado: ${renewalInstallmentPreview.financedAmount.toFixed(2)} USD
+                      Costo al contado: ${Number(renewalInstallmentPreview.cashPrice || 0).toFixed(2)} USD | Entrada: $
+                      {renewalInstallmentPreview.downPaymentAmount.toFixed(2)} USD
+                    </div>
+                    {!renewalInstallmentPreview.isCustom && (
+                      <div style={{ color: "#1e3a8a" }}>
+                        Interes mensual: {(renewalInstallmentPreview.interestRate * 100).toFixed(0)}% | Interes total: $
+                        {renewalInstallmentPreview.totalInterest.toFixed(2)} USD
+                      </div>
+                    )}
+                    <div style={{ color: "#1e3a8a" }}>
+                      Total financiado en cuotas: ${renewalInstallmentPreview.financedAmount.toFixed(2)} USD
                     </div>
                     <div style={{ overflowX: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
@@ -4022,7 +4203,7 @@ export default function Dashboard() {
                   <div>Fecha de compra: {selectedCreditContract.summary?.purchaseDate ? new Date(selectedCreditContract.summary.purchaseDate).toLocaleDateString() : "-"}</div>
                   <div>Fecha de corte: {selectedCreditContract.summary?.cutOffDate ? new Date(selectedCreditContract.summary.cutOffDate).toLocaleDateString() : "-"}</div>
                   <div>Costo al contado: {selectedCreditContract.summary?.cashPrice === null || selectedCreditContract.summary?.cashPrice === undefined ? "-" : `$${Number(selectedCreditContract.summary.cashPrice).toFixed(2)} USD`}</div>
-                  <div>Precio del equipo: ${Number(selectedCreditContract.summary?.principalAmount || 0).toFixed(2)} USD</div>
+                  <div>Total a pagar: ${Number(selectedCreditContract.summary?.principalAmount || 0).toFixed(2)} USD</div>
                   <div>Entrada: ${Number(selectedCreditContract.summary?.downPaymentAmount || 0).toFixed(2)} USD</div>
                   <div>Monto financiado: ${Number(selectedCreditContract.summary?.financedAmount || 0).toFixed(2)} USD</div>
                   <div>Pagado: ${Number(selectedCreditContract.summary?.paidAmount || 0).toFixed(2)} USD</div>
@@ -5247,21 +5428,38 @@ export default function Dashboard() {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                       <strong>{getTrashEntityLabel(entry.entityType)}: {entry.summary || entry.entityId}</strong>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTrashEntry(entry.id)}
-                        disabled={deletingTrashEntryId === String(entry.id)}
-                        style={{
-                          border: "1px solid #f59e0b",
-                          background: "#fffbeb",
-                          color: "#92400e",
-                          borderRadius: 8,
-                          padding: "6px 10px",
-                          cursor: deletingTrashEntryId === String(entry.id) ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {deletingTrashEntryId === String(entry.id) ? "Quitando..." : "Quitar registro"}
-                      </button>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreTrashEntry(entry.id)}
+                          disabled={restoringTrashEntryId === String(entry.id)}
+                          style={{
+                            border: "1px solid #22c55e",
+                            background: "#f7fff9",
+                            color: "#166534",
+                            borderRadius: 8,
+                            padding: "6px 10px",
+                            cursor: restoringTrashEntryId === String(entry.id) ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {restoringTrashEntryId === String(entry.id) ? "Restaurando..." : "Restaurar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTrashEntry(entry.id)}
+                          disabled={deletingTrashEntryId === String(entry.id)}
+                          style={{
+                            border: "1px solid #f59e0b",
+                            background: "#fffbeb",
+                            color: "#92400e",
+                            borderRadius: 8,
+                            padding: "6px 10px",
+                            cursor: deletingTrashEntryId === String(entry.id) ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {deletingTrashEntryId === String(entry.id) ? "Quitando..." : "Quitar registro"}
+                        </button>
+                      </div>
                     </div>
                     <div style={{ color: "#475569", fontSize: 14 }}>
                       Eliminado: {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "-"} | Purga:{" "}

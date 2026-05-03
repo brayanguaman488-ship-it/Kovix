@@ -34,7 +34,7 @@ export default function CustomerForm({ form, customers, onChange, onSubmit, isSu
         >
           {countryCodeOptions.map((entry) => (
             <option key={`${id}-${entry.code}`} value={entry.code}>
-              {entry.label}
+              {entry.code}
             </option>
           ))}
         </select>

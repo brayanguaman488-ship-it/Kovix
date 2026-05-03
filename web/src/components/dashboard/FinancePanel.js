@@ -67,6 +67,48 @@ export default function FinancePanel({ payments, devices = [] }) {
     });
   }, [payments, selectedMonth, selectedYear]);
 
+  const contractSuffixMap = useMemo(() => {
+    const byCustomer = new Map();
+    for (const device of devices || []) {
+      const contract = device?.creditContract;
+      const customerId = String(device?.customer?.id || device?.customerId || contract?.customerId || "");
+      if (!contract?.id || !customerId) continue;
+
+      const entries = byCustomer.get(customerId) || [];
+      entries.push({
+        id: String(contract.id),
+        createdAt: new Date(contract.createdAt || device.createdAt || 0).getTime(),
+      });
+      byCustomer.set(customerId, entries);
+    }
+
+    const suffixMap = new Map();
+    for (const entries of byCustomer.values()) {
+      entries
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .forEach((entry, index) => {
+          suffixMap.set(entry.id, index === 0 ? "" : String.fromCharCode(64 + index));
+        });
+    }
+
+    return suffixMap;
+  }, [devices]);
+
+  function getPaymentInstallmentLabel(payment) {
+    if (!payment?.installment) {
+      return "-";
+    }
+
+    const sequence = payment?.installment?.sequence;
+    if (!sequence) {
+      return "-";
+    }
+
+    const contractId = String(payment?.installment?.contractId || payment?.installment?.contract?.id || "");
+    const suffix = contractSuffixMap.get(contractId) || "";
+    return `${sequence}${suffix}`;
+  }
+
   const totals = useMemo(() => {
     const summary = {
       pendingAmount: 0,
@@ -139,21 +181,26 @@ export default function FinancePanel({ payments, devices = [] }) {
       .slice(0, 6)
       .map((payment) => {
         const status = resolvePaymentStatus(payment);
+        const installmentLabel = getPaymentInstallmentLabel(payment);
+        const isDownPayment = !payment?.installment && String(payment?.notes || "").toLowerCase().includes("entrada");
         const concept =
-          status === "PAGADO"
-            ? `Pago de cuota #${String(payment?.id || "").slice(-4)}`
+          isDownPayment
+            ? "Entrada inicial"
+            : status === "PAGADO"
+            ? `Pago de cuota ${installmentLabel}`
             : status === "VENCIDO"
-              ? `Cuota vencida #${String(payment?.id || "").slice(-4)}`
-              : `Cuota pendiente #${String(payment?.id || "").slice(-4)}`;
+              ? `Cuota vencida ${installmentLabel}`
+              : `Cuota pendiente ${installmentLabel}`;
         return {
           id: payment?.id,
           date: payment?.dueDate,
           concept,
           status,
           amount: Number(payment?.amount || 0),
+          installmentLabel,
         };
       });
-  }, [scopedPayments]);
+  }, [scopedPayments, contractSuffixMap]);
 
   const licenseSummary = useMemo(() => {
     const tiers = [
@@ -306,7 +353,7 @@ export default function FinancePanel({ payments, devices = [] }) {
                       </span>
                     </td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 700 }}>{formatCurrency(entry.amount)}</td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>1</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{entry.installmentLabel}</td>
                   </tr>
                 ))}
                 {recentMovements.length === 0 && (

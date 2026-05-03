@@ -276,6 +276,11 @@ export const api = {
       method: "DELETE",
     });
   },
+  restoreTrashEntry(entryId) {
+    return request(`/trash/${encodeURIComponent(entryId)}/restore`, {
+      method: "POST",
+    });
+  },
   getDeletionRequests(params = {}) {
     const query = new URLSearchParams();
     if (params.status) query.set("status", params.status);

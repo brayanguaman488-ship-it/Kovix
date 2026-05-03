@@ -274,6 +274,8 @@ router.delete("/:id", asyncHandler(async (req, res) => {
           referencePersonalPhone1: current.referencePersonalPhone1,
           referencePersonalPhone2: current.referencePersonalPhone2,
           referenceWorkPhone: current.referenceWorkPhone,
+          address: current.address,
+          notes: current.notes,
           devicesCount: current.devices.length,
           paymentsCount: current.payments.length,
         },

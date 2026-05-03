@@ -41,6 +41,18 @@ router.get("/", asyncHandler(async (req, res) => {
         },
       },
       device: true,
+      installment: {
+        include: {
+          contract: {
+            select: {
+              id: true,
+              customerId: true,
+              deviceId: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -149,6 +161,18 @@ router.patch("/:id/mark-paid", asyncHandler(async (req, res) => {
         },
       },
       device: true,
+      installment: {
+        include: {
+          contract: {
+            select: {
+              id: true,
+              customerId: true,
+              deviceId: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -193,6 +217,18 @@ router.patch("/:id/mark-overdue", asyncHandler(async (req, res) => {
         },
       },
       device: true,
+      installment: {
+        include: {
+          contract: {
+            select: {
+              id: true,
+              customerId: true,
+              deviceId: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -237,6 +273,18 @@ router.patch("/:id/mark-pending", asyncHandler(async (req, res) => {
         },
       },
       device: true,
+      installment: {
+        include: {
+          contract: {
+            select: {
+              id: true,
+              customerId: true,
+              deviceId: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -295,6 +343,8 @@ router.delete("/:id", asyncHandler(async (req, res) => {
         currency: current.currency,
         dueDate: current.dueDate,
         status: current.status,
+        paidAt: current.paidAt,
+        notes: current.notes,
         customer: current.customer,
         device: current.device,
       },
