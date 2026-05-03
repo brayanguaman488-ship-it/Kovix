@@ -6,6 +6,7 @@ import SummaryCards from "../components/dashboard/SummaryCards";
 import CustomerForm from "../components/dashboard/CustomerForm";
 import DeviceForm from "../components/dashboard/DeviceForm";
 import CustomersList from "../components/dashboard/CustomersList";
+import CustomerLedgerTable from "../components/dashboard/CustomerLedgerTable";
 import DevicesList from "../components/dashboard/DevicesList";
 import PaymentsList from "../components/dashboard/PaymentsList";
 import FinancePanel from "../components/dashboard/FinancePanel";
@@ -3150,6 +3151,7 @@ export default function Dashboard() {
                   { key: "customers", label: "Clientes" },
                   { key: "devices", label: "Celulares" },
                   { key: "payments", label: "Pagos" },
+                  { key: "customer_ledger", label: "Listado global" },
                 ].map((entry) => {
                   const isActive = activeSummarySection === entry.key;
                   return (
@@ -4167,6 +4169,10 @@ export default function Dashboard() {
             )}
           </article>
         </section>
+      )}
+
+      {activeMainView === "control" && activeSummarySection === "customer_ledger" && (
+        <CustomerLedgerTable customers={customers} devices={devices} payments={payments} />
       )}
 
       {activeMainView === "finance" && (
