@@ -3442,15 +3442,24 @@ export default function Dashboard() {
                 Portal: <strong>{hexnodeProvisioning?.portalUrl || "No configurado"}</strong><br />
                 Estado:{" "}
                 <strong>{hexnodeProvisioning?.configured ? "Configurado" : "Falta configurar variable en backend"}</strong>
-                <br />
-                Codigo/valor enrollment:{" "}
-                <strong
-                  style={{
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {hexnodeProvisioning?.qrValue || "No disponible"}
-                </strong>
+                {canManageUsers ? (
+                  <>
+                    <br />
+                    Codigo/valor enrollment:{" "}
+                    <strong
+                      style={{
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {hexnodeProvisioning?.qrValue || "No disponible"}
+                    </strong>
+                  </>
+                ) : (
+                  <>
+                    <br />
+                    Codigo/valor enrollment: <strong>Oculto por seguridad</strong>
+                  </>
+                )}
               </div>
             </>
           ) : (
