@@ -35,6 +35,49 @@ function resolveConvenioPaymentStatus(payment) {
   return dueDate < todayStart ? PaymentStatus.VENCIDO : PaymentStatus.PENDIENTE;
 }
 
+function parseInstallmentCount(value, fallback = 1) {
+  const parsed = Number(value || fallback);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 60 ? parsed : null;
+}
+
+function parseMonth(value, fallback) {
+  const parsed = Number(value || fallback);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : fallback;
+}
+
+function parseYear(value, fallback) {
+  const parsed = Number(value || fallback);
+  return Number.isInteger(parsed) && parsed >= 2020 && parsed <= 2100 ? parsed : fallback;
+}
+
+function addMonths(date, months) {
+  const source = new Date(date);
+  const day = source.getUTCDate();
+  const target = new Date(Date.UTC(source.getUTCFullYear(), source.getUTCMonth() + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return target;
+}
+
+function getMonthBounds(year, month) {
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1)),
+    end: new Date(Date.UTC(year, month, 1)),
+  };
+}
+
+function buildInstallmentRows({ customerId, deviceId, amount, dueDate, count, notes, createdByUserId }) {
+  return Array.from({ length: count }, (_, index) => ({
+    convenioCustomerId: customerId,
+    convenioDeviceId: deviceId,
+    amount,
+    dueDate: addMonths(dueDate, index),
+    sequence: index + 1,
+    notes,
+    createdByUserId,
+  }));
+}
+
 async function userCanAccessConvenios(req) {
   if (isAdmin(req.user?.role)) return true;
 
@@ -115,6 +158,10 @@ router.get("/summary", asyncHandler(async (req, res) => {
   if (!(await ensureConvenioAccess(req, res))) return;
 
   const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  const now = new Date();
+  const year = parseYear(req.query?.year, now.getFullYear());
+  const month = parseMonth(req.query?.month, now.getMonth() + 1);
+  const bounds = getMonthBounds(year, month);
   const where = convenioOwnerWhere(req, ownerUserId);
   const paymentWhere = Object.keys(where).length ? { createdByUserId: where.createdByUserId } : {};
 
@@ -150,12 +197,20 @@ router.get("/summary", asyncHandler(async (req, res) => {
     ...user,
     convenioAccess: Boolean(accessByUser.get(user.id)?.enabled),
   }));
+  const discountRows = payments.filter((payment) => {
+    const dueDate = new Date(payment?.dueDate);
+    if (Number.isNaN(dueDate.getTime()) || dueDate < bounds.start || dueDate >= bounds.end) return false;
+    return resolveConvenioPaymentStatus(payment) !== PaymentStatus.PAGADO;
+  });
 
   return res.json({
     ok: true,
     canManage: isAdmin(req.user?.role),
+    year,
+    month,
     customers,
     payments,
+    discountRows,
     summary: {
       customersCount: customers.length,
       devicesCount: customers.reduce((sum, customer) => sum + Number(customer.devices?.length || 0), 0),
@@ -181,6 +236,7 @@ router.post("/customers", asyncHandler(async (req, res) => {
   const paymentAmount = parsePositiveAmount(req.body?.paymentAmount);
   const dueDate = parseDate(req.body?.dueDate);
   const paymentNotes = asOptionalTrimmedString(req.body?.paymentNotes);
+  const installmentCount = parseInstallmentCount(req.body?.installmentCount, 1);
 
   if (!fullName || !nationalId) {
     return sendBadRequest(res, "Nombre y cedula son obligatorios");
@@ -192,6 +248,10 @@ router.post("/customers", asyncHandler(async (req, res) => {
 
   if (cashPrice !== null && (!Number.isFinite(cashPrice) || cashPrice < 0)) {
     return sendBadRequest(res, "Costo del equipo invalido");
+  }
+
+  if (!installmentCount) {
+    return sendBadRequest(res, "Numero de cuotas invalido");
   }
 
   if ((req.body?.paymentAmount || req.body?.dueDate) && (!paymentAmount || !dueDate)) {
@@ -217,26 +277,33 @@ router.post("/customers", asyncHandler(async (req, res) => {
           model,
           imei,
           cashPrice,
+          installmentCount,
           notes: deviceNotes,
           createdByUserId: req.user.id,
         },
       });
 
       let payment = null;
+      let payments = [];
       if (paymentAmount && dueDate) {
-        payment = await tx.convenioPayment.create({
-          data: {
-            convenioCustomerId: customer.id,
-            convenioDeviceId: device.id,
-            amount: paymentAmount,
-            dueDate,
-            notes: paymentNotes,
-            createdByUserId: req.user.id,
-          },
+        const rows = buildInstallmentRows({
+          customerId: customer.id,
+          deviceId: device.id,
+          amount: paymentAmount,
+          dueDate,
+          count: installmentCount,
+          notes: paymentNotes,
+          createdByUserId: req.user.id,
         });
+        await tx.convenioPayment.createMany({ data: rows });
+        payments = await tx.convenioPayment.findMany({
+          where: { convenioDeviceId: device.id },
+          orderBy: { sequence: "asc" },
+        });
+        payment = payments[0] || null;
       }
 
-      return { customer, device, payment };
+      return { customer, device, payment, payments };
     });
 
     return res.status(201).json({ ok: true, ...result });
@@ -256,9 +323,14 @@ router.post("/payments", asyncHandler(async (req, res) => {
   const amount = parsePositiveAmount(req.body?.amount);
   const dueDate = parseDate(req.body?.dueDate);
   const notes = asOptionalTrimmedString(req.body?.notes);
+  const installmentCount = parseInstallmentCount(req.body?.installmentCount, 1);
 
   if (!customerId || !amount || !dueDate) {
     return sendBadRequest(res, "Cliente, monto y fecha son obligatorios");
+  }
+
+  if (!installmentCount) {
+    return sendBadRequest(res, "Numero de cuotas invalido");
   }
 
   const customer = await prisma.convenioCustomer.findFirst({
@@ -274,16 +346,23 @@ router.post("/payments", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "Dispositivo invalido para este convenio");
   }
 
-  const payment = await prisma.convenioPayment.create({
-    data: {
-      convenioCustomerId: customer.id,
-      convenioDeviceId: deviceId,
+  const createdByUserId = customer.createdByUserId || req.user.id;
+  const payment = await prisma.$transaction(async (tx) => {
+    const rows = buildInstallmentRows({
+      customerId: customer.id,
+      deviceId,
       amount,
       dueDate,
+      count: installmentCount,
       notes,
-      createdByUserId: customer.createdByUserId || req.user.id,
-    },
-    include: { customer: true, device: true },
+      createdByUserId,
+    });
+    await tx.convenioPayment.createMany({ data: rows });
+    return tx.convenioPayment.findFirst({
+      where: { convenioCustomerId: customer.id, convenioDeviceId: deviceId || null, createdByUserId },
+      orderBy: [{ createdAt: "desc" }],
+      include: { customer: true, device: true },
+    });
   });
 
   return res.status(201).json({ ok: true, payment });
@@ -308,6 +387,58 @@ router.patch("/payments/:id/mark-paid", asyncHandler(async (req, res) => {
       collectedByUserId: req.user.id,
     },
     include: { customer: true, device: true },
+  });
+
+  return res.json({ ok: true, payment: updated });
+}));
+
+router.patch("/payments/:id/skip-discount", asyncHandler(async (req, res) => {
+  if (!(await ensureConvenioAccess(req, res))) return;
+
+  const payment = await prisma.convenioPayment.findFirst({
+    where: { ...convenioOwnerWhere(req), id: req.params.id },
+  });
+
+  if (!payment) {
+    return sendNotFound(res, "Pago de convenio no encontrado");
+  }
+
+  if (String(payment.status || "").toUpperCase() === PaymentStatus.PAGADO) {
+    return sendBadRequest(res, "No se puede pasar al siguiente mes un pago ya pagado");
+  }
+
+  const ownerWhere = convenioOwnerWhere(req);
+  const scheduleWhere = {
+    ...ownerWhere,
+    status: { notIn: [PaymentStatus.PAGADO, PaymentStatus.CANCELADO] },
+    dueDate: { gte: payment.dueDate },
+    ...(payment.convenioDeviceId
+      ? { convenioDeviceId: payment.convenioDeviceId }
+      : { convenioCustomerId: payment.convenioCustomerId, convenioDeviceId: null }),
+  };
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const schedule = await tx.convenioPayment.findMany({
+      where: scheduleWhere,
+      orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+    });
+
+    for (const entry of schedule) {
+      // eslint-disable-next-line no-await-in-loop
+      await tx.convenioPayment.update({
+        where: { id: entry.id },
+        data: {
+          dueDate: addMonths(entry.dueDate, 1),
+          discountSkippedAt: entry.id === payment.id ? new Date() : entry.discountSkippedAt,
+          discountSkippedByUserId: entry.id === payment.id ? req.user.id : entry.discountSkippedByUserId,
+        },
+      });
+    }
+
+    return tx.convenioPayment.findUnique({
+      where: { id: payment.id },
+      include: { customer: true, device: true },
+    });
   });
 
   return res.json({ ok: true, payment: updated });

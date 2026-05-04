@@ -140,6 +140,7 @@ model ConvenioDevice {
   model              String
   imei               String?            @unique
   cashPrice          Decimal?           @db.Decimal(10, 2)
+  installmentCount   Int                @default(1)
   notes              String?
   createdByUserId    String?
   createdAt          DateTime           @default(now())
@@ -161,14 +162,18 @@ model ConvenioPayment {
   dueDate            DateTime
   paidAt             DateTime?
   status             PaymentStatus    @default(PENDIENTE)
+  sequence           Int?
   notes              String?
   createdByUserId    String?
   collectedByUserId  String?
+  discountSkippedAt  DateTime?
+  discountSkippedByUserId String?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
   @@index([convenioCustomerId, dueDate])
   @@index([convenioDeviceId])
+  @@index([convenioDeviceId, sequence])
   @@index([createdByUserId, dueDate])
   @@index([status, dueDate])
 }

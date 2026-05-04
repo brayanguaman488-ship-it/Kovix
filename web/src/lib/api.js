@@ -343,6 +343,8 @@ export const api = {
   getConvenioSummary(params = {}) {
     const query = new URLSearchParams();
     if (params.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+    if (params.year) query.set("year", String(params.year));
+    if (params.month) query.set("month", String(params.month));
     const suffix = query.toString() ? `?${query.toString()}` : "";
     return request(`/convenios/summary${suffix}`);
   },
@@ -360,6 +362,11 @@ export const api = {
   },
   markConvenioPaymentPaid(paymentId) {
     return request(`/convenios/payments/${encodeURIComponent(paymentId)}/mark-paid`, {
+      method: "PATCH",
+    });
+  },
+  skipConvenioPaymentDiscount(paymentId) {
+    return request(`/convenios/payments/${encodeURIComponent(paymentId)}/skip-discount`, {
       method: "PATCH",
     });
   },

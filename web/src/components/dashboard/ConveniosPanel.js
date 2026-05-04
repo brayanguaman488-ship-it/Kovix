@@ -12,6 +12,7 @@ const initialConvenioForm = {
   imei: "",
   cashPrice: "",
   paymentAmount: "",
+  installmentCount: "1",
   dueDate: "",
   notes: "",
 };
@@ -20,9 +21,25 @@ const initialPaymentForm = {
   customerId: "",
   deviceId: "",
   amount: "",
+  installmentCount: "1",
   dueDate: "",
   notes: "",
 };
+
+const MONTH_LABELS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("es-EC", {
@@ -56,15 +73,28 @@ function statusBadge(status) {
   return { label: "Pendiente", bg: "#dbeafe", color: "#1e3a8a" };
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export default function ConveniosPanel({ canManage = false }) {
+  const now = new Date();
   const [data, setData] = useState(null);
   const [form, setForm] = useState(initialConvenioForm);
   const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
   const [ownerUserId, setOwnerUserId] = useState("");
+  const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [markingPaymentId, setMarkingPaymentId] = useState("");
+  const [skippingPaymentId, setSkippingPaymentId] = useState("");
   const [updatingAccessUserId, setUpdatingAccessUserId] = useState("");
   const [message, setMessage] = useState("");
 
@@ -72,7 +102,11 @@ export default function ConveniosPanel({ canManage = false }) {
     setLoading(true);
     if (!options.silent) setMessage("");
     try {
-      const response = await api.getConvenioSummary(ownerUserId ? { ownerUserId } : {});
+      const response = await api.getConvenioSummary({
+        ...(ownerUserId ? { ownerUserId } : {}),
+        year: selectedYear,
+        month: selectedMonth,
+      });
       setData(response);
     } catch (error) {
       setMessage(error?.message || "No se pudo cargar Convenios");
@@ -83,12 +117,14 @@ export default function ConveniosPanel({ canManage = false }) {
 
   useEffect(() => {
     loadConvenios({ silent: true });
-  }, [ownerUserId]);
+  }, [ownerUserId, selectedYear, selectedMonth]);
 
   const customers = data?.customers || [];
   const payments = data?.payments || [];
+  const discountRows = data?.discountRows || [];
   const accessUsers = data?.accessUsers || [];
   const totals = data?.summary?.payments || {};
+  const monthLabel = MONTH_LABELS[Number(selectedMonth) - 1] || "Mes";
 
   const selectedCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === paymentForm.customerId) || null;
@@ -140,6 +176,88 @@ export default function ConveniosPanel({ canManage = false }) {
     }
   }
 
+  async function handleSkipDiscount(paymentId) {
+    setSkippingPaymentId(paymentId);
+    setMessage("");
+    try {
+      await api.skipConvenioPaymentDiscount(paymentId);
+      setMessage("Descuento pasado al siguiente mes.");
+      await loadConvenios({ silent: true });
+    } catch (error) {
+      setMessage(error?.message || "No se pudo pasar el descuento");
+    } finally {
+      setSkippingPaymentId("");
+    }
+  }
+
+  function handleExportDiscountPdf() {
+    const total = discountRows.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const rows = discountRows
+      .map((payment, index) => {
+        const device = payment.device ? `${payment.device.brand || ""} ${payment.device.model || ""}`.trim() : "-";
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${escapeHtml(payment.customer?.fullName || "-")}</td>
+            <td>${escapeHtml(payment.customer?.nationalId || "-")}</td>
+            <td>${escapeHtml(device)}</td>
+            <td>${payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
+            <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
+            <td>${formatCurrency(payment.amount)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const popup = window.open("", "_blank", "width=960,height=720");
+    if (!popup) {
+      setMessage("El navegador bloqueo la ventana para exportar PDF");
+      return;
+    }
+
+    popup.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Descuentos Convenios ${monthLabel} ${selectedYear}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 28px; color: #0f172a; }
+            h1 { margin: 0 0 4px; font-size: 24px; }
+            p { margin: 0 0 18px; color: #475569; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+            th { background: #eff6ff; }
+            .total { margin-top: 16px; font-weight: 800; text-align: right; }
+            @media print { button { display: none; } body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Listado general para pasar descuentos</h1>
+          <p>Periodo: ${monthLabel} ${selectedYear}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Cedula</th>
+                <th>Dispositivo</th>
+                <th>Cuota</th>
+                <th>Fecha</th>
+                <th>Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="7">No hay descuentos para este periodo.</td></tr>`}
+            </tbody>
+          </table>
+          <div class="total">Total a descontar: ${formatCurrency(total)}</div>
+          <script>window.onload = () => { window.print(); };</script>
+        </body>
+      </html>
+    `);
+    popup.document.close();
+  }
+
   async function handleToggleAccess(userId, enabled) {
     setUpdatingAccessUserId(userId);
     setMessage("");
@@ -164,9 +282,21 @@ export default function ConveniosPanel({ canManage = false }) {
               Registro independiente para equipos sin app de bloqueo y pagos recibidos por roles externos.
             </p>
           </div>
-          <button type="button" onClick={() => loadConvenios()} disabled={loading} style={secondaryButtonStyle}>
-            {loading ? "Actualizando..." : "Actualizar"}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} style={{ ...inputStyle, width: 150 }}>
+              {MONTH_LABELS.map((label, index) => {
+                const value = String(index + 1).padStart(2, "0");
+                return <option key={value} value={value}>{label}</option>;
+              })}
+            </select>
+            <input value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} style={{ ...inputStyle, width: 92 }} />
+            <button type="button" onClick={handleExportDiscountPdf} style={secondaryButtonStyle}>
+              Exportar PDF
+            </button>
+            <button type="button" onClick={() => loadConvenios()} disabled={loading} style={secondaryButtonStyle}>
+              {loading ? "Actualizando..." : "Actualizar"}
+            </button>
+          </div>
         </div>
 
         {message && (
@@ -250,6 +380,9 @@ export default function ConveniosPanel({ canManage = false }) {
           <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Costo del equipo (opcional)" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
             <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Pago a cobrar" value={form.paymentAmount} onChange={(event) => setForm((value) => ({ ...value, paymentAmount: event.target.value }))} />
+            <input style={inputStyle} type="number" min="1" max="60" placeholder="Numero de cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
+          </div>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
             <input style={inputStyle} type="date" value={form.dueDate} onChange={(event) => setForm((value) => ({ ...value, dueDate: event.target.value }))} />
           </div>
           <textarea style={{ ...inputStyle, minHeight: 82, resize: "vertical" }} placeholder="Notas" value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} />
@@ -267,7 +400,7 @@ export default function ConveniosPanel({ canManage = false }) {
                 <tr style={{ background: "#f8fafc" }}>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cliente</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Dispositivo</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Pagos</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuotas</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Registrado</th>
                 </tr>
               </thead>
@@ -281,7 +414,9 @@ export default function ConveniosPanel({ canManage = false }) {
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
                       {(customer.devices || []).map((device) => `${device.brand} ${device.model}`).join(", ") || "-"}
                     </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{customer.payments?.length || 0}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                      {(customer.devices || []).map((device) => device.installmentCount || 1).join(", ") || customer.payments?.length || 0}
+                    </td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{new Date(customer.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -295,7 +430,13 @@ export default function ConveniosPanel({ canManage = false }) {
       </div>
 
       <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
-        <h3 style={{ margin: 0 }}>Finanzas de convenios</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Finanzas de convenios</h3>
+            <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>Descuentos a pasar en {monthLabel} {selectedYear}: <strong>{discountRows.length}</strong></p>
+          </div>
+          <button type="button" onClick={handleExportDiscountPdf} style={secondaryButtonStyle}>Exportar listado PDF</button>
+        </div>
         <form onSubmit={handleCreatePayment} style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
           <select
             value={paymentForm.customerId}
@@ -310,9 +451,38 @@ export default function ConveniosPanel({ canManage = false }) {
             {(selectedCustomer?.devices || []).map((device) => <option key={`pay-device-${device.id}`} value={device.id}>{device.brand} {device.model}</option>)}
           </select>
           <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Monto" value={paymentForm.amount} onChange={(event) => setPaymentForm((value) => ({ ...value, amount: event.target.value }))} />
+          <input style={inputStyle} type="number" min="1" max="60" placeholder="Cuotas" value={paymentForm.installmentCount} onChange={(event) => setPaymentForm((value) => ({ ...value, installmentCount: event.target.value }))} />
           <input style={inputStyle} type="date" value={paymentForm.dueDate} onChange={(event) => setPaymentForm((value) => ({ ...value, dueDate: event.target.value }))} />
           <button type="submit" disabled={savingPayment} style={{ ...buttonStyle, minWidth: 130 }}>{savingPayment ? "Creando..." : "Crear pago"}</button>
         </form>
+
+        <div style={{ overflowX: "auto", border: "1px solid #dbeafe", borderRadius: 14 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <thead>
+              <tr style={{ background: "#eff6ff" }}>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cliente</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cedula</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Equipo</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cuota</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {discountRows.map((payment) => (
+                <tr key={`discount-${payment.id}`}>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.fullName || "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.nationalId || "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.device ? `${payment.device.brand} ${payment.device.model}` : "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
+                </tr>
+              ))}
+              {discountRows.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>No hay descuentos para pasar en este mes.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
@@ -321,6 +491,7 @@ export default function ConveniosPanel({ canManage = false }) {
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cliente</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipo</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuota</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Monto</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Accion</th>
@@ -335,6 +506,7 @@ export default function ConveniosPanel({ canManage = false }) {
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{new Date(payment.dueDate).toLocaleDateString()}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.fullName || "-"}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.device ? `${payment.device.brand} ${payment.device.model}` : "-"}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}><span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, background: badge.bg, color: badge.color }}>{badge.label}</span></td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
@@ -346,12 +518,20 @@ export default function ConveniosPanel({ canManage = false }) {
                       >
                         {markingPaymentId === payment.id ? "Marcando..." : status === "PAGADO" ? "Pagado" : "Marcar pagado"}
                       </button>
+                      <button
+                        type="button"
+                        disabled={status === "PAGADO" || skippingPaymentId === payment.id}
+                        onClick={() => handleSkipDiscount(payment.id)}
+                        style={{ marginLeft: 8, border: "1px solid #f97316", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#fff7ed", color: status === "PAGADO" ? "#64748b" : "#9a3412", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
+                      >
+                        {skippingPaymentId === payment.id ? "Pasando..." : "No pasar descuento"}
+                      </button>
                     </td>
                   </tr>
                 );
               })}
               {payments.length === 0 && (
-                <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>No hay pagos de convenios.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 12, color: "#64748b" }}>No hay pagos de convenios.</td></tr>
               )}
             </tbody>
           </table>
