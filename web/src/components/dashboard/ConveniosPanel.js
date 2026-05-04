@@ -100,6 +100,7 @@ export default function ConveniosPanel({ canManage = false }) {
   const [ownerUserId, setOwnerUserId] = useState("");
   const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"));
+  const [selectedScheduleCustomerId, setSelectedScheduleCustomerId] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
@@ -139,6 +140,14 @@ export default function ConveniosPanel({ canManage = false }) {
   const selectedCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === paymentForm.customerId) || null;
   }, [customers, paymentForm.customerId]);
+
+  const selectedScheduleCustomer = useMemo(() => {
+    return customers.find((customer) => customer.id === selectedScheduleCustomerId) || customers[0] || null;
+  }, [customers, selectedScheduleCustomerId]);
+
+  function getCustomerPaymentDevice(customer, payment) {
+    return (customer?.devices || []).find((device) => device.id === payment?.convenioDeviceId) || null;
+  }
 
   async function handleCreateConvenio(event) {
     event.preventDefault();
@@ -391,11 +400,14 @@ export default function ConveniosPanel({ canManage = false }) {
           <input style={inputStyle} placeholder="IMEI (opcional)" value={form.imei} onChange={(event) => setForm((value) => ({ ...value, imei: event.target.value }))} />
           <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Costo del equipo (opcional)" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-            <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Pago a cobrar" value={form.paymentAmount} onChange={(event) => setForm((value) => ({ ...value, paymentAmount: event.target.value }))} />
-            <input style={inputStyle} type="number" min="1" max="60" placeholder="Numero de cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
+            <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor de cuota mensual" value={form.paymentAmount} onChange={(event) => setForm((value) => ({ ...value, paymentAmount: event.target.value }))} />
+            <input style={inputStyle} type="number" min="1" max="60" placeholder="Numero de meses/cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
           </div>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
+            <label style={{ display: "grid", gap: 5, color: "#475569", fontSize: 13, fontWeight: 700 }}>
+              Fecha de corte mensual
             <input style={inputStyle} type="date" value={form.dueDate} onChange={(event) => setForm((value) => ({ ...value, dueDate: event.target.value }))} />
+            </label>
           </div>
           <textarea style={{ ...inputStyle, minHeight: 82, resize: "vertical" }} placeholder="Notas" value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} />
           <button type="submit" disabled={saving} style={buttonStyle}>{saving ? "Registrando..." : "Registrar convenio"}</button>
@@ -414,6 +426,7 @@ export default function ConveniosPanel({ canManage = false }) {
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Dispositivo</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuotas</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Registrado</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Tabla</th>
                 </tr>
               </thead>
               <tbody>
@@ -430,16 +443,90 @@ export default function ConveniosPanel({ canManage = false }) {
                       {(customer.devices || []).map((device) => device.installmentCount || 1).join(", ") || customer.payments?.length || 0}
                     </td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(customer.createdAt)}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedScheduleCustomerId(customer.id)}
+                        style={{ ...secondaryButtonStyle, padding: "7px 10px", borderRadius: 10 }}
+                      >
+                        Ver cuotas
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {customers.length === 0 && (
-                  <tr><td colSpan={4} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
+                  <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         </article>
       </div>
+
+      {selectedScheduleCustomer && (
+        <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Tabla de cuotas</h3>
+              <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>
+                {selectedScheduleCustomer.fullName} - {selectedScheduleCustomer.nationalId}
+              </p>
+            </div>
+            <span style={{ color: "#1e3a8a", fontWeight: 900 }}>{selectedScheduleCustomer.payments?.length || 0} cuota(s)</span>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha de corte</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipo</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuota</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Monto</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Accion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedScheduleCustomer.payments || []).map((payment) => {
+                  const status = resolveStatus(payment);
+                  const badge = statusBadge(status);
+                  const device = getCustomerPaymentDevice(selectedScheduleCustomer, payment);
+                  return (
+                    <tr key={`schedule-${payment.id}`}>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(payment.dueDate)}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{device ? `${device.brand} ${device.model}` : "-"}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}><span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, background: badge.bg, color: badge.color }}>{badge.label}</span></td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                        <button
+                          type="button"
+                          disabled={status === "PAGADO" || markingPaymentId === payment.id}
+                          onClick={() => handleMarkPaid(payment.id)}
+                          style={{ border: "1px solid #16a34a", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#ecfdf5", color: status === "PAGADO" ? "#64748b" : "#166534", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
+                        >
+                          {markingPaymentId === payment.id ? "Marcando..." : status === "PAGADO" ? "Pagado" : "Marcar pagado"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={status === "PAGADO" || skippingPaymentId === payment.id}
+                          onClick={() => handleSkipDiscount(payment.id)}
+                          style={{ marginLeft: 8, border: "1px solid #f97316", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#fff7ed", color: status === "PAGADO" ? "#64748b" : "#9a3412", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
+                        >
+                          {skippingPaymentId === payment.id ? "Pasando..." : "No pasar descuento"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!selectedScheduleCustomer.payments || selectedScheduleCustomer.payments.length === 0) && (
+                  <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>Este cliente todavia no tiene tabla de cuotas.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      )}
 
       <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -462,10 +549,10 @@ export default function ConveniosPanel({ canManage = false }) {
             <option value="">Equipo opcional</option>
             {(selectedCustomer?.devices || []).map((device) => <option key={`pay-device-${device.id}`} value={device.id}>{device.brand} {device.model}</option>)}
           </select>
-          <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Monto" value={paymentForm.amount} onChange={(event) => setPaymentForm((value) => ({ ...value, amount: event.target.value }))} />
-          <input style={inputStyle} type="number" min="1" max="60" placeholder="Cuotas" value={paymentForm.installmentCount} onChange={(event) => setPaymentForm((value) => ({ ...value, installmentCount: event.target.value }))} />
-          <input style={inputStyle} type="date" value={paymentForm.dueDate} onChange={(event) => setPaymentForm((value) => ({ ...value, dueDate: event.target.value }))} />
-          <button type="submit" disabled={savingPayment} style={{ ...buttonStyle, minWidth: 130 }}>{savingPayment ? "Creando..." : "Crear pago"}</button>
+          <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor de cuota mensual" value={paymentForm.amount} onChange={(event) => setPaymentForm((value) => ({ ...value, amount: event.target.value }))} />
+          <input style={inputStyle} type="number" min="1" max="60" placeholder="Numero de cuotas" value={paymentForm.installmentCount} onChange={(event) => setPaymentForm((value) => ({ ...value, installmentCount: event.target.value }))} />
+          <input style={inputStyle} type="date" title="Fecha de corte mensual" value={paymentForm.dueDate} onChange={(event) => setPaymentForm((value) => ({ ...value, dueDate: event.target.value }))} />
+          <button type="submit" disabled={savingPayment} style={{ ...buttonStyle, minWidth: 130 }}>{savingPayment ? "Creando..." : "Crear cuotas"}</button>
         </form>
 
         <div style={{ overflowX: "auto", border: "1px solid #dbeafe", borderRadius: 14 }}>
@@ -475,6 +562,7 @@ export default function ConveniosPanel({ canManage = false }) {
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cliente</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cedula</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Equipo</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Fecha de corte</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cuota</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Monto</th>
               </tr>
@@ -485,12 +573,13 @@ export default function ConveniosPanel({ canManage = false }) {
                   <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.fullName || "-"}</td>
                   <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.nationalId || "-"}</td>
                   <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.device ? `${payment.device.brand} ${payment.device.model}` : "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(payment.dueDate)}</td>
                   <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
                   <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
                 </tr>
               ))}
               {discountRows.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>No hay descuentos para pasar en este mes.</td></tr>
+                <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>No hay descuentos para pasar en este mes.</td></tr>
               )}
             </tbody>
           </table>
