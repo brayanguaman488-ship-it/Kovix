@@ -15,6 +15,7 @@ import trashRoutes from "./routes/trash.js";
 import equifaxConsultationRoutes from "./routes/equifaxConsultations.js";
 import deletionRequestRoutes from "./routes/deletionRequests.js";
 import licenseRoutes from "./routes/licenses.js";
+import convenioRoutes from "./routes/convenios.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -76,6 +77,7 @@ app.use("/trash", trashRoutes);
 app.use("/equifax-consultations", equifaxConsultationRoutes);
 app.use("/deletion-requests", deletionRequestRoutes);
 app.use("/licenses", licenseRoutes);
+app.use("/convenios", convenioRoutes);
 
 app.use((error, req, res, next) => {
   console.error("Unhandled API error:", error);

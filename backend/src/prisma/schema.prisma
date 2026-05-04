@@ -104,6 +104,75 @@ model LicenseBillingRecord {
   @@index([status, year, month])
 }
 
+model ConvenioAccess {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  enabled         Boolean  @default(true)
+  grantedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+model ConvenioCustomer {
+  id              String            @id @default(cuid())
+  fullName        String
+  nationalId      String
+  phone           String?
+  notes           String?
+  createdByUserId String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  devices         ConvenioDevice[]
+  payments        ConvenioPayment[]
+
+  @@unique([nationalId, createdByUserId])
+  @@index([createdByUserId])
+  @@index([nationalId])
+}
+
+model ConvenioDevice {
+  id                 String             @id @default(cuid())
+  convenioCustomerId String
+  customer           ConvenioCustomer   @relation(fields: [convenioCustomerId], references: [id], onDelete: Cascade)
+  brand              String
+  model              String
+  imei               String?            @unique
+  cashPrice          Decimal?           @db.Decimal(10, 2)
+  notes              String?
+  createdByUserId    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  payments           ConvenioPayment[]
+
+  @@index([convenioCustomerId])
+  @@index([createdByUserId])
+}
+
+model ConvenioPayment {
+  id                 String           @id @default(cuid())
+  convenioCustomerId String
+  customer           ConvenioCustomer @relation(fields: [convenioCustomerId], references: [id], onDelete: Cascade)
+  convenioDeviceId   String?
+  device             ConvenioDevice?  @relation(fields: [convenioDeviceId], references: [id], onDelete: SetNull)
+  amount             Decimal          @db.Decimal(10, 2)
+  currency           String           @default("USD")
+  dueDate            DateTime
+  paidAt             DateTime?
+  status             PaymentStatus    @default(PENDIENTE)
+  notes              String?
+  createdByUserId    String?
+  collectedByUserId  String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([convenioCustomerId, dueDate])
+  @@index([convenioDeviceId])
+  @@index([createdByUserId, dueDate])
+  @@index([status, dueDate])
+}
+
 model Customer {
   id              String           @id @default(cuid())
   fullName        String

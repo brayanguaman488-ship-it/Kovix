@@ -337,6 +337,38 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  getConvenioAccessMe() {
+    return request("/convenios/access/me");
+  },
+  getConvenioSummary(params = {}) {
+    const query = new URLSearchParams();
+    if (params.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/convenios/summary${suffix}`);
+  },
+  createConvenioCustomer(payload) {
+    return request("/convenios/customers", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  createConvenioPayment(payload) {
+    return request("/convenios/payments", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  markConvenioPaymentPaid(paymentId) {
+    return request(`/convenios/payments/${encodeURIComponent(paymentId)}/mark-paid`, {
+      method: "PATCH",
+    });
+  },
+  updateConvenioAccess(userId, payload) {
+    return request(`/convenios/access/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
   getEquifaxConsultations(params = {}) {
     const query = new URLSearchParams();
     if (params.status) {

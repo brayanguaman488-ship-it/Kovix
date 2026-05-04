@@ -10,6 +10,7 @@ import CustomerLedgerTable from "../components/dashboard/CustomerLedgerTable";
 import DevicesList from "../components/dashboard/DevicesList";
 import PaymentsList from "../components/dashboard/PaymentsList";
 import FinancePanel from "../components/dashboard/FinancePanel";
+import ConveniosPanel from "../components/dashboard/ConveniosPanel";
 import StatusMessage from "../components/dashboard/StatusMessage";
 import { buttonStyle, cardStyle, inputStyle, pageShellStyle, secondaryButtonStyle } from "../components/dashboard/styles";
 import { api } from "../lib/api";
@@ -133,7 +134,8 @@ const sidebarStyle = {
   color: "#ffffff",
   padding: "26px 18px",
   display: "grid",
-  alignContent: "start",
+  gridTemplateRows: "auto minmax(0, 1fr) auto",
+  alignContent: "stretch",
   gap: 18,
   borderRight: "1px solid rgba(255,255,255,0.08)",
 };
@@ -272,6 +274,18 @@ function DashboardNavIcon({ name }) {
     );
   }
 
+  if (name === "convenios") {
+    return (
+      <svg {...commonProps}>
+        <path d="M8 7h8" />
+        <path d="M8 11h8" />
+        <path d="M8 15h5" />
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="m16 17 2 2 4-4" />
+      </svg>
+    );
+  }
+
   if (name === "trash") {
     return (
       <svg {...commonProps}>
@@ -306,6 +320,13 @@ function SidebarIcon({ name }) {
       <DashboardNavIcon name={name} />
     </span>
   );
+}
+
+function getUserInitials(user) {
+  const source = String(user?.fullName || user?.username || "K").trim();
+  const parts = source.split(/\s+/).filter(Boolean);
+  const initials = parts.slice(0, 2).map((part) => part[0]).join("");
+  return initials.toUpperCase() || "K";
 }
 
 function paginate(items, page, pageSize) {
@@ -696,6 +717,7 @@ export default function Dashboard() {
   const [deletionRequests, setDeletionRequests] = useState([]);
   const [isLoadingDeletionRequests, setIsLoadingDeletionRequests] = useState(false);
   const [resolvingDeletionRequestId, setResolvingDeletionRequestId] = useState("");
+  const [canAccessConvenios, setCanAccessConvenios] = useState(false);
   const userRole = String(user?.role || "").toUpperCase();
   const canManageUsers = userRole === "ADMIN";
   const canRespondEquifax = userRole === "ADMIN" || userRole === "GERENCIA" || userRole === "ADMINISTRADOR";
@@ -876,11 +898,12 @@ export default function Dashboard() {
 
       // 2) Los modulos de datos se cargan de forma tolerante: si uno falla, no
       // expulsamos al usuario de su sesion.
-      const [customersResult, devicesResult, paymentsResult, scopesResult] = await Promise.allSettled([
+      const [customersResult, devicesResult, paymentsResult, scopesResult, conveniosAccessResult] = await Promise.allSettled([
         api.getCustomers(scopedParams),
         api.getDevices(scopedParams),
         api.getPayments(scopedParams),
         canUseOwnerFilter ? api.getScopeUsers() : Promise.resolve({ users: [] }),
+        api.getConvenioAccessMe(),
       ]);
 
       if (loadSeq !== dashboardLoadSeqRef.current) {
@@ -911,11 +934,18 @@ export default function Dashboard() {
         setScopeUsers([]);
       }
 
+      if (conveniosAccessResult.status === "fulfilled") {
+        setCanAccessConvenios(Boolean(conveniosAccessResult.value?.canAccess));
+      } else {
+        setCanAccessConvenios(meRole === "ADMIN");
+      }
+
       const failedModules = [
         customersResult.status === "rejected" ? "clientes" : null,
         devicesResult.status === "rejected" ? "dispositivos" : null,
         paymentsResult.status === "rejected" ? "pagos" : null,
         scopesResult.status === "rejected" && canUseOwnerFilter ? "usuarios/tiendas" : null,
+        conveniosAccessResult.status === "rejected" ? "convenios" : null,
       ].filter(Boolean);
 
       if (failedModules.length > 0) {
@@ -2822,6 +2852,12 @@ export default function Dashboard() {
   }, [activeMainView, canManageUsers]);
 
   useEffect(() => {
+    if (activeMainView === "convenios" && !canAccessConvenios) {
+      setActiveMainView("control");
+    }
+  }, [activeMainView, canAccessConvenios]);
+
+  useEffect(() => {
     if (!canFilterByStore) {
       setOwnerScopeFilter("all");
       setScopeUsers([]);
@@ -2970,7 +3006,7 @@ export default function Dashboard() {
           <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: 0.4 }}>KOVIX</div>
         </div>
 
-        <nav style={{ display: "grid", gap: 8 }}>
+        <nav style={{ display: "grid", gap: 8, alignContent: "start" }}>
           <button
             type="button"
             style={sidebarNavButton(activeMainView === "credit_new")}
@@ -3079,6 +3115,16 @@ export default function Dashboard() {
               Usuarios
             </button>
           )}
+          {canAccessConvenios && (
+            <button
+              type="button"
+              style={sidebarNavButton(activeMainView === "convenios")}
+              onClick={() => setActiveMainView("convenios")}
+            >
+              <SidebarIcon name="convenios" />
+              Convenios
+            </button>
+          )}
           <button
             type="button"
             style={sidebarNavButton(activeMainView === "trash")}
@@ -3088,6 +3134,46 @@ export default function Dashboard() {
             Papelera
           </button>
         </nav>
+
+        <div
+          style={{
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 18,
+            padding: 12,
+            background: "rgba(255,255,255,0.08)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: "linear-gradient(135deg, #2563eb, #0ea5e9)",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 900,
+              flex: "0 0 auto",
+            }}
+          >
+            {user?.avatarDataUrl ? (
+              <img src={user.avatarDataUrl} alt="Avatar de sesion" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              getUserInitials(user)
+            )}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)", fontWeight: 700 }}>Sesion activa</div>
+            <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {user?.fullName || user?.username || "KOVIX"}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.68)" }}>{user?.role || ""}</div>
+          </div>
+        </div>
       </aside>
 
       <main style={pageShellStyle}>
@@ -5428,6 +5514,10 @@ export default function Dashboard() {
             </section>
           )}
         </section>
+      )}
+
+      {activeMainView === "convenios" && canAccessConvenios && (
+        <ConveniosPanel canManage={canManageUsers} />
       )}
 
       {activeMainView === "trash" && (
