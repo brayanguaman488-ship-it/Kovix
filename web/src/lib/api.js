@@ -317,6 +317,26 @@ export const api = {
       method: "PATCH",
     });
   },
+  getLicenseSummary(params = {}) {
+    const query = new URLSearchParams();
+    if (params.year) query.set("year", String(params.year));
+    if (params.month) query.set("month", String(params.month));
+    if (params.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/licenses/summary${suffix}`);
+  },
+  updateLicensePricing(payload) {
+    return request("/licenses/pricing", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+  },
+  markLicenseBillingPaid(payload) {
+    return request("/licenses/billing/mark-paid", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   getEquifaxConsultations(params = {}) {
     const query = new URLSearchParams();
     if (params.status) {

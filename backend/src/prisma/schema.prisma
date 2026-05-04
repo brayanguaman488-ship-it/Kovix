@@ -70,6 +70,40 @@ model User {
   deletionResolutions DeletionRequest[]  @relation("DeletionResolvedBy")
 }
 
+model LicensePricingRule {
+  id           String   @id @default(cuid())
+  scopeKey     String   @default("global")
+  scopeUserId  String?
+  tierKey      String
+  label        String
+  minAmount    Decimal  @db.Decimal(10, 2)
+  maxAmount    Decimal? @db.Decimal(10, 2)
+  monthlyPrice Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([scopeKey, tierKey])
+  @@index([scopeUserId])
+}
+
+model LicenseBillingRecord {
+  id             String        @id @default(cuid())
+  userId         String
+  year           Int
+  month          Int
+  amount         Decimal       @db.Decimal(10, 2)
+  activeDevices  Int           @default(0)
+  status         PaymentStatus @default(PENDIENTE)
+  paidAt         DateTime?
+  markedByUserId String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([userId, year, month])
+  @@index([status, year, month])
+}
+
 model Customer {
   id              String           @id @default(cuid())
   fullName        String

@@ -2803,9 +2803,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (activeMainView === "trash") {
       loadTrashEntries();
-      if (canReviewDeletionRequests || userRole === "TIENDA") {
-        loadDeletionRequests({ silent: true });
-      }
+      loadDeletionRequests({ silent: true });
     }
   }, [activeMainView, canReviewDeletionRequests, userRole]);
 
@@ -4484,7 +4482,12 @@ export default function Dashboard() {
             activeSection="payments"
             onSelectSection={() => {}}
           />
-          <FinancePanel payments={sortedPayments} devices={sortedDevices} />
+          <FinancePanel
+            payments={sortedPayments}
+            devices={sortedDevices}
+            canManageLicenses={userRole === "ADMIN"}
+            ownerUserId={ownerScopeFilter !== "all" ? ownerScopeFilter : ""}
+          />
         </section>
       )}
 

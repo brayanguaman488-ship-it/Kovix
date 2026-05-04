@@ -3,12 +3,24 @@ import { Router } from "express";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { isPrismaUniqueConstraintError, sendBadRequest, sendNotFound } from "../lib/http.js";
 import { prisma } from "../lib/prisma.js";
-import { isTiendaRole } from "../lib/dataScope.js";
+import { canFilterByOwner } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = Router();
 
 router.use(authMiddleware);
+
+function canViewGlobalTrash(role) {
+  return canFilterByOwner(role);
+}
+
+function applyTrashScope(req, where) {
+  if (!canViewGlobalTrash(req.user?.role)) {
+    where.deletedByUserId = req.user.id;
+  }
+
+  return where;
+}
 
 router.get("/", asyncHandler(async (req, res) => {
   const limitRaw = Number.parseInt(String(req.query?.limit || "80"), 10);
@@ -20,9 +32,7 @@ router.get("/", asyncHandler(async (req, res) => {
     where.entityType = entityTypeRaw;
   }
 
-  if (isTiendaRole(req.user?.role)) {
-    where.deletedByUserId = req.user.id;
-  }
+  applyTrashScope(req, where);
 
   const entries = await prisma.trashEntry.findMany({
     where,
@@ -42,10 +52,7 @@ router.post("/:id/restore", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "id es obligatorio");
   }
 
-  const where = { id };
-  if (isTiendaRole(req.user?.role)) {
-    where.deletedByUserId = req.user.id;
-  }
+  const where = applyTrashScope(req, { id });
 
   const entry = await prisma.trashEntry.findFirst({ where });
   if (!entry) {
@@ -156,7 +163,7 @@ router.delete("/:id", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "id es obligatorio");
   }
 
-  if (isTiendaRole(req.user?.role)) {
+  if (!canViewGlobalTrash(req.user?.role)) {
     const scopedEntry = await prisma.trashEntry.findFirst({
       where: { id, deletedByUserId: req.user.id },
       select: { id: true },
