@@ -202,6 +202,10 @@ router.get("/summary", asyncHandler(async (req, res) => {
     if (Number.isNaN(dueDate.getTime()) || dueDate < bounds.start || dueDate >= bounds.end) return false;
     return resolveConvenioPaymentStatus(payment) !== PaymentStatus.PAGADO;
   });
+  const periodPayments = payments.filter((payment) => {
+    const dueDate = new Date(payment?.dueDate);
+    return !Number.isNaN(dueDate.getTime()) && dueDate >= bounds.start && dueDate < bounds.end;
+  });
 
   return res.json({
     ok: true,
@@ -209,12 +213,12 @@ router.get("/summary", asyncHandler(async (req, res) => {
     year,
     month,
     customers,
-    payments,
+    payments: periodPayments,
     discountRows,
     summary: {
       customersCount: customers.length,
       devicesCount: customers.reduce((sum, customer) => sum + Number(customer.devices?.length || 0), 0),
-      payments: summarizePayments(payments),
+      payments: summarizePayments(periodPayments),
     },
     accessUsers,
   });

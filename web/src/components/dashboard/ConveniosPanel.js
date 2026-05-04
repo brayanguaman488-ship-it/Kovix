@@ -50,6 +50,16 @@ function formatCurrency(value) {
   }).format(Number(value || 0));
 }
 
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("es-EC", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
 function resolveStatus(payment) {
   const status = String(payment?.status || "").toUpperCase();
   if (status !== "PENDIENTE") return status;
@@ -202,7 +212,7 @@ export default function ConveniosPanel({ canManage = false }) {
             <td>${escapeHtml(payment.customer?.nationalId || "-")}</td>
             <td>${escapeHtml(device)}</td>
             <td>${payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
-            <td>${new Date(payment.dueDate).toLocaleDateString()}</td>
+            <td>${formatDate(payment.dueDate)}</td>
             <td>${formatCurrency(payment.amount)}</td>
           </tr>
         `;
@@ -358,10 +368,12 @@ export default function ConveniosPanel({ canManage = false }) {
         </article>
         <article style={{ border: "1px solid #bbf7d0", borderRadius: 14, padding: 14, background: "#ecfdf5" }}>
           <div style={{ color: "#15803d", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>Pagado</div>
+          <div style={{ color: "#166534", fontSize: 12, fontWeight: 700 }}>Periodo: {monthLabel}</div>
           <div style={{ marginTop: 6, fontSize: 32, fontWeight: 900, color: "#166534" }}>{formatCurrency(totals.paidAmount)}</div>
         </article>
         <article style={{ border: "1px solid #fed7aa", borderRadius: 14, padding: 14, background: "#fff7ed" }}>
           <div style={{ color: "#c2410c", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>Por cobrar</div>
+          <div style={{ color: "#9a3412", fontSize: 12, fontWeight: 700 }}>Periodo: {monthLabel}</div>
           <div style={{ marginTop: 6, fontSize: 32, fontWeight: 900, color: "#9a3412" }}>{formatCurrency(Number(totals.pendingAmount || 0) + Number(totals.overdueAmount || 0))}</div>
         </article>
       </div>
@@ -417,7 +429,7 @@ export default function ConveniosPanel({ canManage = false }) {
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
                       {(customer.devices || []).map((device) => device.installmentCount || 1).join(", ") || customer.payments?.length || 0}
                     </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{new Date(customer.createdAt).toLocaleDateString()}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(customer.createdAt)}</td>
                   </tr>
                 ))}
                 {customers.length === 0 && (
@@ -488,7 +500,7 @@ export default function ConveniosPanel({ canManage = false }) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 780 }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha del mes</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cliente</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipo</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuota</th>
@@ -503,7 +515,7 @@ export default function ConveniosPanel({ canManage = false }) {
                 const badge = statusBadge(status);
                 return (
                   <tr key={payment.id}>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{new Date(payment.dueDate).toLocaleDateString()}</td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(payment.dueDate)}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.fullName || "-"}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.device ? `${payment.device.brand} ${payment.device.model}` : "-"}</td>
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
@@ -531,7 +543,7 @@ export default function ConveniosPanel({ canManage = false }) {
                 );
               })}
               {payments.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 12, color: "#64748b" }}>No hay pagos de convenios.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 12, color: "#64748b" }}>No hay pagos de convenios en {monthLabel} {selectedYear}.</td></tr>
               )}
             </tbody>
           </table>
