@@ -11,7 +11,6 @@ const initialConvenioForm = {
   model: "",
   imei: "",
   cashPrice: "",
-  paymentAmount: "",
   installmentCount: "1",
   dueDate: "",
   notes: "",
@@ -127,6 +126,12 @@ export default function ConveniosPanel({ canManage = false }) {
   const accessUsers = data?.accessUsers || [];
   const totals = data?.summary?.payments || {};
   const monthLabel = MONTH_LABELS[Number(selectedMonth) - 1] || "Mes";
+  const calculatedInstallmentAmount = useMemo(() => {
+    const total = Number(form.cashPrice || 0);
+    const count = Number(form.installmentCount || 0);
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(count) || count <= 0) return 0;
+    return total / count;
+  }, [form.cashPrice, form.installmentCount]);
 
   const selectedScheduleCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === selectedScheduleCustomerId) || null;
@@ -398,10 +403,13 @@ export default function ConveniosPanel({ canManage = false }) {
             <input style={inputStyle} placeholder="Modelo" value={form.model} onChange={(event) => setForm((value) => ({ ...value, model: event.target.value }))} />
           </div>
           <input style={inputStyle} placeholder="IMEI (opcional)" value={form.imei} onChange={(event) => setForm((value) => ({ ...value, imei: event.target.value }))} />
-          <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Costo del equipo (opcional)" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
+          <input required style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor total del telefono" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-            <input required style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor de cuota mensual" value={form.paymentAmount} onChange={(event) => setForm((value) => ({ ...value, paymentAmount: event.target.value }))} />
             <input required style={inputStyle} type="number" min="1" max="60" placeholder="Numero de meses/cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
+            <div style={{ border: "1px solid #bfdbfe", borderRadius: 12, padding: "10px 12px", background: "#eff6ff", display: "grid", alignContent: "center" }}>
+              <span style={{ color: "#1e3a8a", fontSize: 12, fontWeight: 800 }}>Cuota mensual calculada</span>
+              <strong style={{ color: "#1e3a8a", fontSize: 20 }}>{formatCurrency(calculatedInstallmentAmount)}</strong>
+            </div>
           </div>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
             <label style={{ display: "grid", gap: 5, color: "#475569", fontSize: 13, fontWeight: 700 }}>

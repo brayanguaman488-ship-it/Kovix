@@ -78,6 +78,10 @@ function buildInstallmentRows({ customerId, deviceId, amount, dueDate, count, no
   }));
 }
 
+function calculateMonthlyInstallment(totalAmount, count) {
+  return Number((Number(totalAmount || 0) / Number(count || 1)).toFixed(2));
+}
+
 async function userCanAccessConvenios(req) {
   if (isAdmin(req.user?.role)) return true;
 
@@ -237,7 +241,6 @@ router.post("/customers", asyncHandler(async (req, res) => {
   const deviceNotes = asOptionalTrimmedString(req.body?.deviceNotes);
   const cashPriceRaw = req.body?.cashPrice;
   const cashPrice = cashPriceRaw === "" || cashPriceRaw === null || cashPriceRaw === undefined ? null : Number(cashPriceRaw);
-  const paymentAmount = parsePositiveAmount(req.body?.paymentAmount);
   const dueDate = parseDate(req.body?.dueDate);
   const paymentNotes = asOptionalTrimmedString(req.body?.paymentNotes);
   const installmentCount = parseInstallmentCount(req.body?.installmentCount, 1);
@@ -250,17 +253,19 @@ router.post("/customers", asyncHandler(async (req, res) => {
     return sendBadRequest(res, "Marca y modelo del dispositivo son obligatorios");
   }
 
-  if (cashPrice !== null && (!Number.isFinite(cashPrice) || cashPrice < 0)) {
-    return sendBadRequest(res, "Costo del equipo invalido");
+  if (!Number.isFinite(cashPrice) || cashPrice <= 0) {
+    return sendBadRequest(res, "Valor total del telefono es obligatorio");
   }
 
   if (!installmentCount) {
     return sendBadRequest(res, "Numero de cuotas invalido");
   }
 
-  if ((req.body?.paymentAmount || req.body?.dueDate) && (!paymentAmount || !dueDate)) {
-    return sendBadRequest(res, "Para crear pago debes ingresar monto y fecha validos");
+  if (!dueDate) {
+    return sendBadRequest(res, "Fecha de corte mensual invalida");
   }
+
+  const paymentAmount = calculateMonthlyInstallment(cashPrice, installmentCount);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
