@@ -372,6 +372,30 @@ router.post("/payments", asyncHandler(async (req, res) => {
   return res.status(201).json({ ok: true, payment });
 }));
 
+router.delete("/customers/:id", asyncHandler(async (req, res) => {
+  if (!(await ensureConvenioAccess(req, res))) return;
+
+  const customerId = asTrimmedString(req.params.id);
+  if (!customerId) {
+    return sendBadRequest(res, "id es obligatorio");
+  }
+
+  const customer = await prisma.convenioCustomer.findFirst({
+    where: { ...convenioOwnerWhere(req), id: customerId },
+    select: { id: true, fullName: true, nationalId: true },
+  });
+
+  if (!customer) {
+    return sendNotFound(res, "Convenio no encontrado");
+  }
+
+  await prisma.convenioCustomer.delete({
+    where: { id: customer.id },
+  });
+
+  return res.json({ ok: true, customer });
+}));
+
 router.patch("/payments/:id/mark-paid", asyncHandler(async (req, res) => {
   if (!(await ensureConvenioAccess(req, res))) return;
 

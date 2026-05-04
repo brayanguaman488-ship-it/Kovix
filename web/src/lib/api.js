@@ -354,6 +354,11 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  deleteConvenioCustomer(customerId) {
+    return request(`/convenios/customers/${encodeURIComponent(customerId)}`, {
+      method: "DELETE",
+    });
+  },
   createConvenioPayment(payload) {
     return request("/convenios/payments", {
       method: "POST",

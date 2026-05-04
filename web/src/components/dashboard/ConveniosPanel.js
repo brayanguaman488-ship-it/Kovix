@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "../../lib/api";
 import { buttonStyle, cardStyle, inputStyle, secondaryButtonStyle } from "./styles";
@@ -12,15 +12,6 @@ const initialConvenioForm = {
   imei: "",
   cashPrice: "",
   paymentAmount: "",
-  installmentCount: "1",
-  dueDate: "",
-  notes: "",
-};
-
-const initialPaymentForm = {
-  customerId: "",
-  deviceId: "",
-  amount: "",
   installmentCount: "1",
   dueDate: "",
   notes: "",
@@ -94,16 +85,16 @@ function escapeHtml(value) {
 
 export default function ConveniosPanel({ canManage = false }) {
   const now = new Date();
+  const scheduleRef = useRef(null);
   const [data, setData] = useState(null);
   const [form, setForm] = useState(initialConvenioForm);
-  const [paymentForm, setPaymentForm] = useState(initialPaymentForm);
   const [ownerUserId, setOwnerUserId] = useState("");
   const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"));
   const [selectedScheduleCustomerId, setSelectedScheduleCustomerId] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingPayment, setSavingPayment] = useState(false);
+  const [deletingCustomerId, setDeletingCustomerId] = useState("");
   const [markingPaymentId, setMarkingPaymentId] = useState("");
   const [skippingPaymentId, setSkippingPaymentId] = useState("");
   const [updatingAccessUserId, setUpdatingAccessUserId] = useState("");
@@ -137,12 +128,8 @@ export default function ConveniosPanel({ canManage = false }) {
   const totals = data?.summary?.payments || {};
   const monthLabel = MONTH_LABELS[Number(selectedMonth) - 1] || "Mes";
 
-  const selectedCustomer = useMemo(() => {
-    return customers.find((customer) => customer.id === paymentForm.customerId) || null;
-  }, [customers, paymentForm.customerId]);
-
   const selectedScheduleCustomer = useMemo(() => {
-    return customers.find((customer) => customer.id === selectedScheduleCustomerId) || customers[0] || null;
+    return customers.find((customer) => customer.id === selectedScheduleCustomerId) || null;
   }, [customers, selectedScheduleCustomerId]);
 
   function getCustomerPaymentDevice(customer, payment) {
@@ -154,10 +141,12 @@ export default function ConveniosPanel({ canManage = false }) {
     setSaving(true);
     setMessage("");
     try {
-      await api.createConvenioCustomer(form);
+      const response = await api.createConvenioCustomer(form);
       setForm(initialConvenioForm);
-      setMessage("Convenio registrado correctamente.");
+      setSelectedScheduleCustomerId(response?.customer?.id || "");
+      setMessage("Convenio registrado y tabla de cuotas generada.");
       await loadConvenios({ silent: true });
+      setTimeout(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (error) {
       setMessage(error?.message || "No se pudo registrar el convenio");
     } finally {
@@ -165,20 +154,9 @@ export default function ConveniosPanel({ canManage = false }) {
     }
   }
 
-  async function handleCreatePayment(event) {
-    event.preventDefault();
-    setSavingPayment(true);
-    setMessage("");
-    try {
-      await api.createConvenioPayment(paymentForm);
-      setPaymentForm(initialPaymentForm);
-      setMessage("Pago de convenio creado.");
-      await loadConvenios({ silent: true });
-    } catch (error) {
-      setMessage(error?.message || "No se pudo crear el pago");
-    } finally {
-      setSavingPayment(false);
-    }
+  function handleOpenSchedule(customerId) {
+    setSelectedScheduleCustomerId(customerId);
+    setTimeout(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   }
 
   async function handleMarkPaid(paymentId) {
@@ -206,6 +184,28 @@ export default function ConveniosPanel({ canManage = false }) {
       setMessage(error?.message || "No se pudo pasar el descuento");
     } finally {
       setSkippingPaymentId("");
+    }
+  }
+
+  async function handleDeleteCustomer(customer) {
+    if (!customer?.id) return;
+
+    const confirmed = window.confirm(`Eliminar convenio de ${customer.fullName}? Se borrara su equipo y toda la tabla de cuotas.`);
+    if (!confirmed) return;
+
+    setDeletingCustomerId(customer.id);
+    setMessage("");
+    try {
+      await api.deleteConvenioCustomer(customer.id);
+      if (selectedScheduleCustomerId === customer.id) {
+        setSelectedScheduleCustomerId("");
+      }
+      setMessage("Convenio eliminado correctamente.");
+      await loadConvenios({ silent: true });
+    } catch (error) {
+      setMessage(error?.message || "No se pudo eliminar el convenio");
+    } finally {
+      setDeletingCustomerId("");
     }
   }
 
@@ -400,17 +400,17 @@ export default function ConveniosPanel({ canManage = false }) {
           <input style={inputStyle} placeholder="IMEI (opcional)" value={form.imei} onChange={(event) => setForm((value) => ({ ...value, imei: event.target.value }))} />
           <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Costo del equipo (opcional)" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-            <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor de cuota mensual" value={form.paymentAmount} onChange={(event) => setForm((value) => ({ ...value, paymentAmount: event.target.value }))} />
-            <input style={inputStyle} type="number" min="1" max="60" placeholder="Numero de meses/cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
+            <input required style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor de cuota mensual" value={form.paymentAmount} onChange={(event) => setForm((value) => ({ ...value, paymentAmount: event.target.value }))} />
+            <input required style={inputStyle} type="number" min="1" max="60" placeholder="Numero de meses/cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
           </div>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
             <label style={{ display: "grid", gap: 5, color: "#475569", fontSize: 13, fontWeight: 700 }}>
               Fecha de corte mensual
-            <input style={inputStyle} type="date" value={form.dueDate} onChange={(event) => setForm((value) => ({ ...value, dueDate: event.target.value }))} />
+            <input required style={inputStyle} type="date" value={form.dueDate} onChange={(event) => setForm((value) => ({ ...value, dueDate: event.target.value }))} />
             </label>
           </div>
           <textarea style={{ ...inputStyle, minHeight: 82, resize: "vertical" }} placeholder="Notas" value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} />
-          <button type="submit" disabled={saving} style={buttonStyle}>{saving ? "Registrando..." : "Registrar convenio"}</button>
+          <button type="submit" disabled={saving} style={buttonStyle}>{saving ? "Generando..." : "Registrar convenio y generar tabla"}</button>
         </form>
 
         <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
@@ -427,6 +427,7 @@ export default function ConveniosPanel({ canManage = false }) {
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuotas</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Registrado</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Tabla</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Borrar</th>
                 </tr>
               </thead>
               <tbody>
@@ -446,16 +447,34 @@ export default function ConveniosPanel({ canManage = false }) {
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
                       <button
                         type="button"
-                        onClick={() => setSelectedScheduleCustomerId(customer.id)}
+                        onClick={() => handleOpenSchedule(customer.id)}
                         style={{ ...secondaryButtonStyle, padding: "7px 10px", borderRadius: 10 }}
                       >
                         Ver cuotas
                       </button>
                     </td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                      <button
+                        type="button"
+                        disabled={deletingCustomerId === customer.id}
+                        onClick={() => handleDeleteCustomer(customer)}
+                        style={{
+                          border: "1px solid #f97316",
+                          borderRadius: 10,
+                          padding: "7px 10px",
+                          background: "#fff7ed",
+                          color: "#9a3412",
+                          fontWeight: 800,
+                          cursor: deletingCustomerId === customer.id ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {deletingCustomerId === customer.id ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {customers.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
+                  <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
                 )}
               </tbody>
             </table>
@@ -464,7 +483,7 @@ export default function ConveniosPanel({ canManage = false }) {
       </div>
 
       {selectedScheduleCustomer && (
-        <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+        <article ref={scheduleRef} style={{ ...cardStyle, display: "grid", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <div>
               <h3 style={{ margin: 0 }}>Tabla de cuotas</h3>
@@ -472,7 +491,12 @@ export default function ConveniosPanel({ canManage = false }) {
                 {selectedScheduleCustomer.fullName} - {selectedScheduleCustomer.nationalId}
               </p>
             </div>
-            <span style={{ color: "#1e3a8a", fontWeight: 900 }}>{selectedScheduleCustomer.payments?.length || 0} cuota(s)</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ color: "#1e3a8a", fontWeight: 900 }}>{selectedScheduleCustomer.payments?.length || 0} cuota(s)</span>
+              <button type="button" onClick={() => setSelectedScheduleCustomerId("")} style={{ ...secondaryButtonStyle, padding: "7px 10px", borderRadius: 10 }}>
+                Ocultar tabla
+              </button>
+            </div>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
@@ -532,28 +556,12 @@ export default function ConveniosPanel({ canManage = false }) {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div>
             <h3 style={{ margin: 0 }}>Finanzas de convenios</h3>
-            <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>Descuentos a pasar en {monthLabel} {selectedYear}: <strong>{discountRows.length}</strong></p>
+            <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>
+              Listado mensual de descuentos para {monthLabel} {selectedYear}: <strong>{discountRows.length}</strong>
+            </p>
           </div>
-          <button type="button" onClick={handleExportDiscountPdf} style={secondaryButtonStyle}>Exportar listado PDF</button>
+          <button type="button" onClick={handleExportDiscountPdf} style={secondaryButtonStyle}>Exportar listado PDF de {monthLabel}</button>
         </div>
-        <form onSubmit={handleCreatePayment} style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-          <select
-            value={paymentForm.customerId}
-            onChange={(event) => setPaymentForm((value) => ({ ...value, customerId: event.target.value, deviceId: "" }))}
-            style={inputStyle}
-          >
-            <option value="">Cliente</option>
-            {customers.map((customer) => <option key={`pay-customer-${customer.id}`} value={customer.id}>{customer.fullName}</option>)}
-          </select>
-          <select value={paymentForm.deviceId} onChange={(event) => setPaymentForm((value) => ({ ...value, deviceId: event.target.value }))} style={inputStyle}>
-            <option value="">Equipo opcional</option>
-            {(selectedCustomer?.devices || []).map((device) => <option key={`pay-device-${device.id}`} value={device.id}>{device.brand} {device.model}</option>)}
-          </select>
-          <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor de cuota mensual" value={paymentForm.amount} onChange={(event) => setPaymentForm((value) => ({ ...value, amount: event.target.value }))} />
-          <input style={inputStyle} type="number" min="1" max="60" placeholder="Numero de cuotas" value={paymentForm.installmentCount} onChange={(event) => setPaymentForm((value) => ({ ...value, installmentCount: event.target.value }))} />
-          <input style={inputStyle} type="date" title="Fecha de corte mensual" value={paymentForm.dueDate} onChange={(event) => setPaymentForm((value) => ({ ...value, dueDate: event.target.value }))} />
-          <button type="submit" disabled={savingPayment} style={{ ...buttonStyle, minWidth: 130 }}>{savingPayment ? "Creando..." : "Crear cuotas"}</button>
-        </form>
 
         <div style={{ overflowX: "auto", border: "1px solid #dbeafe", borderRadius: 14 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
