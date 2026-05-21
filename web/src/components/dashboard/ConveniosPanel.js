@@ -70,6 +70,9 @@ function statusBadge(status) {
   if (normalized === "VENCIDO") {
     return { label: "Vencido", bg: "#ffedd5", color: "#9a3412" };
   }
+  if (normalized === "MIXTO") {
+    return { label: "Mixto", bg: "#fef9c3", color: "#854d0e" };
+  }
   return { label: "Pendiente", bg: "#dbeafe", color: "#1e3a8a" };
 }
 
@@ -82,11 +85,73 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function buildGeneralInstallmentRows(customer) {
+  const groups = new Map();
+
+  for (const payment of customer?.payments || []) {
+    const dueDateKey = payment?.dueDate ? new Date(payment.dueDate).toISOString().slice(0, 10) : "sin-fecha";
+    const key = dueDateKey;
+    const device = (customer?.devices || []).find((entry) => entry.id === payment?.convenioDeviceId);
+    const deviceLabel = device ? `${device.brand || ""} ${device.model || ""}`.trim() : "Equipo";
+    const current = groups.get(key) || {
+      key,
+      dueDate: payment?.dueDate,
+      status: resolveStatus(payment),
+      amount: 0,
+      devices: [],
+      sequences: [],
+      statuses: [],
+    };
+
+    current.amount = Number((current.amount + Number(payment?.amount || 0)).toFixed(2));
+    if (deviceLabel && !current.devices.includes(deviceLabel)) current.devices.push(deviceLabel);
+    if (payment?.sequence) current.sequences.push(`Cuota ${payment.sequence}`);
+    const status = resolveStatus(payment);
+    if (!current.statuses.includes(status)) current.statuses.push(status);
+    current.status = current.statuses.length > 1 ? "MIXTO" : status;
+    groups.set(key, current);
+  }
+
+  return Array.from(groups.values()).sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate));
+}
+
+function buildDiscountPdfRows(payments) {
+  const groups = new Map();
+
+  for (const payment of payments || []) {
+    const dueDateKey = payment?.dueDate ? new Date(payment.dueDate).toISOString().slice(0, 10) : "sin-fecha";
+    const customerId = payment?.customer?.id || payment?.convenioCustomerId || payment?.customer?.nationalId || "cliente";
+    const key = `${customerId}-${dueDateKey}`;
+    const device = payment.device ? `${payment.device.brand || ""} ${payment.device.model || ""}`.trim() : "-";
+    const current = groups.get(key) || {
+      key,
+      customer: payment.customer || {},
+      dueDate: payment.dueDate,
+      amount: 0,
+      devices: [],
+      sequences: [],
+    };
+
+    current.amount = Number((current.amount + Number(payment?.amount || 0)).toFixed(2));
+    if (device && !current.devices.includes(device)) current.devices.push(device);
+    if (payment?.sequence) current.sequences.push(`Cuota ${payment.sequence}`);
+    groups.set(key, current);
+  }
+
+  return Array.from(groups.values()).sort((left, right) => {
+    const dateDiff = new Date(left.dueDate) - new Date(right.dueDate);
+    if (dateDiff) return dateDiff;
+    return String(left.customer?.fullName || "").localeCompare(String(right.customer?.fullName || ""));
+  });
+}
+
 export default function ConveniosPanel({ canManage = false }) {
   const now = new Date();
   const scheduleRef = useRef(null);
   const [data, setData] = useState(null);
   const [form, setForm] = useState(initialConvenioForm);
+  const [formMode, setFormMode] = useState("new");
+  const [renewalCustomerId, setRenewalCustomerId] = useState("");
   const [ownerUserId, setOwnerUserId] = useState("");
   const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1).padStart(2, "0"));
@@ -136,6 +201,9 @@ export default function ConveniosPanel({ canManage = false }) {
   const selectedScheduleCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === selectedScheduleCustomerId) || null;
   }, [customers, selectedScheduleCustomerId]);
+  const generalInstallmentRows = useMemo(() => {
+    return buildGeneralInstallmentRows(selectedScheduleCustomer);
+  }, [selectedScheduleCustomer]);
 
   function getCustomerPaymentDevice(customer, payment) {
     return (customer?.devices || []).find((device) => device.id === payment?.convenioDeviceId) || null;
@@ -146,17 +214,55 @@ export default function ConveniosPanel({ canManage = false }) {
     setSaving(true);
     setMessage("");
     try {
-      const response = await api.createConvenioCustomer(form);
+      const isRenewal = formMode === "renewal";
+      const selectedCustomer = customers.find((customer) => customer.id === renewalCustomerId);
+      if (isRenewal && !selectedCustomer) {
+        setMessage("Selecciona el cliente registrado para renovar credito.");
+        return;
+      }
+
+      const response = isRenewal
+        ? await api.renewConvenioCustomer(renewalCustomerId, form)
+        : await api.createConvenioCustomer(form);
       setForm(initialConvenioForm);
-      setSelectedScheduleCustomerId(response?.customer?.id || "");
-      setMessage("Convenio registrado y tabla de cuotas generada.");
+      if (isRenewal) {
+        setRenewalCustomerId("");
+      }
+      setSelectedScheduleCustomerId(response?.customer?.id || renewalCustomerId || "");
+      setMessage(isRenewal ? "Credito renovado y cuota general actualizada." : "Convenio registrado y tabla de cuotas generada.");
       await loadConvenios({ silent: true });
       setTimeout(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (error) {
-      setMessage(error?.message || "No se pudo registrar el convenio");
+      setMessage(error?.message || "No se pudo guardar el convenio");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleStartRenewal(customer) {
+    setFormMode("renewal");
+    setRenewalCustomerId(customer?.id || "");
+    setForm((value) => ({
+      ...value,
+      fullName: customer?.fullName || "",
+      nationalId: customer?.nationalId || "",
+      phone: customer?.phone || "",
+      brand: "",
+      model: "",
+      imei: "",
+      cashPrice: "",
+      installmentCount: "1",
+      dueDate: "",
+      notes: "",
+    }));
+    setSelectedScheduleCustomerId(customer?.id || "");
+    setTimeout(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  }
+
+  function handleChangeFormMode(nextMode) {
+    setFormMode(nextMode);
+    setForm(initialConvenioForm);
+    setRenewalCustomerId("");
   }
 
   function handleOpenSchedule(customerId) {
@@ -215,19 +321,19 @@ export default function ConveniosPanel({ canManage = false }) {
   }
 
   function handleExportDiscountPdf() {
-    const total = discountRows.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const rows = discountRows
-      .map((payment, index) => {
-        const device = payment.device ? `${payment.device.brand || ""} ${payment.device.model || ""}`.trim() : "-";
+    const pdfRows = buildDiscountPdfRows(discountRows);
+    const total = pdfRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const rows = pdfRows
+      .map((row, index) => {
         return `
           <tr>
             <td>${index + 1}</td>
-            <td>${escapeHtml(payment.customer?.fullName || "-")}</td>
-            <td>${escapeHtml(payment.customer?.nationalId || "-")}</td>
-            <td>${escapeHtml(device)}</td>
-            <td>${payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
-            <td>${formatDate(payment.dueDate)}</td>
-            <td>${formatCurrency(payment.amount)}</td>
+            <td>${escapeHtml(row.customer?.fullName || "-")}</td>
+            <td>${escapeHtml(row.customer?.nationalId || "-")}</td>
+            <td>${escapeHtml(row.devices.join(", ") || "-")}</td>
+            <td>${escapeHtml(row.sequences.join(" + ") || "-")}</td>
+            <td>${formatDate(row.dueDate)}</td>
+            <td>${formatCurrency(row.amount)}</td>
           </tr>
         `;
       })
@@ -394,10 +500,72 @@ export default function ConveniosPanel({ canManage = false }) {
 
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
         <form onSubmit={handleCreateConvenio} style={{ ...cardStyle, display: "grid", gap: 10 }}>
-          <h3 style={{ margin: 0 }}>Registrar convenio</h3>
-          <input style={inputStyle} placeholder="Nombre completo" value={form.fullName} onChange={(event) => setForm((value) => ({ ...value, fullName: event.target.value }))} />
-          <input style={inputStyle} placeholder="Cedula o documento" value={form.nationalId} onChange={(event) => setForm((value) => ({ ...value, nationalId: event.target.value }))} />
-          <input style={inputStyle} placeholder="Telefono" value={form.phone} onChange={(event) => setForm((value) => ({ ...value, phone: event.target.value }))} />
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <h3 style={{ margin: 0 }}>{formMode === "renewal" ? "Renovar credito" : "Registrar convenio"}</h3>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => handleChangeFormMode("new")}
+                style={formMode === "new" ? buttonStyle : secondaryButtonStyle}
+              >
+                Cliente nuevo
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChangeFormMode("renewal")}
+                style={formMode === "renewal" ? buttonStyle : secondaryButtonStyle}
+              >
+                Renovar credito
+              </button>
+            </div>
+          </div>
+          {formMode === "renewal" && (
+            <select
+              required
+              style={inputStyle}
+              value={renewalCustomerId}
+              onChange={(event) => {
+                const customer = customers.find((entry) => entry.id === event.target.value);
+                setRenewalCustomerId(event.target.value);
+                setForm((value) => ({
+                  ...value,
+                  fullName: customer?.fullName || "",
+                  nationalId: customer?.nationalId || "",
+                  phone: customer?.phone || "",
+                }));
+              }}
+            >
+              <option value="">Seleccionar cliente registrado</option>
+              {customers.map((customer) => (
+                <option key={`renewal-${customer.id}`} value={customer.id}>
+                  {customer.fullName} - {customer.nationalId}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            required={formMode === "new"}
+            disabled={formMode === "renewal"}
+            style={{ ...inputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
+            placeholder="Nombre completo"
+            value={form.fullName}
+            onChange={(event) => setForm((value) => ({ ...value, fullName: event.target.value }))}
+          />
+          <input
+            required={formMode === "new"}
+            disabled={formMode === "renewal"}
+            style={{ ...inputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
+            placeholder="Cedula o documento"
+            value={form.nationalId}
+            onChange={(event) => setForm((value) => ({ ...value, nationalId: event.target.value }))}
+          />
+          <input
+            disabled={formMode === "renewal"}
+            style={{ ...inputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
+            placeholder="Telefono"
+            value={form.phone}
+            onChange={(event) => setForm((value) => ({ ...value, phone: event.target.value }))}
+          />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
             <input style={inputStyle} placeholder="Marca" value={form.brand} onChange={(event) => setForm((value) => ({ ...value, brand: event.target.value }))} />
             <input style={inputStyle} placeholder="Modelo" value={form.model} onChange={(event) => setForm((value) => ({ ...value, model: event.target.value }))} />
@@ -418,7 +586,9 @@ export default function ConveniosPanel({ canManage = false }) {
             </label>
           </div>
           <textarea style={{ ...inputStyle, minHeight: 82, resize: "vertical" }} placeholder="Notas" value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} />
-          <button type="submit" disabled={saving} style={buttonStyle}>{saving ? "Generando..." : "Registrar convenio y generar tabla"}</button>
+          <button type="submit" disabled={saving} style={buttonStyle}>
+            {saving ? "Generando..." : formMode === "renewal" ? "Renovar credito y actualizar tabla" : "Registrar convenio y generar tabla"}
+          </button>
         </form>
 
         <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
@@ -427,7 +597,7 @@ export default function ConveniosPanel({ canManage = false }) {
             <span style={{ color: "var(--text-soft)", fontWeight: 700 }}>{customers.length} registro(s)</span>
           </div>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cliente</th>
@@ -435,6 +605,7 @@ export default function ConveniosPanel({ canManage = false }) {
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuotas</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Registrado</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Tabla</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Renovar</th>
                   <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Borrar</th>
                 </tr>
               </thead>
@@ -464,6 +635,15 @@ export default function ConveniosPanel({ canManage = false }) {
                     <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
                       <button
                         type="button"
+                        onClick={() => handleStartRenewal(customer)}
+                        style={{ ...buttonStyle, padding: "7px 10px", borderRadius: 10 }}
+                      >
+                        Renovar
+                      </button>
+                    </td>
+                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                      <button
+                        type="button"
                         disabled={deletingCustomerId === customer.id}
                         onClick={() => handleDeleteCustomer(customer)}
                         style={{
@@ -482,7 +662,7 @@ export default function ConveniosPanel({ canManage = false }) {
                   </tr>
                 ))}
                 {customers.length === 0 && (
-                  <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
+                  <tr><td colSpan={7} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
                 )}
               </tbody>
             </table>
@@ -505,6 +685,38 @@ export default function ConveniosPanel({ canManage = false }) {
                 Ocultar tabla
               </button>
             </div>
+          </div>
+          <div style={{ overflowX: "auto", border: "1px solid #bfdbfe", borderRadius: 14 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+              <thead>
+                <tr style={{ background: "#eff6ff" }}>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Fecha de corte</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Telefonos incluidos</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cuotas</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Estado</th>
+                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cuota general</th>
+                </tr>
+              </thead>
+              <tbody>
+                {generalInstallmentRows.map((row) => {
+                  const badge = statusBadge(row.status);
+                  return (
+                    <tr key={`general-${row.key}`}>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(row.dueDate)}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{row.devices.join(", ") || "-"}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{row.sequences.join(" + ") || "-"}</td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                        <span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, background: badge.bg, color: badge.color }}>{badge.label}</span>
+                      </td>
+                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(row.amount)}</td>
+                    </tr>
+                  );
+                })}
+                {generalInstallmentRows.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>Este cliente todavia no tiene cuotas generales.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>

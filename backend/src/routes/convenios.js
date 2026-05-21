@@ -324,6 +324,95 @@ router.post("/customers", asyncHandler(async (req, res) => {
   }
 }));
 
+router.post("/customers/:id/renewals", asyncHandler(async (req, res) => {
+  if (!(await ensureConvenioAccess(req, res))) return;
+
+  const customerId = asTrimmedString(req.params.id);
+  const brand = asTrimmedString(req.body?.brand);
+  const model = asTrimmedString(req.body?.model);
+  const imei = asOptionalTrimmedString(req.body?.imei);
+  const deviceNotes = asOptionalTrimmedString(req.body?.deviceNotes || req.body?.notes);
+  const cashPriceRaw = req.body?.cashPrice;
+  const cashPrice = cashPriceRaw === "" || cashPriceRaw === null || cashPriceRaw === undefined ? null : Number(cashPriceRaw);
+  const dueDate = parseDate(req.body?.dueDate);
+  const paymentNotes = asOptionalTrimmedString(req.body?.paymentNotes || req.body?.notes);
+  const installmentCount = parseInstallmentCount(req.body?.installmentCount, 1);
+
+  if (!customerId) {
+    return sendBadRequest(res, "Cliente es obligatorio para renovar credito");
+  }
+
+  if (!brand || !model) {
+    return sendBadRequest(res, "Marca y modelo del nuevo dispositivo son obligatorios");
+  }
+
+  if (!Number.isFinite(cashPrice) || cashPrice <= 0) {
+    return sendBadRequest(res, "Valor total del telefono es obligatorio");
+  }
+
+  if (!installmentCount) {
+    return sendBadRequest(res, "Numero de cuotas invalido");
+  }
+
+  if (!dueDate) {
+    return sendBadRequest(res, "Fecha de corte mensual invalida");
+  }
+
+  const customer = await prisma.convenioCustomer.findFirst({
+    where: { ...convenioOwnerWhere(req), id: customerId },
+    select: { id: true, createdByUserId: true },
+  });
+
+  if (!customer) {
+    return sendBadRequest(res, "Cliente de convenio invalido o fuera de alcance");
+  }
+
+  const paymentAmount = calculateMonthlyInstallment(cashPrice, installmentCount);
+  const createdByUserId = customer.createdByUserId || req.user.id;
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const device = await tx.convenioDevice.create({
+        data: {
+          convenioCustomerId: customer.id,
+          brand,
+          model,
+          imei,
+          cashPrice,
+          installmentCount,
+          notes: deviceNotes,
+          createdByUserId,
+        },
+      });
+
+      const rows = buildInstallmentRows({
+        customerId: customer.id,
+        deviceId: device.id,
+        amount: paymentAmount,
+        dueDate,
+        count: installmentCount,
+        notes: paymentNotes,
+        createdByUserId,
+      });
+
+      await tx.convenioPayment.createMany({ data: rows });
+      const payments = await tx.convenioPayment.findMany({
+        where: { convenioDeviceId: device.id },
+        orderBy: { sequence: "asc" },
+      });
+
+      return { customer, device, payments };
+    });
+
+    return res.status(201).json({ ok: true, ...result });
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) {
+      return sendBadRequest(res, "Ya existe un telefono de convenio con ese IMEI");
+    }
+    throw error;
+  }
+}));
+
 router.post("/payments", asyncHandler(async (req, res) => {
   if (!(await ensureConvenioAccess(req, res))) return;
 

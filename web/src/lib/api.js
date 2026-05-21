@@ -354,6 +354,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  renewConvenioCustomer(customerId, payload) {
+    return request(`/convenios/customers/${encodeURIComponent(customerId)}/renewals`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   deleteConvenioCustomer(customerId) {
     return request(`/convenios/customers/${encodeURIComponent(customerId)}`, {
       method: "DELETE",
