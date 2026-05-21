@@ -115,6 +115,59 @@ function buildGeneralInstallmentRows(customer) {
   return Array.from(groups.values()).sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate));
 }
 
+function buildDeviceScheduleSections(customer) {
+  const devices = customer?.devices || [];
+  const payments = customer?.payments || [];
+  const deviceById = new Map(devices.map((device) => [device.id, device]));
+  const sectionsById = new Map();
+
+  for (const device of devices) {
+    sectionsById.set(device.id, {
+      id: device.id,
+      device,
+      payments: [],
+      totalAmount: 0,
+      pendingAmount: 0,
+    });
+  }
+
+  for (const payment of payments) {
+    const sectionId = payment?.convenioDeviceId || "sin-equipo";
+    if (!sectionsById.has(sectionId)) {
+      sectionsById.set(sectionId, {
+        id: sectionId,
+        device: deviceById.get(sectionId) || null,
+        payments: [],
+        totalAmount: 0,
+        pendingAmount: 0,
+      });
+    }
+
+    const section = sectionsById.get(sectionId);
+    const amount = Number(payment?.amount || 0);
+    section.payments.push(payment);
+    section.totalAmount = Number((section.totalAmount + amount).toFixed(2));
+    if (resolveStatus(payment) !== "PAGADO") {
+      section.pendingAmount = Number((section.pendingAmount + amount).toFixed(2));
+    }
+  }
+
+  return Array.from(sectionsById.values())
+    .map((section) => ({
+      ...section,
+      payments: section.payments.sort((left, right) => {
+        const dateDiff = new Date(left.dueDate) - new Date(right.dueDate);
+        if (dateDiff) return dateDiff;
+        return Number(left.sequence || 0) - Number(right.sequence || 0);
+      }),
+    }))
+    .sort((left, right) => {
+      const leftDate = left.device?.createdAt ? new Date(left.device.createdAt).getTime() : 0;
+      const rightDate = right.device?.createdAt ? new Date(right.device.createdAt).getTime() : 0;
+      return rightDate - leftDate;
+    });
+}
+
 function buildDiscountPdfRows(payments) {
   const groups = new Map();
 
@@ -144,6 +197,14 @@ function buildDiscountPdfRows(payments) {
     return String(left.customer?.fullName || "").localeCompare(String(right.customer?.fullName || ""));
   });
 }
+
+const metricCardStyle = {
+  borderRadius: 14,
+  padding: 14,
+  minHeight: 108,
+  display: "grid",
+  alignContent: "space-between",
+};
 
 export default function ConveniosPanel({ canManage = false }) {
   const now = new Date();
@@ -204,10 +265,12 @@ export default function ConveniosPanel({ canManage = false }) {
   const generalInstallmentRows = useMemo(() => {
     return buildGeneralInstallmentRows(selectedScheduleCustomer);
   }, [selectedScheduleCustomer]);
-
-  function getCustomerPaymentDevice(customer, payment) {
-    return (customer?.devices || []).find((device) => device.id === payment?.convenioDeviceId) || null;
-  }
+  const deviceScheduleSections = useMemo(() => {
+    return buildDeviceScheduleSections(selectedScheduleCustomer);
+  }, [selectedScheduleCustomer]);
+  const discountPdfRows = useMemo(() => {
+    return buildDiscountPdfRows(discountRows);
+  }, [discountRows]);
 
   async function handleCreateConvenio(event) {
     event.preventDefault();
@@ -321,9 +384,8 @@ export default function ConveniosPanel({ canManage = false }) {
   }
 
   function handleExportDiscountPdf() {
-    const pdfRows = buildDiscountPdfRows(discountRows);
-    const total = pdfRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const rows = pdfRows
+    const total = discountPdfRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const rows = discountPdfRows
       .map((row, index) => {
         return `
           <tr>
@@ -478,20 +540,20 @@ export default function ConveniosPanel({ canManage = false }) {
       )}
 
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-        <article style={{ border: "1px solid #bfdbfe", borderRadius: 14, padding: 14, background: "#eff6ff" }}>
+        <article style={{ ...metricCardStyle, border: "1px solid #bfdbfe", background: "#eff6ff" }}>
           <div style={{ color: "#1d4ed8", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>Clientes</div>
           <div style={{ marginTop: 6, fontSize: 32, fontWeight: 900, color: "#1e3a8a" }}>{data?.summary?.customersCount || 0}</div>
         </article>
-        <article style={{ border: "1px solid #bae6fd", borderRadius: 14, padding: 14, background: "#f0f9ff" }}>
+        <article style={{ ...metricCardStyle, border: "1px solid #bae6fd", background: "#f0f9ff" }}>
           <div style={{ color: "#0369a1", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>Equipos convenio</div>
           <div style={{ marginTop: 6, fontSize: 32, fontWeight: 900, color: "#075985" }}>{data?.summary?.devicesCount || 0}</div>
         </article>
-        <article style={{ border: "1px solid #bbf7d0", borderRadius: 14, padding: 14, background: "#ecfdf5" }}>
+        <article style={{ ...metricCardStyle, border: "1px solid #bbf7d0", background: "#ecfdf5" }}>
           <div style={{ color: "#15803d", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>Pagado</div>
           <div style={{ color: "#166534", fontSize: 12, fontWeight: 700 }}>Periodo: {monthLabel}</div>
           <div style={{ marginTop: 6, fontSize: 32, fontWeight: 900, color: "#166534" }}>{formatCurrency(totals.paidAmount)}</div>
         </article>
-        <article style={{ border: "1px solid #fed7aa", borderRadius: 14, padding: 14, background: "#fff7ed" }}>
+        <article style={{ ...metricCardStyle, border: "1px solid #fed7aa", background: "#fff7ed" }}>
           <div style={{ color: "#c2410c", fontWeight: 800, textTransform: "uppercase", fontSize: 12 }}>Por cobrar</div>
           <div style={{ color: "#9a3412", fontSize: 12, fontWeight: 700 }}>Periodo: {monthLabel}</div>
           <div style={{ marginTop: 6, fontSize: 32, fontWeight: 900, color: "#9a3412" }}>{formatCurrency(Number(totals.pendingAmount || 0) + Number(totals.overdueAmount || 0))}</div>
@@ -718,56 +780,76 @@ export default function ConveniosPanel({ canManage = false }) {
               </tbody>
             </table>
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha de corte</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Equipo</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuota</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Monto</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Accion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(selectedScheduleCustomer.payments || []).map((payment) => {
-                  const status = resolveStatus(payment);
-                  const badge = statusBadge(status);
-                  const device = getCustomerPaymentDevice(selectedScheduleCustomer, payment);
-                  return (
-                    <tr key={`schedule-${payment.id}`}>
-                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(payment.dueDate)}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{device ? `${device.brand} ${device.model}` : "-"}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}><span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, background: badge.bg, color: badge.color }}>{badge.label}</span></td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                        <button
-                          type="button"
-                          disabled={status === "PAGADO" || markingPaymentId === payment.id}
-                          onClick={() => handleMarkPaid(payment.id)}
-                          style={{ border: "1px solid #16a34a", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#ecfdf5", color: status === "PAGADO" ? "#64748b" : "#166534", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
-                        >
-                          {markingPaymentId === payment.id ? "Marcando..." : status === "PAGADO" ? "Pagado" : "Marcar pagado"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={status === "PAGADO" || skippingPaymentId === payment.id}
-                          onClick={() => handleSkipDiscount(payment.id)}
-                          style={{ marginLeft: 8, border: "1px solid #f97316", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#fff7ed", color: status === "PAGADO" ? "#64748b" : "#9a3412", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
-                        >
-                          {skippingPaymentId === payment.id ? "Pasando..." : "No pasar descuento"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {(!selectedScheduleCustomer.payments || selectedScheduleCustomer.payments.length === 0) && (
-                  <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>Este cliente todavia no tiene tabla de cuotas.</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div style={{ display: "grid", gap: 12 }}>
+            {deviceScheduleSections.map((section) => {
+              const deviceLabel = section.device ? `${section.device.brand || ""} ${section.device.model || ""}`.trim() : "Sin equipo asignado";
+              return (
+                <article key={`device-schedule-${section.id}`} style={{ border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", background: "#ffffff" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap", padding: 12, background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                    <div>
+                      <strong>{deviceLabel}</strong>
+                      <div style={{ color: "#64748b", fontSize: 13 }}>
+                        {section.device?.imei ? `IMEI: ${section.device.imei}` : "Sin IMEI registrado"}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", color: "#334155", fontSize: 13, fontWeight: 800 }}>
+                      <span>{section.payments.length} cuota(s)</span>
+                      <span>Pendiente: {formatCurrency(section.pendingAmount)}</span>
+                    </div>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+                      <thead>
+                        <tr style={{ background: "#ffffff" }}>
+                          <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Fecha de corte</th>
+                          <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuota</th>
+                          <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Estado</th>
+                          <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Monto</th>
+                          <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Accion de este telefono</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.payments.map((payment) => {
+                          const status = resolveStatus(payment);
+                          const badge = statusBadge(status);
+                          return (
+                            <tr key={`schedule-${payment.id}`}>
+                              <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(payment.dueDate)}</td>
+                              <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
+                              <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                                <span style={{ borderRadius: 999, padding: "4px 10px", fontWeight: 800, background: badge.bg, color: badge.color }}>{badge.label}</span>
+                              </td>
+                              <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
+                              <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
+                                <button
+                                  type="button"
+                                  disabled={status === "PAGADO" || markingPaymentId === payment.id}
+                                  onClick={() => handleMarkPaid(payment.id)}
+                                  style={{ border: "1px solid #16a34a", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#ecfdf5", color: status === "PAGADO" ? "#64748b" : "#166534", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
+                                >
+                                  {markingPaymentId === payment.id ? "Marcando..." : status === "PAGADO" ? "Pagado" : "Marcar pagado"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={status === "PAGADO" || skippingPaymentId === payment.id}
+                                  onClick={() => handleSkipDiscount(payment.id)}
+                                  style={{ marginLeft: 8, border: "1px solid #f97316", borderRadius: 10, padding: "8px 10px", background: status === "PAGADO" ? "#f8fafc" : "#fff7ed", color: status === "PAGADO" ? "#64748b" : "#9a3412", fontWeight: 800, cursor: status === "PAGADO" ? "default" : "pointer" }}
+                                >
+                                  {skippingPaymentId === payment.id ? "Refinanciando..." : "No pasar descuento"}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {section.payments.length === 0 && (
+                          <tr><td colSpan={5} style={{ padding: 12, color: "#64748b" }}>Este telefono todavia no tiene cuotas.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </article>
       )}
@@ -777,7 +859,7 @@ export default function ConveniosPanel({ canManage = false }) {
           <div>
             <h3 style={{ margin: 0 }}>Finanzas de convenios</h3>
             <p style={{ margin: "4px 0 0", color: "var(--text-soft)" }}>
-              Listado mensual de descuentos para {monthLabel} {selectedYear}: <strong>{discountRows.length}</strong>
+              Listado mensual para PDF en {monthLabel} {selectedYear}: <strong>{discountPdfRows.length}</strong>
             </p>
           </div>
           <button type="button" onClick={handleExportDiscountPdf} style={secondaryButtonStyle}>Exportar listado PDF de {monthLabel}</button>
@@ -789,24 +871,24 @@ export default function ConveniosPanel({ canManage = false }) {
               <tr style={{ background: "#eff6ff" }}>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cliente</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cedula</th>
-                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Equipo</th>
+                <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Telefonos vigentes</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Fecha de corte</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Cuota</th>
                 <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #bfdbfe" }}>Monto</th>
               </tr>
             </thead>
             <tbody>
-              {discountRows.map((payment) => (
-                <tr key={`discount-${payment.id}`}>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.fullName || "-"}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.customer?.nationalId || "-"}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.device ? `${payment.device.brand} ${payment.device.model}` : "-"}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(payment.dueDate)}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{payment.sequence ? `Cuota ${payment.sequence}` : "-"}</td>
-                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(payment.amount)}</td>
+              {discountPdfRows.map((row) => (
+                <tr key={`discount-${row.key}`}>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{row.customer?.fullName || "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{row.customer?.nationalId || "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{row.devices.join(", ") || "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(row.dueDate)}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{row.sequences.join(" + ") || "-"}</td>
+                  <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9", fontWeight: 900 }}>{formatCurrency(row.amount)}</td>
                 </tr>
               ))}
-              {discountRows.length === 0 && (
+              {discountPdfRows.length === 0 && (
                 <tr><td colSpan={6} style={{ padding: 12, color: "#64748b" }}>No hay descuentos para pasar en este mes.</td></tr>
               )}
             </tbody>
