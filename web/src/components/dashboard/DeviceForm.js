@@ -1,6 +1,6 @@
 import { buttonStyle, cardStyle, inputStyle, sectionTitleStyle } from "./styles";
 
-export default function DeviceForm({ form, customers, onChange, onSubmit, isSubmitting }) {
+export default function DeviceForm({ form, customers, onChange, onSubmit, isSubmitting, submitLabel }) {
   const sortedCustomers = [...customers].sort((a, b) =>
     String(a.fullName || "").localeCompare(String(b.fullName || ""))
   );
@@ -64,7 +64,7 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
           style={{ ...inputStyle, minHeight: 78 }}
         />
         <button type="submit" style={buttonStyle} disabled={isSubmitting}>
-          {isSubmitting ? "Guardando dispositivo..." : "Guardar dispositivo"}
+          {isSubmitting ? "Guardando dispositivo..." : submitLabel || "Guardar dispositivo"}
         </button>
       </form>
     </section>

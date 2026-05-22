@@ -632,6 +632,7 @@ export default function Dashboard() {
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
   const [isSavingDevice, setIsSavingDevice] = useState(false);
   const [isSavingCreditContract, setIsSavingCreditContract] = useState(false);
+  const [repairFlowMode, setRepairFlowMode] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState("");
   const [clearingManualStatusDeviceId, setClearingManualStatusDeviceId] = useState("");
@@ -1782,6 +1783,9 @@ export default function Dashboard() {
         setSelectedCreditDeviceId(createdId);
         setProvisioningDeviceId(createdId);
         setCreditForm((value) => ({ ...value, deviceId: createdId }));
+        if (repairFlowMode === "device") {
+          setRepairFlowMode("contract");
+        }
       }
       if (createdCustomerId) {
         setDeviceForm((value) => ({ ...value, customerId: createdCustomerId }));
@@ -1870,6 +1874,7 @@ export default function Dashboard() {
       );
       setSelectedCreditDeviceId(deviceId);
       setCreditForm(createInitialCreditForm());
+      setRepairFlowMode("");
       await loadDashboard({ silent: true });
       await loadCreditContract(deviceId);
     } catch (error) {
@@ -1891,6 +1896,7 @@ export default function Dashboard() {
 
     setActiveMainView("credit_new");
     setIsAdvancedOpen(true);
+    setRepairFlowMode(targetDeviceId ? "contract" : "device");
     setStatus(
       "info",
       targetDeviceId
@@ -2789,6 +2795,8 @@ export default function Dashboard() {
       setCreditForm(createInitialCreditForm());
       return;
     }
+
+    setRepairFlowMode("");
 
     if (activeMainView === "credit_renewal") {
       setRenewalCustomerQuery("");
@@ -3815,6 +3823,7 @@ export default function Dashboard() {
           onChange={setDeviceForm}
           onSubmit={handleCreateDevice}
           isSubmitting={isSavingDevice}
+          submitLabel={repairFlowMode === "device" ? "Guardar cambios" : undefined}
         />
       </section>
 
@@ -3996,17 +4005,25 @@ export default function Dashboard() {
               </div>
             )}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {creditInstallmentPreview && (
+              {(creditInstallmentPreview || repairFlowMode === "contract") && (
                 <button
                   type="submit"
-                  disabled={isSavingCreditContract}
+                  disabled={isSavingCreditContract || (repairFlowMode === "contract" && !creditInstallmentPreview)}
                   style={{
                     width: "fit-content",
                     ...buttonStyle,
-                    cursor: isSavingCreditContract ? "not-allowed" : "pointer",
+                    opacity: repairFlowMode === "contract" && !creditInstallmentPreview ? 0.62 : 1,
+                    cursor:
+                      isSavingCreditContract || (repairFlowMode === "contract" && !creditInstallmentPreview)
+                        ? "not-allowed"
+                        : "pointer",
                   }}
                 >
-                  {isSavingCreditContract ? "Guardando..." : "Confirmar subida"}
+                  {isSavingCreditContract
+                    ? "Guardando..."
+                    : repairFlowMode === "contract"
+                      ? "Guardar cambios"
+                      : "Confirmar subida"}
                 </button>
               )}
               <button
