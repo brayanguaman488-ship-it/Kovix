@@ -1877,6 +1877,32 @@ export default function Dashboard() {
     }
   }
 
+  function handleRepairCreditContract(customer, device) {
+    const targetCustomerId = String(customer?.id || device?.customerId || device?.customer?.id || "").trim();
+    const targetDevice = device || (customer?.devices || []).find((entry) => !entry.creditContract);
+    const targetDeviceId = String(targetDevice?.id || "").trim();
+
+    if (!targetCustomerId || !targetDeviceId) {
+      setStatus("error", "No se pudo seleccionar el cliente y equipo para reparar contrato");
+      return;
+    }
+
+    setActiveMainView("credit_new");
+    setStatus("info", "Completa los datos del contrato y confirma la subida para reparar Finanzas.");
+
+    setTimeout(() => {
+      setDeviceForm((value) => ({ ...value, customerId: targetCustomerId }));
+      setCreditForm((value) => ({
+        ...createInitialCreditForm(),
+        purchaseDate: value.purchaseDate || getTodayIsoDate(),
+        deviceId: targetDeviceId,
+      }));
+      setSelectedCreditDeviceId(targetDeviceId);
+      setProvisioningDeviceId(targetDeviceId);
+      advancedToolsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
   function handleClearCreditNewDraft() {
     const selectedCustomerId = String(deviceForm.customerId || "").trim();
     const targetCustomer = customers.find((customer) => String(customer.id) === selectedCustomerId);
@@ -4285,6 +4311,7 @@ export default function Dashboard() {
             deletingCustomerId={deletingCustomerId}
             searchValue={customerQuery}
             onSearchChange={setCustomerQuery}
+            onRepairCreditContract={handleRepairCreditContract}
           />
         </section>
       )}

@@ -25,6 +25,7 @@ export default function CustomersList({
   segmentCounts,
   searchValue,
   onSearchChange,
+  onRepairCreditContract,
 }) {
   const [expandedCustomerId, setExpandedCustomerId] = useState("");
   const [optionsCustomerId, setOptionsCustomerId] = useState("");
@@ -52,7 +53,7 @@ export default function CustomersList({
     return hasDebt ? "ACTIVO" : "PAGADO";
   }
 
-  function renderContractTable(device) {
+  function renderContractTable(customer, device) {
     const contract = device?.creditContract;
     if (!contract) {
       return (
@@ -63,9 +64,23 @@ export default function CustomersList({
             borderRadius: 8,
             background: "#f8fafc",
             color: "#334155",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
-          Este equipo no tiene contrato de credito.
+          <span>Este equipo no tiene contrato de credito.</span>
+          {onRepairCreditContract && (
+            <button
+              type="button"
+              onClick={() => onRepairCreditContract(customer, device)}
+              style={{ ...secondaryButtonStyle, minHeight: 34, padding: "6px 10px", borderRadius: 8 }}
+            >
+              Reparar contrato
+            </button>
+          )}
         </div>
       );
     }
@@ -208,6 +223,11 @@ export default function CustomersList({
       <div style={{ display: "grid", gap: 12 }}>
         {customers.map((customer) => (
           <article key={customer.id} style={{ ...listItemStyle, borderRadius: 16, background: "#ffffff", padding: 14 }}>
+            {(() => {
+              const devicesWithoutContract = (customer.devices || []).filter((device) => !device.creditContract);
+              const canRepairContract = devicesWithoutContract.length > 0 && Boolean(onRepairCreditContract);
+              return (
+                <>
             <div style={{ display: "grid", gridTemplateColumns: "68px minmax(0,1fr) auto", alignItems: "center", gap: 12 }}>
               <div
                 style={{
@@ -278,6 +298,27 @@ export default function CustomersList({
                         overflow: "hidden",
                       }}
                     >
+                      {canRepairContract && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOptionsCustomerId("");
+                            onRepairCreditContract(customer, devicesWithoutContract[0]);
+                          }}
+                          style={{
+                            border: "none",
+                            background: "#eff6ff",
+                            padding: "10px 12px",
+                            textAlign: "left",
+                            borderBottom: "1px solid var(--line-soft)",
+                            cursor: "pointer",
+                            color: "#1d4ed8",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Reparar contrato
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -332,7 +373,7 @@ export default function CustomersList({
                       gap: 10,
                     }}
                   >
-                    {renderContractTable(device)}
+                    {renderContractTable(customer, device)}
                   </article>
                 ))}
                 {(customer.devices || []).length === 0 && (
@@ -340,6 +381,9 @@ export default function CustomersList({
                 )}
               </div>
             )}
+                </>
+              );
+            })()}
           </article>
         ))}
         {customers.length === 0 && <p style={{ margin: 0 }}>No hay clientes en este apartado.</p>}
