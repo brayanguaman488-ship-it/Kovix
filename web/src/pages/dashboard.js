@@ -617,6 +617,8 @@ export default function Dashboard() {
   const hasHydratedQueryRef = useRef(false);
   const dashboardLoadSeqRef = useRef(0);
   const advancedToolsRef = useRef(null);
+  const repairDeviceFormRef = useRef(null);
+  const repairContractFormRef = useRef(null);
   const [user, setUser] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
@@ -1882,13 +1884,19 @@ export default function Dashboard() {
     const targetDevice = device || (customer?.devices || []).find((entry) => !entry.creditContract);
     const targetDeviceId = String(targetDevice?.id || "").trim();
 
-    if (!targetCustomerId || !targetDeviceId) {
-      setStatus("error", "No se pudo seleccionar el cliente y equipo para reparar contrato");
+    if (!targetCustomerId) {
+      setStatus("error", "No se pudo seleccionar el cliente para reparar contrato");
       return;
     }
 
     setActiveMainView("credit_new");
-    setStatus("info", "Completa los datos del contrato y confirma la subida para reparar Finanzas.");
+    setIsAdvancedOpen(true);
+    setStatus(
+      "info",
+      targetDeviceId
+        ? "Completa los datos del contrato y confirma la subida para reparar Finanzas."
+        : "Primero registra el celular de este cliente; luego completa el contrato para reparar Finanzas."
+    );
 
     setTimeout(() => {
       setDeviceForm((value) => ({ ...value, customerId: targetCustomerId }));
@@ -1899,7 +1907,8 @@ export default function Dashboard() {
       }));
       setSelectedCreditDeviceId(targetDeviceId);
       setProvisioningDeviceId(targetDeviceId);
-      advancedToolsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const targetRef = targetDeviceId ? repairContractFormRef : repairDeviceFormRef;
+      targetRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 80);
   }
 
@@ -3792,7 +3801,7 @@ export default function Dashboard() {
         </article>
       </section>
 
-      <section style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+      <section ref={repairDeviceFormRef} style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
         <CustomerForm
           form={customerForm}
           customers={customers.length}
@@ -3811,6 +3820,7 @@ export default function Dashboard() {
 
       <section style={sectionGridStyle}>
         <article
+          ref={repairContractFormRef}
           style={{
             display: "grid",
             gap: 12,

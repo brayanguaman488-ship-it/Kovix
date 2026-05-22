@@ -225,7 +225,9 @@ export default function CustomersList({
           <article key={customer.id} style={{ ...listItemStyle, borderRadius: 16, background: "#ffffff", padding: 14 }}>
             {(() => {
               const devicesWithoutContract = (customer.devices || []).filter((device) => !device.creditContract);
-              const canRepairContract = devicesWithoutContract.length > 0 && Boolean(onRepairCreditContract);
+              const hasDevices = (customer.devices || []).length > 0;
+              const canRepairContract = (devicesWithoutContract.length > 0 || !hasDevices) && Boolean(onRepairCreditContract);
+              const repairLabel = hasDevices ? "Reparar contrato" : "Agregar celular y contrato";
               return (
                 <>
             <div style={{ display: "grid", gridTemplateColumns: "68px minmax(0,1fr) auto", alignItems: "center", gap: 12 }}>
@@ -303,7 +305,7 @@ export default function CustomersList({
                           type="button"
                           onClick={() => {
                             setOptionsCustomerId("");
-                            onRepairCreditContract(customer, devicesWithoutContract[0]);
+                            onRepairCreditContract(customer, devicesWithoutContract[0] || null);
                           }}
                           style={{
                             border: "none",
@@ -316,7 +318,7 @@ export default function CustomersList({
                             fontWeight: 700,
                           }}
                         >
-                          Reparar contrato
+                          {repairLabel}
                         </button>
                       )}
                       <button
@@ -377,7 +379,31 @@ export default function CustomersList({
                   </article>
                 ))}
                 {(customer.devices || []).length === 0 && (
-                  <p style={{ margin: 0, color: "#475569" }}>Este cliente aun no tiene dispositivos registrados.</p>
+                  <div
+                    style={{
+                      padding: 10,
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 8,
+                      background: "#f8fafc",
+                      color: "#334155",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span>Este cliente aun no tiene dispositivos registrados.</span>
+                    {onRepairCreditContract && (
+                      <button
+                        type="button"
+                        onClick={() => onRepairCreditContract(customer, null)}
+                        style={{ ...secondaryButtonStyle, minHeight: 34, padding: "6px 10px", borderRadius: 8 }}
+                      >
+                        Agregar celular y contrato
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
