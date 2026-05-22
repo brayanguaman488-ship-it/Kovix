@@ -206,6 +206,19 @@ const metricCardStyle = {
   alignContent: "space-between",
 };
 
+const convenioWorkGridStyle = {
+  display: "grid",
+  gap: 16,
+  gridTemplateColumns: "minmax(360px, 0.9fr) minmax(0, 1.1fr)",
+  alignItems: "start",
+};
+
+const compactInputStyle = {
+  ...inputStyle,
+  minHeight: 44,
+  padding: "9px 12px",
+};
+
 export default function ConveniosPanel({ canManage = false }) {
   const now = new Date();
   const scheduleRef = useRef(null);
@@ -560,8 +573,8 @@ export default function ConveniosPanel({ canManage = false }) {
         </article>
       </div>
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
-        <form onSubmit={handleCreateConvenio} style={{ ...cardStyle, display: "grid", gap: 10 }}>
+      <div style={convenioWorkGridStyle}>
+        <form onSubmit={handleCreateConvenio} style={{ ...cardStyle, display: "grid", gap: 8, padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <h3 style={{ margin: 0 }}>{formMode === "renewal" ? "Renovar credito" : "Registrar convenio"}</h3>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -584,7 +597,7 @@ export default function ConveniosPanel({ canManage = false }) {
           {formMode === "renewal" && (
             <select
               required
-              style={inputStyle}
+              style={compactInputStyle}
               value={renewalCustomerId}
               onChange={(event) => {
                 const customer = customers.find((entry) => entry.id === event.target.value);
@@ -608,7 +621,7 @@ export default function ConveniosPanel({ canManage = false }) {
           <input
             required={formMode === "new"}
             disabled={formMode === "renewal"}
-            style={{ ...inputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
+            style={{ ...compactInputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
             placeholder="Nombre completo"
             value={form.fullName}
             onChange={(event) => setForm((value) => ({ ...value, fullName: event.target.value }))}
@@ -616,27 +629,27 @@ export default function ConveniosPanel({ canManage = false }) {
           <input
             required={formMode === "new"}
             disabled={formMode === "renewal"}
-            style={{ ...inputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
+            style={{ ...compactInputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
             placeholder="Cedula o documento"
             value={form.nationalId}
             onChange={(event) => setForm((value) => ({ ...value, nationalId: event.target.value }))}
           />
           <input
             disabled={formMode === "renewal"}
-            style={{ ...inputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
+            style={{ ...compactInputStyle, background: formMode === "renewal" ? "#f8fafc" : inputStyle.background }}
             placeholder="Telefono"
             value={form.phone}
             onChange={(event) => setForm((value) => ({ ...value, phone: event.target.value }))}
           />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-            <input style={inputStyle} placeholder="Marca" value={form.brand} onChange={(event) => setForm((value) => ({ ...value, brand: event.target.value }))} />
-            <input style={inputStyle} placeholder="Modelo" value={form.model} onChange={(event) => setForm((value) => ({ ...value, model: event.target.value }))} />
+            <input style={compactInputStyle} placeholder="Marca" value={form.brand} onChange={(event) => setForm((value) => ({ ...value, brand: event.target.value }))} />
+            <input style={compactInputStyle} placeholder="Modelo" value={form.model} onChange={(event) => setForm((value) => ({ ...value, model: event.target.value }))} />
           </div>
-          <input style={inputStyle} placeholder="IMEI (opcional)" value={form.imei} onChange={(event) => setForm((value) => ({ ...value, imei: event.target.value }))} />
-          <input required style={inputStyle} type="number" min="0" step="0.01" placeholder="Valor total del telefono" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
+          <input style={compactInputStyle} placeholder="IMEI (opcional)" value={form.imei} onChange={(event) => setForm((value) => ({ ...value, imei: event.target.value }))} />
+          <input required style={compactInputStyle} type="number" min="0" step="0.01" placeholder="Valor total del telefono" value={form.cashPrice} onChange={(event) => setForm((value) => ({ ...value, cashPrice: event.target.value }))} />
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-            <input required style={inputStyle} type="number" min="1" max="60" placeholder="Numero de meses/cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
-            <div style={{ border: "1px solid #bfdbfe", borderRadius: 12, padding: "10px 12px", background: "#eff6ff", display: "grid", alignContent: "center" }}>
+            <input required style={compactInputStyle} type="number" min="1" max="60" placeholder="Numero de meses/cuotas" value={form.installmentCount} onChange={(event) => setForm((value) => ({ ...value, installmentCount: event.target.value }))} />
+            <div style={{ border: "1px solid #bfdbfe", borderRadius: 12, padding: "8px 12px", background: "#eff6ff", display: "grid", alignContent: "center" }}>
               <span style={{ color: "#1e3a8a", fontSize: 12, fontWeight: 800 }}>Cuota mensual calculada</span>
               <strong style={{ color: "#1e3a8a", fontSize: 20 }}>{formatCurrency(calculatedInstallmentAmount)}</strong>
             </div>
@@ -644,90 +657,106 @@ export default function ConveniosPanel({ canManage = false }) {
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr" }}>
             <label style={{ display: "grid", gap: 5, color: "#475569", fontSize: 13, fontWeight: 700 }}>
               Fecha de corte mensual
-            <input required style={inputStyle} type="date" value={form.dueDate} onChange={(event) => setForm((value) => ({ ...value, dueDate: event.target.value }))} />
+            <input required style={compactInputStyle} type="date" value={form.dueDate} onChange={(event) => setForm((value) => ({ ...value, dueDate: event.target.value }))} />
             </label>
           </div>
-          <textarea style={{ ...inputStyle, minHeight: 82, resize: "vertical" }} placeholder="Notas" value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} />
+          <textarea style={{ ...compactInputStyle, minHeight: 68, resize: "vertical" }} placeholder="Notas" value={form.notes} onChange={(event) => setForm((value) => ({ ...value, notes: event.target.value }))} />
           <button type="submit" disabled={saving} style={buttonStyle}>
             {saving ? "Generando..." : formMode === "renewal" ? "Renovar credito y actualizar tabla" : "Registrar convenio y generar tabla"}
           </button>
         </form>
 
-        <article style={{ ...cardStyle, display: "grid", gap: 12 }}>
+        <article style={{ ...cardStyle, display: "grid", gap: 12, padding: 18, minWidth: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <h3 style={{ margin: 0 }}>Clientes de convenio</h3>
             <span style={{ color: "var(--text-soft)", fontWeight: 700 }}>{customers.length} registro(s)</span>
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cliente</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Dispositivo</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Cuotas</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Registrado</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Tabla</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Renovar</th>
-                  <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #e2e8f0" }}>Borrar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.map((customer) => (
-                  <tr key={customer.id}>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      <strong>{customer.fullName}</strong>
-                      <div style={{ color: "#64748b", fontSize: 13 }}>{customer.nationalId}</div>
-                    </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      {(customer.devices || []).map((device) => `${device.brand} ${device.model}`).join(", ") || "-"}
-                    </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      {(customer.devices || []).map((device) => device.installmentCount || 1).join(", ") || customer.payments?.length || 0}
-                    </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>{formatDate(customer.createdAt)}</td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenSchedule(customer.id)}
-                        style={{ ...secondaryButtonStyle, padding: "7px 10px", borderRadius: 10 }}
-                      >
-                        Ver cuotas
-                      </button>
-                    </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleStartRenewal(customer)}
-                        style={{ ...buttonStyle, padding: "7px 10px", borderRadius: 10 }}
-                      >
-                        Renovar
-                      </button>
-                    </td>
-                    <td style={{ padding: 10, borderBottom: "1px solid #f1f5f9" }}>
-                      <button
-                        type="button"
-                        disabled={deletingCustomerId === customer.id}
-                        onClick={() => handleDeleteCustomer(customer)}
-                        style={{
-                          border: "1px solid #f97316",
-                          borderRadius: 10,
-                          padding: "7px 10px",
-                          background: "#fff7ed",
-                          color: "#9a3412",
-                          fontWeight: 800,
-                          cursor: deletingCustomerId === customer.id ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {deletingCustomerId === customer.id ? "Eliminando..." : "Eliminar"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {customers.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: 12, color: "#64748b" }}>No hay convenios registrados.</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(120px, 1fr) minmax(150px, 1.25fr) 52px 76px 186px",
+                gap: 8,
+                alignItems: "center",
+                padding: "8px 10px",
+                borderRadius: 10,
+                background: "#f8fafc",
+                color: "#475569",
+                fontSize: 12,
+                fontWeight: 800,
+                textTransform: "uppercase",
+              }}
+            >
+              <span>Cliente</span>
+              <span>Dispositivo</span>
+              <span>Cuotas</span>
+              <span>Fecha</span>
+              <span>Acciones</span>
+            </div>
+            {customers.map((customer) => {
+              const deviceText = (customer.devices || []).map((device) => `${device.brand} ${device.model}`).join(", ") || "-";
+              const installmentText = (customer.devices || []).map((device) => device.installmentCount || 1).join(", ") || customer.payments?.length || 0;
+              return (
+                <article
+                  key={customer.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(120px, 1fr) minmax(150px, 1.25fr) 52px 76px 186px",
+                    gap: 8,
+                    alignItems: "center",
+                    padding: "10px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    background: "#ffffff",
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ display: "block", lineHeight: 1.25, wordBreak: "break-word" }}>{customer.fullName}</strong>
+                    <div style={{ color: "#64748b", fontSize: 12 }}>{customer.nationalId}</div>
+                  </div>
+                  <div style={{ color: "#0f172a", lineHeight: 1.35, wordBreak: "break-word", minWidth: 0 }}>{deviceText}</div>
+                  <div style={{ fontWeight: 800 }}>{installmentText}</div>
+                  <div style={{ fontSize: 13 }}>{formatDate(customer.createdAt)}</div>
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSchedule(customer.id)}
+                      style={{ ...secondaryButtonStyle, padding: "6px 9px", borderRadius: 9, minHeight: 34 }}
+                    >
+                      Cuotas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStartRenewal(customer)}
+                      style={{ ...buttonStyle, padding: "6px 9px", borderRadius: 9, minHeight: 34, boxShadow: "0 8px 16px rgba(30, 58, 138, 0.22)" }}
+                    >
+                      Renovar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deletingCustomerId === customer.id}
+                      onClick={() => handleDeleteCustomer(customer)}
+                      style={{
+                        border: "1px solid #f97316",
+                        borderRadius: 9,
+                        padding: "6px 9px",
+                        minHeight: 34,
+                        background: "#fff7ed",
+                        color: "#9a3412",
+                        fontWeight: 800,
+                        cursor: deletingCustomerId === customer.id ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {deletingCustomerId === customer.id ? "..." : "Eliminar"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+            {customers.length === 0 && (
+              <p style={{ margin: 0, padding: 12, color: "#64748b" }}>No hay convenios registrados.</p>
+            )}
           </div>
         </article>
       </div>
