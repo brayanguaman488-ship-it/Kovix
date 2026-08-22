@@ -808,7 +808,8 @@ export default function Dashboard() {
       updateIOSDeviceInState(response.device);
       setStatus("success", response.message || (isBlock ? "iPhone bloqueado correctamente" : "iPhone desbloqueado correctamente"));
     } catch (error) {
-      setStatus("error", error.message || "No se pudo actualizar el iPhone. Intente nuevamente.");
+      const details = typeof error?.details === "string" && error.details ? `: ${error.details}` : "";
+      setStatus("error", `${error.message || "No se pudo actualizar el iPhone. Intente nuevamente."}${details}`);
     } finally {
       setUpdatingIOSDeviceId("");
     }

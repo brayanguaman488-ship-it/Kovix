@@ -42,6 +42,14 @@ router.use(authMiddleware);
 
 router.get("/devices", asyncHandler(async (req, res) => {
   const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  await prisma.device.updateMany({
+    where: iosScope(req, { manualStatusOverride: false }, ownerUserId),
+    data: {
+      manualStatusOverride: true,
+      manualStatusReason: "IPHONE_MANUAL_CONTROL",
+      manualStatusChangedAt: new Date(),
+    },
+  });
   const initialDevices = await prisma.device.findMany({ where: iosScope(req, {}, ownerUserId), orderBy: { createdAt: "desc" }, include: includeDevice() });
   for (const device of initialDevices.filter((entry) => !entry.hexnodeDeviceId)) {
     // El tenant iOS suele tener pocos equipos; se vinculan pendientes al abrir la seccion.
@@ -63,7 +71,7 @@ router.post("/devices", asyncHandler(async (req, res) => {
   try {
     let device = await prisma.$transaction(async (tx) => {
       const installCode = `IOS-${remoteId || `${Date.now()}-${Math.floor(Math.random() * 100000)}`}`;
-      const created = await tx.device.create({ data: { customerId: customer.id, brand: asTrimmedString(brand), model: asTrimmedString(model), imei: asTrimmedString(imei), installCode, serialNumber: asOptionalTrimmedString(serialNumber), hexnodeDeviceId: remoteId, platform: DevicePlatform.IOS, notes: asOptionalTrimmedString(notes) }, include: includeDevice() });
+      const created = await tx.device.create({ data: { customerId: customer.id, brand: asTrimmedString(brand), model: asTrimmedString(model), imei: asTrimmedString(imei), installCode, serialNumber: asOptionalTrimmedString(serialNumber), hexnodeDeviceId: remoteId, platform: DevicePlatform.IOS, manualStatusOverride: true, manualStatusReason: "IPHONE_MANUAL_CONTROL", manualStatusChangedAt: new Date(), notes: asOptionalTrimmedString(notes) }, include: includeDevice() });
       await tx.deviceStatusHistory.create({ data: { deviceId: created.id, newStatus: DeviceStatus.ACTIVO, changedByUserId: req.user.id, reason: "IPHONE_REGISTERED" } });
       return created;
     });
@@ -81,8 +89,19 @@ async function changeIOSStatus(req, res, nextStatus, action) {
   if (!device) return sendNotFound(res, "iPhone no encontrado o fuera de alcance");
   if (device.platform !== DevicePlatform.IOS) return sendBadRequest(res, "Este endpoint solo permite dispositivos iOS");
   if (!isHexnodeIOSConfigured()) return sendBadRequest(res, "Hexnode iOS no esta configurado en el backend");
-  const hexnodeDeviceId = await resolveIOSHexnodeDeviceId(device);
-  const result = action === "IPHONE_BLOCK" ? await blockIOSDevice(hexnodeDeviceId) : await unblockIOSDevice(hexnodeDeviceId);
+  let hexnodeDeviceId;
+  let result;
+  try {
+    hexnodeDeviceId = await resolveIOSHexnodeDeviceId(device);
+    result = action === "IPHONE_BLOCK" ? await blockIOSDevice(hexnodeDeviceId) : await unblockIOSDevice(hexnodeDeviceId);
+  } catch (error) {
+    const verb = action === "IPHONE_BLOCK" ? "bloquear" : "desbloquear";
+    return res.status(502).json({
+      ok: false,
+      message: `No se pudo ${verb} el iPhone en Hexnode iOS`,
+      details: error?.message || "Hexnode iOS no respondio correctamente",
+    });
+  }
   const updated = await prisma.$transaction(async (tx) => {
     const saved = await tx.device.update({ where: { id: device.id }, data: { hexnodeDeviceId, currentStatus: nextStatus, manualStatusOverride: true, manualStatusReason: action, manualStatusChangedAt: new Date(), lastStatusChangeAt: new Date() }, include: includeDevice() });
     await tx.deviceStatusHistory.create({ data: { deviceId: device.id, previousStatus: device.currentStatus, newStatus: nextStatus, changedByUserId: req.user.id, reason: `${action} Hexnode OK` } });

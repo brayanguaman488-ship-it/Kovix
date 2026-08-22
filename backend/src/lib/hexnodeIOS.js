@@ -36,6 +36,8 @@ async function request(pathname, { method = "GET", body = null, query = null } =
 
 async function policyIdByName(name) {
   if (!name) throw new Error("La politica iOS requerida no esta configurada");
+  const configuredId = Number(name);
+  if (Number.isInteger(configuredId) && configuredId > 0) return configuredId;
   const payload = await request("/api/v1/policy/");
   const policies = payload?.results || payload?.policies || payload?.data || [];
   const policy = policies.find((entry) => normalize(entry?.policy_name || entry?.name) === normalize(name));
