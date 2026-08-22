@@ -16,11 +16,13 @@ function normalize(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-async function request(pathname, { method = "GET", body = null } = {}) {
+async function request(pathname, { method = "GET", body = null, query = null } = {}) {
   if (!IOS_PORTAL_HOST || !IOS_API_KEY) {
     throw new Error("Hexnode iOS no esta configurado en el backend");
   }
-  const response = await fetch(`https://${IOS_PORTAL_HOST}${pathname}`, {
+  const url = new URL(`https://${IOS_PORTAL_HOST}${pathname}`);
+  Object.entries(query || {}).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+  const response = await fetch(url, {
     method,
     headers: { Authorization: IOS_API_KEY, Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
@@ -52,6 +54,24 @@ export function isHexnodeIOSConfigured() {
 
 export function getHexnodeIOSConfiguration() {
   return { configured: isHexnodeIOSConfigured(), generalPolicyConfigured: Boolean(IOS_GENERAL_POLICY) };
+}
+
+export async function resolveIOSHexnodeDeviceId(localDevice) {
+  const storedId = Number(localDevice?.hexnodeDeviceId);
+  if (Number.isInteger(storedId) && storedId > 0) return storedId;
+  const imei = String(localDevice?.imei || "").replace(/\D+/g, "");
+  if (!imei) throw new Error("El iPhone no tiene IMEI para localizarlo en Hexnode");
+  for (let page = 1; page <= 20; page += 1) {
+    // La consulta se hace solo al portal iOS, nunca al tenant Android.
+    // eslint-disable-next-line no-await-in-loop
+    const payload = await request("/api/v1/devices/", { query: { page, per_page: 250 } });
+    const devices = Array.isArray(payload?.results) ? payload.results : [];
+    const matched = devices.find((device) => [device?.imei_1, device?.imei_2, device?.imei].some((value) => String(value || "").replace(/\D+/g, "") === imei));
+    const matchedId = Number(matched?.id);
+    if (Number.isInteger(matchedId) && matchedId > 0) return matchedId;
+    if (!payload?.next) break;
+  }
+  throw new Error("No se encontro el iPhone por IMEI en Hexnode iOS");
 }
 
 export async function blockIOSDevice(hexnodeDeviceId) {

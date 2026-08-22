@@ -1801,10 +1801,6 @@ export default function Dashboard() {
       setStatus("error", "Dispositivo: Hexnode Device ID debe ser numerico");
       return;
     }
-    if (isIOS && !rawHexnodeId) {
-      setStatus("error", "iPhone: Hexnode Device ID es obligatorio");
-      return;
-    }
 
     try {
       setIsSavingDevice(true);
@@ -1997,10 +1993,6 @@ export default function Dashboard() {
 
     if (rawHexnodeId && !/^\d+$/.test(rawHexnodeId)) {
       setStatus("error", "Renovacion dispositivo: Hexnode Device ID debe ser numerico");
-      return;
-    }
-    if (isIOS && !rawHexnodeId) {
-      setStatus("error", "Renovacion iPhone: Hexnode Device ID es obligatorio");
       return;
     }
 
@@ -4203,7 +4195,7 @@ export default function Dashboard() {
                   style={inputStyle}
                 />
                 <input
-                  placeholder={renewalDeviceForm.platform === "IOS" ? "Hexnode Device ID iPhone *" : "Hexnode Device ID (opcional)"}
+                  placeholder={renewalDeviceForm.platform === "IOS" ? "Hexnode Device ID iPhone (opcional)" : "Hexnode Device ID (opcional)"}
                   value={renewalDeviceForm.hexnodeDeviceId}
                   onChange={(event) =>
                     setRenewalDeviceForm((value) => ({ ...value, hexnodeDeviceId: event.target.value }))

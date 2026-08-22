@@ -71,7 +71,7 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
           style={inputStyle}
         />
         <input
-          placeholder={form.platform === "IOS" ? "Hexnode Device ID iPhone *" : "Hexnode Device ID (opcional)"}
+          placeholder={form.platform === "IOS" ? "Hexnode Device ID iPhone (opcional)" : "Hexnode Device ID (opcional)"}
           value={form.hexnodeDeviceId}
           onChange={(event) => onChange({ ...form, hexnodeDeviceId: event.target.value })}
           style={inputStyle}
