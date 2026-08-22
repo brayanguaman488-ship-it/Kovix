@@ -135,6 +135,10 @@ async function attemptAutomaticHexnodeLink(deviceId) {
     return { linked: false, skipped: "device_not_found" };
   }
 
+  if (localDevice.platform !== "ANDROID") {
+    return { linked: false, skipped: "ios_uses_dedicated_hexnode_tenant" };
+  }
+
   if (localDevice.hexnodeDeviceId) {
     return {
       linked: true,

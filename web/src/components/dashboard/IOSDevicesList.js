@@ -1,25 +1,6 @@
-import { useState } from "react";
-import { buttonStyle, cardStyle, inputStyle, secondaryButtonStyle, sectionTitleStyle } from "./styles";
+import { buttonStyle, cardStyle, secondaryButtonStyle, sectionTitleStyle } from "./styles";
 
-const initialForm = { customerId: "", brand: "Apple", model: "", imei: "", serialNumber: "", hexnodeDeviceId: "" };
-
-export default function IOSDevicesList({ devices, customers, onCreate, onAction, pendingDeviceId }) {
-  const [form, setForm] = useState(initialForm);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  async function submit(event) {
-    event.preventDefault();
-    setSaving(true);
-    try {
-      await onCreate(form);
-      setForm(initialForm);
-      setShowForm(false);
-    } finally {
-      setSaving(false);
-    }
-  }
-
+export default function IOSDevicesList({ devices, onAction, pendingDeviceId }) {
   return (
     <section style={cardStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
@@ -27,20 +8,7 @@ export default function IOSDevicesList({ devices, customers, onCreate, onAction,
           <h2 style={{ ...sectionTitleStyle, marginBottom: 4 }}>iPhone</h2>
           <p style={{ margin: 0, color: "var(--text-soft)", fontSize: 14 }}>Dispositivos iOS administrados por el portal exclusivo de Hexnode.</p>
         </div>
-        <button type="button" style={buttonStyle} onClick={() => setShowForm((value) => !value)}>{showForm ? "Cancelar" : "+ Registrar iPhone"}</button>
       </div>
-
-      {showForm && <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, padding: 14, border: "1px solid #dbeafe", borderRadius: 14, marginBottom: 16, background: "#f8fbff" }}>
-        <select required value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} style={inputStyle}>
-          <option value="">Cliente *</option>
-          {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.fullName}</option>)}
-        </select>
-        <input required placeholder="Modelo (ej. iPhone 15)" value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} style={inputStyle} />
-        <input placeholder="IMEI" value={form.imei} onChange={(event) => setForm({ ...form, imei: event.target.value })} style={inputStyle} />
-        <input placeholder="Número de serie" value={form.serialNumber} onChange={(event) => setForm({ ...form, serialNumber: event.target.value })} style={inputStyle} />
-        <input required inputMode="numeric" placeholder="Hexnode Device ID *" value={form.hexnodeDeviceId} onChange={(event) => setForm({ ...form, hexnodeDeviceId: event.target.value })} style={inputStyle} />
-        <button type="submit" disabled={saving} style={buttonStyle}>{saving ? "Guardando..." : "Guardar iPhone"}</button>
-      </form>}
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>

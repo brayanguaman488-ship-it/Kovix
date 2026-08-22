@@ -21,12 +21,31 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
             </option>
           ))}
         </select>
+        <select
+          value={form.platform || "ANDROID"}
+          onChange={(event) => {
+            const platform = event.target.value;
+            onChange({ ...form, platform, brand: platform === "IOS" ? "iPhone" : form.brand });
+          }}
+          style={inputStyle}
+        >
+          <option value="ANDROID">Android</option>
+          <option value="IOS">iPhone</option>
+        </select>
         <input
           placeholder="Marca"
           value={form.brand}
           onChange={(event) => onChange({ ...form, brand: event.target.value })}
           style={inputStyle}
         />
+        {form.platform === "IOS" && (
+          <input
+            placeholder="Número de serie (opcional)"
+            value={form.serialNumber || ""}
+            onChange={(event) => onChange({ ...form, serialNumber: event.target.value })}
+            style={inputStyle}
+          />
+        )}
         <input
           placeholder="Modelo"
           value={form.model}
@@ -52,7 +71,7 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
           style={inputStyle}
         />
         <input
-          placeholder="Hexnode Device ID (opcional)"
+          placeholder={form.platform === "IOS" ? "Hexnode Device ID iPhone *" : "Hexnode Device ID (opcional)"}
           value={form.hexnodeDeviceId}
           onChange={(event) => onChange({ ...form, hexnodeDeviceId: event.target.value })}
           style={inputStyle}

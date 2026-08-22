@@ -39,6 +39,8 @@ const initialDeviceForm = {
   alias: "",
   imei: "",
   imei2: "",
+  serialNumber: "",
+  platform: "ANDROID",
   hexnodeDeviceId: "",
   notes: "",
 };
@@ -638,6 +640,8 @@ export default function Dashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState("");
   const [updatingIOSDeviceId, setUpdatingIOSDeviceId] = useState("");
+  const [pendingIOSCreditDeviceId, setPendingIOSCreditDeviceId] = useState("");
+  const [renewalIOSDeviceId, setRenewalIOSDeviceId] = useState("");
   const [clearingManualStatusDeviceId, setClearingManualStatusDeviceId] = useState("");
   const [updatingDeviceIdentityId, setUpdatingDeviceIdentityId] = useState("");
   const [rotatingSecretDeviceId, setRotatingSecretDeviceId] = useState("");
@@ -792,17 +796,6 @@ export default function Dashboard() {
   function updateIOSDeviceInState(updatedDevice) {
     if (!updatedDevice?.id) return;
     setIOSDevices((prev) => prev.map((entry) => (entry.id === updatedDevice.id ? { ...entry, ...updatedDevice } : entry)));
-  }
-
-  async function handleCreateIOSDevice(payload) {
-    try {
-      const response = await api.createIOSDevice(payload);
-      setIOSDevices((prev) => [response.device, ...prev]);
-      setStatus("success", "iPhone registrado correctamente");
-    } catch (error) {
-      setStatus("error", error.message || "No se pudo registrar el iPhone");
-      throw error;
-    }
   }
 
   async function handleIOSAction(device, action) {
@@ -1797,6 +1790,7 @@ export default function Dashboard() {
     const imei = deviceForm.imei.trim();
     const imei2 = String(deviceForm.imei2 || "").trim();
     const rawHexnodeId = String(deviceForm.hexnodeDeviceId || "").trim();
+    const isIOS = deviceForm.platform === "IOS";
 
     if (!customerId || !brand || !model || !imei) {
       setStatus("error", "Dispositivo: customerId, brand, model e imei son obligatorios");
@@ -1807,10 +1801,14 @@ export default function Dashboard() {
       setStatus("error", "Dispositivo: Hexnode Device ID debe ser numerico");
       return;
     }
+    if (isIOS && !rawHexnodeId) {
+      setStatus("error", "iPhone: Hexnode Device ID es obligatorio");
+      return;
+    }
 
     try {
       setIsSavingDevice(true);
-      const response = await api.createDevice({
+      const payload = {
         ...deviceForm,
         customerId,
         brand,
@@ -1818,7 +1816,8 @@ export default function Dashboard() {
         imei,
         imei2: imei2 || undefined,
         hexnodeDeviceId: rawHexnodeId || undefined,
-      });
+      };
+      const response = isIOS ? await api.createIOSDevice(payload) : await api.createDevice(payload);
       const createdId = String(response?.device?.id || "").trim();
       const createdCustomerId = String(response?.device?.customerId || customerId).trim();
       setDeviceForm(initialDeviceForm);
@@ -1826,6 +1825,7 @@ export default function Dashboard() {
         setSelectedCreditDeviceId(createdId);
         setProvisioningDeviceId(createdId);
         setCreditForm((value) => ({ ...value, deviceId: createdId }));
+        if (isIOS) setPendingIOSCreditDeviceId(createdId);
         if (repairFlowMode === "device") {
           setRepairFlowMode("contract");
         }
@@ -1834,8 +1834,8 @@ export default function Dashboard() {
         setDeviceForm((value) => ({ ...value, customerId: createdCustomerId }));
       }
       const createdCode = String(response?.device?.installCode || "").trim();
-      const createdSecret = String(response?.device?.clientSecret || "").trim();
-      const autoLinkedHexnodeId = response?.hexnode?.linked ? response?.hexnode?.hexnodeDeviceId : null;
+      const createdSecret = isIOS ? "" : String(response?.device?.clientSecret || "").trim();
+      const autoLinkedHexnodeId = isIOS ? response?.device?.hexnodeDeviceId : response?.hexnode?.linked ? response?.hexnode?.hexnodeDeviceId : null;
       setStatus(
         "success",
         createdCode
@@ -1918,6 +1918,10 @@ export default function Dashboard() {
       setSelectedCreditDeviceId(deviceId);
       setCreditForm(createInitialCreditForm());
       setRepairFlowMode("");
+      if (String(deviceId) === String(pendingIOSCreditDeviceId)) {
+        setPendingIOSCreditDeviceId("");
+        openControlSection("iphone");
+      }
       await loadDashboard({ silent: true });
       await loadCreditContract(deviceId);
     } catch (error) {
@@ -1979,6 +1983,7 @@ export default function Dashboard() {
     const imei = renewalDeviceForm.imei.trim();
     const imei2 = String(renewalDeviceForm.imei2 || "").trim();
     const rawHexnodeId = String(renewalDeviceForm.hexnodeDeviceId || "").trim();
+    const isIOS = renewalDeviceForm.platform === "IOS";
 
     if (!customerId) {
       setStatus("error", "Renovacion: selecciona un cliente primero");
@@ -1994,10 +1999,14 @@ export default function Dashboard() {
       setStatus("error", "Renovacion dispositivo: Hexnode Device ID debe ser numerico");
       return;
     }
+    if (isIOS && !rawHexnodeId) {
+      setStatus("error", "Renovacion iPhone: Hexnode Device ID es obligatorio");
+      return;
+    }
 
     try {
       setIsSavingRenewalDevice(true);
-      const response = await api.createDevice({
+      const payload = {
         ...renewalDeviceForm,
         customerId,
         brand,
@@ -2005,7 +2014,8 @@ export default function Dashboard() {
         imei,
         imei2: imei2 || undefined,
         hexnodeDeviceId: rawHexnodeId || undefined,
-      });
+      };
+      const response = isIOS ? await api.createIOSDevice(payload) : await api.createDevice(payload);
 
       const createdId = String(response?.device?.id || "").trim();
       setRenewalDeviceForm((value) => ({ ...initialDeviceForm, customerId: renewalSelectedCustomerId }));
@@ -2013,6 +2023,7 @@ export default function Dashboard() {
         setRenewalCreatedDeviceId(createdId);
         setRenewalCreditForm((value) => ({ ...value, deviceId: createdId }));
         setSelectedCreditDeviceId(createdId);
+        if (isIOS) setRenewalIOSDeviceId(createdId);
       }
       setStatus("success", "Renovacion: dispositivo creado correctamente");
       await loadDashboard({ silent: true });
@@ -2091,6 +2102,10 @@ export default function Dashboard() {
       setRenewalCreditForm(createInitialCreditForm());
       setRenewalCreatedDeviceId("");
       setRenewalDeviceForm((value) => ({ ...initialDeviceForm, customerId: renewalSelectedCustomerId }));
+      if (String(deviceId) === String(renewalIOSDeviceId)) {
+        setRenewalIOSDeviceId("");
+        openControlSection("iphone");
+      }
       await loadDashboard({ silent: true });
       await loadCreditContract(deviceId);
     } catch (error) {
@@ -4141,6 +4156,14 @@ export default function Dashboard() {
             <article style={{ ...cardStyle, display: "grid", gap: 10 }}>
               <h3 style={{ margin: 0 }}>Registrar dispositivo (renovacion)</h3>
               <form onSubmit={handleCreateRenewalDevice} style={{ display: "grid", gap: 10 }}>
+                <select
+                  value={renewalDeviceForm.platform || "ANDROID"}
+                  onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, platform: event.target.value, brand: event.target.value === "IOS" ? "iPhone" : value.brand }))}
+                  style={inputStyle}
+                >
+                  <option value="ANDROID">Android</option>
+                  <option value="IOS">iPhone</option>
+                </select>
                 <input
                   placeholder="Marca"
                   value={renewalDeviceForm.brand}
@@ -4165,6 +4188,14 @@ export default function Dashboard() {
                   onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, imei: event.target.value }))}
                   style={inputStyle}
                 />
+                {renewalDeviceForm.platform === "IOS" && (
+                  <input
+                    placeholder="Número de serie (opcional)"
+                    value={renewalDeviceForm.serialNumber || ""}
+                    onChange={(event) => setRenewalDeviceForm((value) => ({ ...value, serialNumber: event.target.value }))}
+                    style={inputStyle}
+                  />
+                )}
                 <input
                   placeholder="IMEI 2 (opcional)"
                   value={renewalDeviceForm.imei2 || ""}
@@ -4172,7 +4203,7 @@ export default function Dashboard() {
                   style={inputStyle}
                 />
                 <input
-                  placeholder="Hexnode Device ID (opcional)"
+                  placeholder={renewalDeviceForm.platform === "IOS" ? "Hexnode Device ID iPhone *" : "Hexnode Device ID (opcional)"}
                   value={renewalDeviceForm.hexnodeDeviceId}
                   onChange={(event) =>
                     setRenewalDeviceForm((value) => ({ ...value, hexnodeDeviceId: event.target.value }))
@@ -4440,8 +4471,6 @@ export default function Dashboard() {
         <section style={{ display: "grid", gap: 16 }}>
           <IOSDevicesList
             devices={iosDevices}
-            customers={customers}
-            onCreate={handleCreateIOSDevice}
             onAction={handleIOSAction}
             pendingDeviceId={updatingIOSDeviceId}
           />
