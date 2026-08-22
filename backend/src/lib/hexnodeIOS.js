@@ -69,6 +69,21 @@ export async function resolveIOSHexnodeDeviceId(localDevice) {
     const matched = devices.find((device) => [device?.imei_1, device?.imei_2, device?.imei].some((value) => String(value || "").replace(/\D+/g, "") === imei));
     const matchedId = Number(matched?.id);
     if (Number.isInteger(matchedId) && matchedId > 0) return matchedId;
+    for (const remoteDevice of devices) {
+      const remoteId = Number(remoteDevice?.id);
+      if (!Number.isInteger(remoteId) || remoteId <= 0) continue;
+      try {
+        // Hexnode no siempre incluye el IMEI en el listado; se valida contra el detalle real.
+        // eslint-disable-next-line no-await-in-loop
+        const details = await request(`/api/v1/devices/${remoteId}/`);
+        const detailDevice = details?.device || details || {};
+        const detailMatches = [detailDevice?.imei_1, detailDevice?.imei_2, detailDevice?.imei]
+          .some((value) => String(value || "").replace(/\D+/g, "") === imei);
+        if (detailMatches) return remoteId;
+      } catch {
+        // Un equipo remoto inaccesible no debe impedir comprobar los demas.
+      }
+    }
     if (!payload?.next) break;
   }
   throw new Error("No se encontro el iPhone por IMEI en Hexnode iOS");

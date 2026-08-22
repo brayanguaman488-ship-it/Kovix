@@ -25,10 +25,29 @@ function includeDevice() {
   return { customer: { select: { id: true, fullName: true, nationalId: true, phone: true } }, statusHistory: { orderBy: { createdAt: "desc" }, take: 10 } };
 }
 
+async function attemptAutomaticIOSLink(device) {
+  if (!device || device.hexnodeDeviceId || !isHexnodeIOSConfigured()) {
+    return { linked: Boolean(device?.hexnodeDeviceId), skipped: device?.hexnodeDeviceId ? "already_linked" : "ios_hexnode_not_configured" };
+  }
+  try {
+    const hexnodeDeviceId = await resolveIOSHexnodeDeviceId(device);
+    const updated = await prisma.device.update({ where: { id: device.id }, data: { hexnodeDeviceId }, include: includeDevice() });
+    return { linked: true, hexnodeDeviceId, device: updated, resolvedBy: "imei" };
+  } catch (error) {
+    return { linked: false, error: error?.message || "No se pudo vincular el iPhone por IMEI" };
+  }
+}
+
 router.use(authMiddleware);
 
 router.get("/devices", asyncHandler(async (req, res) => {
   const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  const initialDevices = await prisma.device.findMany({ where: iosScope(req, {}, ownerUserId), orderBy: { createdAt: "desc" }, include: includeDevice() });
+  for (const device of initialDevices.filter((entry) => !entry.hexnodeDeviceId)) {
+    // El tenant iOS suele tener pocos equipos; se vinculan pendientes al abrir la seccion.
+    // eslint-disable-next-line no-await-in-loop
+    await attemptAutomaticIOSLink(device);
+  }
   const devices = await prisma.device.findMany({ where: iosScope(req, {}, ownerUserId), orderBy: { createdAt: "desc" }, include: includeDevice() });
   return res.json({ ok: true, devices, hexnode: getHexnodeIOSConfiguration() });
 }));
@@ -42,13 +61,15 @@ router.post("/devices", asyncHandler(async (req, res) => {
   const customer = await prisma.customer.findFirst({ where: customerScopeWhere(req, { id: asTrimmedString(customerId) }), select: { id: true } });
   if (!customer) return sendBadRequest(res, "customerId invalido o fuera de alcance");
   try {
-    const device = await prisma.$transaction(async (tx) => {
+    let device = await prisma.$transaction(async (tx) => {
       const installCode = `IOS-${remoteId || `${Date.now()}-${Math.floor(Math.random() * 100000)}`}`;
       const created = await tx.device.create({ data: { customerId: customer.id, brand: asTrimmedString(brand), model: asTrimmedString(model), imei: asTrimmedString(imei), installCode, serialNumber: asOptionalTrimmedString(serialNumber), hexnodeDeviceId: remoteId, platform: DevicePlatform.IOS, notes: asOptionalTrimmedString(notes) }, include: includeDevice() });
       await tx.deviceStatusHistory.create({ data: { deviceId: created.id, newStatus: DeviceStatus.ACTIVO, changedByUserId: req.user.id, reason: "IPHONE_REGISTERED" } });
       return created;
     });
-    return res.status(201).json({ ok: true, device });
+    const hexnode = await attemptAutomaticIOSLink(device);
+    if (hexnode.device) device = hexnode.device;
+    return res.status(201).json({ ok: true, device, hexnode });
   } catch (error) {
     if (isPrismaUniqueConstraintError(error)) return sendBadRequest(res, "El IMEI o Hexnode Device ID iOS ya existe");
     return sendServerError(res, "No se pudo registrar el iPhone");

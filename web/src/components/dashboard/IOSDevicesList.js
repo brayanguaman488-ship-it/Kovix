@@ -34,14 +34,21 @@ export default function IOSDevicesList({ devices, onAction, pendingDeviceId }) {
           return (
             <article key={device.id} style={{ ...listItemStyle, borderRadius: 16, padding: 14, background: blocked ? "linear-gradient(180deg, rgba(254,242,242,.9), #fff)" : "#fff", border: blocked ? "1px solid rgba(185,28,28,.34)" : listItemStyle.border }}>
               <div style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: 8, marginBottom: 8 }}>
-                <strong style={{ fontSize: 30, lineHeight: 1.05, color: "#0f172a" }}> {device.brand} {device.model}</strong>
+                <strong style={{ fontSize: 30, lineHeight: 1.05, color: "#0f172a" }}>{device.brand} {device.model}</strong>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 8 }}>
                 <p style={{ margin: "6px 0" }}>Cliente: <strong>{device.customer?.fullName || "Sin cliente"}</strong></p>
                 <p style={{ margin: "6px 0" }}>IMEI: <strong>{device.imei || "—"}</strong></p>
                 <p style={{ margin: "6px 0" }}>Número de serie: {device.serialNumber || "No registrado"}</p>
                 <p style={{ margin: "6px 0" }}>Código: <strong>{device.installCode}</strong></p>
-                <p style={{ margin: "6px 0" }}>Hexnode ID: {device.hexnodeDeviceId || "Se resolverá por IMEI"}</p>
+                <p style={{ margin: "6px 0" }}>
+                  Hexnode ID: {device.hexnodeDeviceId || "No vinculado"}{" "}
+                  {device.hexnodeDeviceId ? (
+                    <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#065f46", background: "#d1fae5", border: "1px solid #34d399" }}>
+                      Vinculado
+                    </span>
+                  ) : null}
+                </p>
                 <p style={{ margin: "6px 0" }}>Estado: <strong style={{ color: blocked ? "#b91c1c" : "#15803d" }}>{blocked ? "BLOQUEADO" : "ACTIVO"}</strong></p>
                 <p style={{ margin: "6px 0" }}>Modo: {device.manualStatusOverride ? "MANUAL" : "AUTOMÁTICO"}</p>
               </div>
