@@ -640,6 +640,7 @@ export default function Dashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState("");
   const [updatingIOSDeviceId, setUpdatingIOSDeviceId] = useState("");
+  const [updatingIOSModeDeviceId, setUpdatingIOSModeDeviceId] = useState("");
   const [pendingIOSCreditDeviceId, setPendingIOSCreditDeviceId] = useState("");
   const [renewalIOSDeviceId, setRenewalIOSDeviceId] = useState("");
   const [clearingManualStatusDeviceId, setClearingManualStatusDeviceId] = useState("");
@@ -812,6 +813,20 @@ export default function Dashboard() {
       setStatus("error", `${error.message || "No se pudo actualizar el iPhone. Intente nuevamente."}${details}`);
     } finally {
       setUpdatingIOSDeviceId("");
+    }
+  }
+
+  async function handleIOSModeChange(device, mode) {
+    setUpdatingIOSModeDeviceId(device.id);
+    try {
+      const response = await api.updateIOSDeviceMode(device.id, mode);
+      updateIOSDeviceInState(response.device);
+      setStatus("success", response.message || `iPhone en modo ${mode}`);
+    } catch (error) {
+      const details = typeof error?.details === "string" && error.details ? `: ${error.details}` : "";
+      setStatus("error", `${error.message || "No se pudo cambiar el modo del iPhone"}${details}`);
+    } finally {
+      setUpdatingIOSModeDeviceId("");
     }
   }
 
@@ -4467,7 +4482,9 @@ export default function Dashboard() {
           <IOSDevicesList
             devices={iosDevices}
             onAction={handleIOSAction}
+            onModeChange={handleIOSModeChange}
             pendingDeviceId={updatingIOSDeviceId}
+            pendingModeDeviceId={updatingIOSModeDeviceId}
           />
         </section>
       )}

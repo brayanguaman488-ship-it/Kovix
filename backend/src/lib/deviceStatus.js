@@ -3,6 +3,12 @@ import prismaPackage from "@prisma/client";
 import { prisma } from "./prisma.js";
 import { sendDeviceStatusPush } from "./pushNotifications.js";
 import { applyHexnodePolicyForStatus, isHexnodeConfigured } from "./hexnode.js";
+import {
+  blockIOSDevice,
+  isHexnodeIOSConfigured,
+  resolveIOSHexnodeDeviceId,
+  unblockIOSDevice,
+} from "./hexnodeIOS.js";
 
 const { DeviceStatus, DevicePlatform, PaymentStatus } = prismaPackage;
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -66,15 +72,6 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
     return null;
   }
 
-  // iOS se administra exclusivamente mediante routes/ios.js y hexnodeIOS.js.
-  // Nunca debe caer en el sincronizador ni en las credenciales Android.
-  if (device.platform !== DevicePlatform.ANDROID) {
-    return prisma.device.findUnique({
-      where: { id: deviceId },
-      include: { customer: true, payments: { orderBy: { dueDate: "asc" } } },
-    });
-  }
-
   if (device.manualStatusOverride && !options.force) {
     return prisma.device.findUnique({
       where: { id: deviceId },
@@ -87,7 +84,11 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
     });
   }
 
-  const nextStatus = getDerivedDeviceStatus(device.payments);
+  const derivedStatus = getDerivedDeviceStatus(device.payments);
+  // iPhone solo tiene dos estados: las etapas de aviso Android se mantienen como ACTIVO.
+  const nextStatus = device.platform === DevicePlatform.IOS
+    ? (derivedStatus === DeviceStatus.BLOQUEADO ? DeviceStatus.BLOQUEADO : DeviceStatus.ACTIVO)
+    : derivedStatus;
 
   if (device.currentStatus === nextStatus) {
     return prisma.device.findUnique({
@@ -101,11 +102,37 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
     });
   }
 
+  if (device.platform === DevicePlatform.IOS) {
+    if (!isHexnodeIOSConfigured()) {
+      console.warn(`[hexnode-ios] sincronizacion automatica omitida para ${device.id}: tenant iOS no configurado`);
+      return prisma.device.findUnique({
+        where: { id: deviceId },
+        include: { customer: true, payments: { orderBy: { dueDate: "asc" } } },
+      });
+    }
+    try {
+      const hexnodeDeviceId = await resolveIOSHexnodeDeviceId(device);
+      if (nextStatus === DeviceStatus.BLOQUEADO) {
+        await blockIOSDevice(hexnodeDeviceId);
+      } else {
+        await unblockIOSDevice(hexnodeDeviceId);
+      }
+      device.hexnodeDeviceId = hexnodeDeviceId;
+    } catch (error) {
+      console.warn(`[hexnode-ios] sync automatico fallido para device ${device.id}: ${error?.message || error}`);
+      return prisma.device.findUnique({
+        where: { id: deviceId },
+        include: { customer: true, payments: { orderBy: { dueDate: "asc" } } },
+      });
+    }
+  }
+
   await prisma.$transaction([
     prisma.device.update({
       where: { id: deviceId },
       data: {
         currentStatus: nextStatus,
+        hexnodeDeviceId: device.hexnodeDeviceId || null,
         manualStatusOverride: options.clearManualOverride ? false : device.manualStatusOverride,
         manualStatusReason: options.clearManualOverride ? null : device.manualStatusReason,
         manualStatusChangedAt: options.clearManualOverride ? null : device.manualStatusChangedAt,
@@ -134,9 +161,11 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
   });
 
   if (updated) {
-    await sendDeviceStatusPush(updated);
+    if (device.platform === DevicePlatform.ANDROID) {
+      await sendDeviceStatusPush(updated);
+    }
 
-    if (isHexnodeConfigured()) {
+    if (device.platform === DevicePlatform.ANDROID && isHexnodeConfigured()) {
       try {
         await applyHexnodePolicyForStatus(updated, nextStatus);
       } catch (error) {
@@ -150,7 +179,6 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
 
 export async function syncAllDeviceStatuses(changedByUserId = null, reason = "Sincronizacion automatica por fechas de pago") {
   const devices = await prisma.device.findMany({
-    where: { platform: DevicePlatform.ANDROID },
     select: { id: true },
   });
 

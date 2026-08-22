@@ -169,6 +169,9 @@ export const api = {
   unblockIOSDevice(deviceId) {
     return request(`/ios/devices/${deviceId}/unblock`, { method: "POST" });
   },
+  updateIOSDeviceMode(deviceId, mode) {
+    return request(`/ios/devices/${deviceId}/mode`, { method: "PATCH", body: JSON.stringify({ mode }) });
+  },
   createDevice(payload) {
     return request("/devices", {
       method: "POST",

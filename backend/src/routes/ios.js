@@ -7,6 +7,7 @@ import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "
 import { customerScopeWhere, deviceScopeWhere } from "../lib/dataScope.js";
 import authMiddleware from "../middleware/auth.js";
 import { blockIOSDevice, getHexnodeIOSConfiguration, isHexnodeIOSConfigured, resolveIOSHexnodeDeviceId, unblockIOSDevice } from "../lib/hexnodeIOS.js";
+import { syncDeviceStatus } from "../lib/deviceStatus.js";
 
 const router = Router();
 const { DevicePlatform, DeviceStatus } = prismaPackage;
@@ -42,19 +43,16 @@ router.use(authMiddleware);
 
 router.get("/devices", asyncHandler(async (req, res) => {
   const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
-  await prisma.device.updateMany({
-    where: iosScope(req, { manualStatusOverride: false }, ownerUserId),
-    data: {
-      manualStatusOverride: true,
-      manualStatusReason: "IPHONE_MANUAL_CONTROL",
-      manualStatusChangedAt: new Date(),
-    },
-  });
   const initialDevices = await prisma.device.findMany({ where: iosScope(req, {}, ownerUserId), orderBy: { createdAt: "desc" }, include: includeDevice() });
-  for (const device of initialDevices.filter((entry) => !entry.hexnodeDeviceId)) {
-    // El tenant iOS suele tener pocos equipos; se vinculan pendientes al abrir la seccion.
+  for (const device of initialDevices) {
+    if (!device.hexnodeDeviceId) {
+      // El tenant iOS suele tener pocos equipos; se vinculan pendientes al abrir la seccion.
+      // eslint-disable-next-line no-await-in-loop
+      await attemptAutomaticIOSLink(device);
+    }
+    // Si esta en AUTOMATICO, aplica la regla compartida de fechas/cuotas usando el tenant iOS.
     // eslint-disable-next-line no-await-in-loop
-    await attemptAutomaticIOSLink(device);
+    await syncDeviceStatus(device.id, null, "Sincronizacion automatica iPhone por fechas de pago");
   }
   const devices = await prisma.device.findMany({ where: iosScope(req, {}, ownerUserId), orderBy: { createdAt: "desc" }, include: includeDevice() });
   return res.json({ ok: true, devices, hexnode: getHexnodeIOSConfiguration() });
@@ -71,7 +69,7 @@ router.post("/devices", asyncHandler(async (req, res) => {
   try {
     let device = await prisma.$transaction(async (tx) => {
       const installCode = `IOS-${remoteId || `${Date.now()}-${Math.floor(Math.random() * 100000)}`}`;
-      const created = await tx.device.create({ data: { customerId: customer.id, brand: asTrimmedString(brand), model: asTrimmedString(model), imei: asTrimmedString(imei), installCode, serialNumber: asOptionalTrimmedString(serialNumber), hexnodeDeviceId: remoteId, platform: DevicePlatform.IOS, manualStatusOverride: true, manualStatusReason: "IPHONE_MANUAL_CONTROL", manualStatusChangedAt: new Date(), notes: asOptionalTrimmedString(notes) }, include: includeDevice() });
+      const created = await tx.device.create({ data: { customerId: customer.id, brand: asTrimmedString(brand), model: asTrimmedString(model), imei: asTrimmedString(imei), installCode, serialNumber: asOptionalTrimmedString(serialNumber), hexnodeDeviceId: remoteId, platform: DevicePlatform.IOS, notes: asOptionalTrimmedString(notes) }, include: includeDevice() });
       await tx.deviceStatusHistory.create({ data: { deviceId: created.id, newStatus: DeviceStatus.ACTIVO, changedByUserId: req.user.id, reason: "IPHONE_REGISTERED" } });
       return created;
     });
@@ -88,6 +86,7 @@ async function changeIOSStatus(req, res, nextStatus, action) {
   const device = await prisma.device.findFirst({ where: iosScope(req, { id: req.params.id }), include: includeDevice() });
   if (!device) return sendNotFound(res, "iPhone no encontrado o fuera de alcance");
   if (device.platform !== DevicePlatform.IOS) return sendBadRequest(res, "Este endpoint solo permite dispositivos iOS");
+  if (!device.manualStatusOverride) return sendBadRequest(res, "Cambia el iPhone a modo MANUAL antes de bloquear o desbloquear");
   if (!isHexnodeIOSConfigured()) return sendBadRequest(res, "Hexnode iOS no esta configurado en el backend");
   let hexnodeDeviceId;
   let result;
@@ -109,6 +108,32 @@ async function changeIOSStatus(req, res, nextStatus, action) {
   });
   return res.json({ ok: true, message: nextStatus === DeviceStatus.BLOQUEADO ? "iPhone bloqueado correctamente" : "iPhone desbloqueado correctamente", device: updated, hexnode: result });
 }
+
+router.patch("/devices/:id/mode", asyncHandler(async (req, res) => {
+  const requestedMode = asTrimmedString(req.body?.mode).toUpperCase();
+  if (!["MANUAL", "AUTOMATICO"].includes(requestedMode)) {
+    return sendBadRequest(res, "mode debe ser MANUAL o AUTOMATICO");
+  }
+  const device = await prisma.device.findFirst({ where: iosScope(req, { id: req.params.id }), include: includeDevice() });
+  if (!device) return sendNotFound(res, "iPhone no encontrado o fuera de alcance");
+
+  const manual = requestedMode === "MANUAL";
+  let updated = await prisma.device.update({
+    where: { id: device.id },
+    data: {
+      manualStatusOverride: manual,
+      manualStatusReason: manual ? "IPHONE_MANUAL_CONTROL" : null,
+      manualStatusChangedAt: manual ? new Date() : null,
+    },
+    include: includeDevice(),
+  });
+
+  if (!manual) {
+    updated = await syncDeviceStatus(device.id, req.user.id, "iPhone cambiado a modo automatico", { force: true, clearManualOverride: true });
+  }
+
+  return res.json({ ok: true, message: `iPhone en modo ${requestedMode}`, device: updated });
+}));
 
 router.post("/devices/:id/block", asyncHandler((req, res) => changeIOSStatus(req, res, DeviceStatus.BLOQUEADO, "IPHONE_BLOCK")));
 router.post("/devices/:id/unblock", asyncHandler((req, res) => changeIOSStatus(req, res, DeviceStatus.ACTIVO, "IPHONE_UNBLOCK")));
