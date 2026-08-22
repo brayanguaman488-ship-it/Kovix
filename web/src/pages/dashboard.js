@@ -3883,6 +3883,7 @@ export default function Dashboard() {
           onSubmit={handleCreateDevice}
           isSubmitting={isSavingDevice}
           submitLabel={repairFlowMode === "device" ? "Guardar cambios" : undefined}
+          lockToSelectedCustomer={repairFlowMode !== "device"}
         />
       </section>
 

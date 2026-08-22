@@ -1,6 +1,6 @@
 import { buttonStyle, cardStyle, inputStyle, sectionTitleStyle } from "./styles";
 
-export default function DeviceForm({ form, customers, onChange, onSubmit, isSubmitting, submitLabel }) {
+export default function DeviceForm({ form, customers, onChange, onSubmit, isSubmitting, submitLabel, lockToSelectedCustomer = false }) {
   const sortedCustomers = [...customers].sort((a, b) =>
     String(a.fullName || "").localeCompare(String(b.fullName || ""))
   );
@@ -13,9 +13,13 @@ export default function DeviceForm({ form, customers, onChange, onSubmit, isSubm
           value={form.customerId}
           onChange={(event) => onChange({ ...form, customerId: event.target.value })}
           style={inputStyle}
+          disabled={lockToSelectedCustomer}
         >
-          <option value="">Selecciona cliente</option>
-          {sortedCustomers.map((customer) => (
+          <option value="">{lockToSelectedCustomer ? "Primero registra el cliente" : "Selecciona cliente"}</option>
+          {(lockToSelectedCustomer
+            ? sortedCustomers.filter((customer) => String(customer.id) === String(form.customerId || ""))
+            : sortedCustomers
+          ).map((customer) => (
             <option key={customer.id} value={customer.id}>
               {customer.fullName}
             </option>
