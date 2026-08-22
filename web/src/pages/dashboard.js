@@ -2718,14 +2718,15 @@ export default function Dashboard() {
   const customersPageData = paginate(sortedCustomers, customerPage, PAGE_SIZE);
   const devicesPageData = paginate(sortedDevices, devicePage, PAGE_SIZE);
   const paymentsPageData = paginate(sortedPayments, paymentPage, PAGE_SIZE);
-  const sortedDevicesByCustomer = [...devices].sort((a, b) => {
+  const creditDevices = [...devices, ...iosDevices];
+  const sortedDevicesByCustomer = [...creditDevices].sort((a, b) => {
     const customerCompare = String(a.customer?.fullName || "").localeCompare(String(b.customer?.fullName || ""));
     if (customerCompare !== 0) {
       return customerCompare;
     }
     return String(a.installCode || "").localeCompare(String(b.installCode || ""));
   });
-  const selectedCreditDevice = devices.find((entry) => entry.id === selectedCreditDeviceId) || null;
+  const selectedCreditDevice = creditDevices.find((entry) => entry.id === selectedCreditDeviceId) || null;
   const creditInstallmentPreview = buildCreditInstallmentPreview(creditForm);
   const renewalInstallmentPreview = buildCreditInstallmentPreview(renewalCreditForm);
   const creditFlowCustomerId = String(deviceForm.customerId || "").trim();
@@ -2740,7 +2741,7 @@ export default function Dashboard() {
   });
   const renewalSelectedCustomer =
     customers.find((customer) => String(customer.id) === String(renewalSelectedCustomerId)) || null;
-  const renewalCustomerDevices = devices.filter(
+  const renewalCustomerDevices = creditDevices.filter(
     (device) => String(device.customer?.id || device.customerId || "") === String(renewalSelectedCustomerId || "")
   );
   const renewalCreatedDevice = renewalCustomerDevices.find(
