@@ -488,7 +488,7 @@ router.get("/provisioning/hexnode-qr", asyncHandler(async (_req, res) => {
 
 router.get("/", asyncHandler(async (req, res) => {
   const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
-  const where = deviceScopeWhere(req, {}, ownerUserId);
+  const where = deviceScopeWhere(req, { platform: "ANDROID" }, ownerUserId);
 
   await syncAutomaticAgingStatuses();
   await syncAllDeviceStatuses(null, "Sincronizacion automatica al cargar dispositivos");
@@ -608,6 +608,7 @@ router.post("/", asyncHandler(async (req, res) => {
           hexnodeDeviceId: parsedHexnodeDeviceId,
           clientSecret,
           notes: asOptionalTrimmedString(notes),
+          platform: "ANDROID",
         },
         include: {
           customer: true,
@@ -705,7 +706,7 @@ router.patch("/:id", asyncHandler(async (req, res) => {
   }
 
   const scopedDevice = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
     select: { id: true },
   });
 
@@ -794,7 +795,7 @@ router.delete("/:id", asyncHandler(async (req, res) => {
   }
 
   const current = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
     include: {
       customer: {
         select: {
@@ -846,7 +847,7 @@ router.delete("/:id", asyncHandler(async (req, res) => {
 
 router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
   const device = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
   });
 
   if (!device) {
@@ -888,7 +889,7 @@ router.post("/:id/link-hexnode", asyncHandler(async (req, res) => {
 
 router.post("/:id/unlink-hexnode", asyncHandler(async (req, res) => {
   const device = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
   });
 
   if (!device) {
@@ -918,6 +919,7 @@ router.post("/link-hexnode-all", asyncHandler(async (req, res) => {
 
   const devices = await prisma.device.findMany({
     where: deviceScopeWhere(req, {
+      platform: "ANDROID",
       hexnodeDeviceId: null,
     }),
     orderBy: { createdAt: "asc" },
@@ -977,7 +979,7 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
   }
 
   const current = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
   });
 
   if (!current) {
@@ -1058,7 +1060,7 @@ router.patch("/:id/status", asyncHandler(async (req, res) => {
 
 router.post("/:id/clear-manual-status", asyncHandler(async (req, res) => {
   const current = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
   });
 
   if (!current) {
@@ -1086,7 +1088,7 @@ router.post("/:id/clear-manual-status", asyncHandler(async (req, res) => {
 
 router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
   const scoped = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
     select: { id: true },
   });
 
@@ -1119,7 +1121,7 @@ router.post("/:id/recalculate-status", asyncHandler(async (req, res) => {
 
 router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
   const device = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
   });
 
   if (!device) {
@@ -1145,7 +1147,7 @@ router.post("/:id/sync-hexnode", asyncHandler(async (req, res) => {
 
 router.post("/:id/rotate-client-secret", asyncHandler(async (req, res) => {
   const device = await prisma.device.findFirst({
-    where: deviceScopeWhere(req, { id: req.params.id }),
+    where: deviceScopeWhere(req, { platform: "ANDROID", id: req.params.id }),
     include: {
       customer: {
         select: {

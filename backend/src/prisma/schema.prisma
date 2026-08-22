@@ -21,6 +21,11 @@ enum DeviceStatus {
   BLOQUEADO
 }
 
+enum DevicePlatform {
+  ANDROID
+  IOS
+}
+
 enum PaymentStatus {
   PENDIENTE
   PAGADO
@@ -225,7 +230,9 @@ model Device {
   imei               String              @unique
   imei2              String?             @unique
   installCode        String              @unique
-  hexnodeDeviceId    Int?                @unique
+  platform           DevicePlatform      @default(ANDROID)
+  serialNumber       String?
+  hexnodeDeviceId    Int?
   clientSecret       String              @unique @default(uuid())
   currentStatus      DeviceStatus        @default(ACTIVO)
   manualStatusOverride Boolean           @default(false)
@@ -242,6 +249,9 @@ model Device {
   payments           Payment[]
   statusHistory      DeviceStatusHistory[]
   creditContract     CreditContract?
+
+  @@unique([platform, hexnodeDeviceId])
+  @@index([platform])
 }
 
 model Payment {

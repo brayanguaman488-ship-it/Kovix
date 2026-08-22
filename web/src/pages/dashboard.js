@@ -8,6 +8,7 @@ import DeviceForm from "../components/dashboard/DeviceForm";
 import CustomersList from "../components/dashboard/CustomersList";
 import CustomerLedgerTable from "../components/dashboard/CustomerLedgerTable";
 import DevicesList from "../components/dashboard/DevicesList";
+import IOSDevicesList from "../components/dashboard/IOSDevicesList";
 import PaymentsList from "../components/dashboard/PaymentsList";
 import FinancePanel from "../components/dashboard/FinancePanel";
 import ConveniosPanel from "../components/dashboard/ConveniosPanel";
@@ -622,6 +623,7 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [iosDevices, setIOSDevices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [customerForm, setCustomerForm] = useState(initialCustomerForm);
   const [deviceForm, setDeviceForm] = useState(initialDeviceForm);
@@ -635,6 +637,7 @@ export default function Dashboard() {
   const [repairFlowMode, setRepairFlowMode] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updatingDeviceId, setUpdatingDeviceId] = useState("");
+  const [updatingIOSDeviceId, setUpdatingIOSDeviceId] = useState("");
   const [clearingManualStatusDeviceId, setClearingManualStatusDeviceId] = useState("");
   const [updatingDeviceIdentityId, setUpdatingDeviceIdentityId] = useState("");
   const [rotatingSecretDeviceId, setRotatingSecretDeviceId] = useState("");
@@ -786,6 +789,38 @@ export default function Dashboard() {
     setStatus("info", "Filtros reiniciados");
   }
 
+  function updateIOSDeviceInState(updatedDevice) {
+    if (!updatedDevice?.id) return;
+    setIOSDevices((prev) => prev.map((entry) => (entry.id === updatedDevice.id ? { ...entry, ...updatedDevice } : entry)));
+  }
+
+  async function handleCreateIOSDevice(payload) {
+    try {
+      const response = await api.createIOSDevice(payload);
+      setIOSDevices((prev) => [response.device, ...prev]);
+      setStatus("success", "iPhone registrado correctamente");
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo registrar el iPhone");
+      throw error;
+    }
+  }
+
+  async function handleIOSAction(device, action) {
+    const isBlock = action === "block";
+    const confirmed = window.confirm(isBlock ? "¿Bloquear este iPhone?\n\nEl dispositivo entrará en modo restringido mediante KOVPAY." : "¿Desbloquear este iPhone?");
+    if (!confirmed) return;
+    setUpdatingIOSDeviceId(device.id);
+    try {
+      const response = isBlock ? await api.blockIOSDevice(device.id) : await api.unblockIOSDevice(device.id);
+      updateIOSDeviceInState(response.device);
+      setStatus("success", response.message || (isBlock ? "iPhone bloqueado correctamente" : "iPhone desbloqueado correctamente"));
+    } catch (error) {
+      setStatus("error", error.message || "No se pudo actualizar el iPhone. Intente nuevamente.");
+    } finally {
+      setUpdatingIOSDeviceId("");
+    }
+  }
+
   async function handleStoreScopeFilterChange(nextValue) {
     const normalized = String(nextValue || "all").trim() || "all";
     setOwnerScopeFilter(normalized);
@@ -901,9 +936,10 @@ export default function Dashboard() {
 
       // 2) Los modulos de datos se cargan de forma tolerante: si uno falla, no
       // expulsamos al usuario de su sesion.
-      const [customersResult, devicesResult, paymentsResult, scopesResult, conveniosAccessResult] = await Promise.allSettled([
+      const [customersResult, devicesResult, iosDevicesResult, paymentsResult, scopesResult, conveniosAccessResult] = await Promise.allSettled([
         api.getCustomers(scopedParams),
         api.getDevices(scopedParams),
+        api.getIOSDevices(scopedParams),
         api.getPayments(scopedParams),
         canUseOwnerFilter ? api.getScopeUsers() : Promise.resolve({ users: [] }),
         api.getConvenioAccessMe(),
@@ -923,6 +959,12 @@ export default function Dashboard() {
         setDevices(devicesResult.value.devices);
       } else {
         setDevices([]);
+      }
+
+      if (iosDevicesResult.status === "fulfilled") {
+        setIOSDevices(iosDevicesResult.value.devices || []);
+      } else {
+        setIOSDevices([]);
       }
 
       if (paymentsResult.status === "fulfilled") {
@@ -946,6 +988,7 @@ export default function Dashboard() {
       const failedModules = [
         customersResult.status === "rejected" ? "clientes" : null,
         devicesResult.status === "rejected" ? "dispositivos" : null,
+        iosDevicesResult.status === "rejected" ? "iPhone" : null,
         paymentsResult.status === "rejected" ? "pagos" : null,
         scopesResult.status === "rejected" && canUseOwnerFilter ? "usuarios/tiendas" : null,
         conveniosAccessResult.status === "rejected" ? "convenios" : null,
@@ -3116,6 +3159,14 @@ export default function Dashboard() {
               </button>
               <button
                 type="button"
+                style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "iphone")}
+                onClick={() => openControlSection("iphone")}
+              >
+                <SidebarIcon name="devices" />
+                iPhone
+              </button>
+              <button
+                type="button"
                 style={sidebarNavButton(activeMainView === "control" && activeSummarySection === "payments")}
                 onClick={() => openControlSection("payments")}
               >
@@ -3399,6 +3450,7 @@ export default function Dashboard() {
                 {[
                   { key: "customers", label: "Clientes" },
                   { key: "devices", label: "Celulares" },
+                  { key: "iphone", label: "iPhone" },
                   { key: "payments", label: "Pagos" },
                   { key: "customer_ledger", label: "Listado global" },
                 ].map((entry) => {
@@ -4380,6 +4432,18 @@ export default function Dashboard() {
             updatingDeviceIdentityId={updatingDeviceIdentityId}
             onClearManualStatus={handleClearManualStatus}
             clearingManualStatusDeviceId={clearingManualStatusDeviceId}
+          />
+        </section>
+      )}
+
+      {activeMainView === "control" && activeSummarySection === "iphone" && (
+        <section style={{ display: "grid", gap: 16 }}>
+          <IOSDevicesList
+            devices={iosDevices}
+            customers={customers}
+            onCreate={handleCreateIOSDevice}
+            onAction={handleIOSAction}
+            pendingDeviceId={updatingIOSDeviceId}
           />
         </section>
       )}

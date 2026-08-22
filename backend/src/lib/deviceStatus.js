@@ -4,7 +4,7 @@ import { prisma } from "./prisma.js";
 import { sendDeviceStatusPush } from "./pushNotifications.js";
 import { applyHexnodePolicyForStatus, isHexnodeConfigured } from "./hexnode.js";
 
-const { DeviceStatus, PaymentStatus } = prismaPackage;
+const { DeviceStatus, DevicePlatform, PaymentStatus } = prismaPackage;
 const DAY_MS = 1000 * 60 * 60 * 24;
 const WARNING_DAYS_BEFORE_DUE = 5;
 const CALLS_ONLY_DAYS_OVERDUE = 1;
@@ -64,6 +64,15 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
 
   if (!device) {
     return null;
+  }
+
+  // iOS se administra exclusivamente mediante routes/ios.js y hexnodeIOS.js.
+  // Nunca debe caer en el sincronizador ni en las credenciales Android.
+  if (device.platform !== DevicePlatform.ANDROID) {
+    return prisma.device.findUnique({
+      where: { id: deviceId },
+      include: { customer: true, payments: { orderBy: { dueDate: "asc" } } },
+    });
   }
 
   if (device.manualStatusOverride && !options.force) {
@@ -141,6 +150,7 @@ export async function syncDeviceStatus(deviceId, changedByUserId, reason, option
 
 export async function syncAllDeviceStatuses(changedByUserId = null, reason = "Sincronizacion automatica por fechas de pago") {
   const devices = await prisma.device.findMany({
+    where: { platform: DevicePlatform.ANDROID },
     select: { id: true },
   });
 

@@ -1,0 +1,75 @@
+import { Router } from "express";
+import prismaPackage from "@prisma/client";
+import { asyncHandler } from "../lib/asyncHandler.js";
+import { prisma } from "../lib/prisma.js";
+import { sendBadRequest, sendNotFound, sendServerError, isPrismaUniqueConstraintError } from "../lib/http.js";
+import { asOptionalTrimmedString, asTrimmedString, assertRequiredFields } from "../lib/validation.js";
+import { customerScopeWhere, deviceScopeWhere } from "../lib/dataScope.js";
+import authMiddleware from "../middleware/auth.js";
+import { blockIOSDevice, getHexnodeIOSConfiguration, isHexnodeIOSConfigured, unblockIOSDevice } from "../lib/hexnodeIOS.js";
+
+const router = Router();
+const { DevicePlatform, DeviceStatus } = prismaPackage;
+
+function iosScope(req, where = {}, ownerUserId = "") {
+  return deviceScopeWhere(req, { ...where, platform: DevicePlatform.IOS }, ownerUserId);
+}
+
+function parseHexnodeId(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return null;
+  const parsed = Number.parseInt(String(value).trim(), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function includeDevice() {
+  return { customer: { select: { id: true, fullName: true, nationalId: true, phone: true } }, statusHistory: { orderBy: { createdAt: "desc" }, take: 10 } };
+}
+
+router.use(authMiddleware);
+
+router.get("/devices", asyncHandler(async (req, res) => {
+  const ownerUserId = asOptionalTrimmedString(req.query?.ownerUserId);
+  const devices = await prisma.device.findMany({ where: iosScope(req, {}, ownerUserId), orderBy: { createdAt: "desc" }, include: includeDevice() });
+  return res.json({ ok: true, devices, hexnode: getHexnodeIOSConfiguration() });
+}));
+
+router.post("/devices", asyncHandler(async (req, res) => {
+  const { customerId, brand, model, imei, serialNumber, hexnodeDeviceId, notes } = req.body || {};
+  const required = assertRequiredFields([["customerId", asTrimmedString(customerId)], ["brand", asTrimmedString(brand)], ["model", asTrimmedString(model)], ["hexnodeDeviceId", String(hexnodeDeviceId || "").trim()]]);
+  if (!required.ok) return sendBadRequest(res, "customerId, brand, model y Hexnode Device ID son obligatorios");
+  const remoteId = parseHexnodeId(hexnodeDeviceId);
+  if (!remoteId) return sendBadRequest(res, "hexnodeDeviceId invalido");
+  const customer = await prisma.customer.findFirst({ where: customerScopeWhere(req, { id: asTrimmedString(customerId) }), select: { id: true } });
+  if (!customer) return sendBadRequest(res, "customerId invalido o fuera de alcance");
+  try {
+    const device = await prisma.$transaction(async (tx) => {
+      const created = await tx.device.create({ data: { customerId: customer.id, brand: asTrimmedString(brand), model: asTrimmedString(model), imei: asOptionalTrimmedString(imei) || `IOS-${remoteId}`, installCode: `IOS-${remoteId}`, serialNumber: asOptionalTrimmedString(serialNumber), hexnodeDeviceId: remoteId, platform: DevicePlatform.IOS, notes: asOptionalTrimmedString(notes) }, include: includeDevice() });
+      await tx.deviceStatusHistory.create({ data: { deviceId: created.id, newStatus: DeviceStatus.ACTIVO, changedByUserId: req.user.id, reason: "IPHONE_REGISTERED" } });
+      return created;
+    });
+    return res.status(201).json({ ok: true, device });
+  } catch (error) {
+    if (isPrismaUniqueConstraintError(error)) return sendBadRequest(res, "El IMEI o Hexnode Device ID iOS ya existe");
+    return sendServerError(res, "No se pudo registrar el iPhone");
+  }
+}));
+
+async function changeIOSStatus(req, res, nextStatus, action) {
+  const device = await prisma.device.findFirst({ where: iosScope(req, { id: req.params.id }), include: includeDevice() });
+  if (!device) return sendNotFound(res, "iPhone no encontrado o fuera de alcance");
+  if (device.platform !== DevicePlatform.IOS) return sendBadRequest(res, "Este endpoint solo permite dispositivos iOS");
+  if (!device.hexnodeDeviceId) return sendBadRequest(res, "El iPhone no tiene Hexnode Device ID");
+  if (!isHexnodeIOSConfigured()) return sendBadRequest(res, "Hexnode iOS no esta configurado en el backend");
+  const result = action === "IPHONE_BLOCK" ? await blockIOSDevice(device.hexnodeDeviceId) : await unblockIOSDevice(device.hexnodeDeviceId);
+  const updated = await prisma.$transaction(async (tx) => {
+    const saved = await tx.device.update({ where: { id: device.id }, data: { currentStatus: nextStatus, manualStatusOverride: true, manualStatusReason: action, manualStatusChangedAt: new Date(), lastStatusChangeAt: new Date() }, include: includeDevice() });
+    await tx.deviceStatusHistory.create({ data: { deviceId: device.id, previousStatus: device.currentStatus, newStatus: nextStatus, changedByUserId: req.user.id, reason: `${action} Hexnode OK` } });
+    return saved;
+  });
+  return res.json({ ok: true, message: nextStatus === DeviceStatus.BLOQUEADO ? "iPhone bloqueado correctamente" : "iPhone desbloqueado correctamente", device: updated, hexnode: result });
+}
+
+router.post("/devices/:id/block", asyncHandler((req, res) => changeIOSStatus(req, res, DeviceStatus.BLOQUEADO, "IPHONE_BLOCK")));
+router.post("/devices/:id/unblock", asyncHandler((req, res) => changeIOSStatus(req, res, DeviceStatus.ACTIVO, "IPHONE_UNBLOCK")));
+
+export default router;

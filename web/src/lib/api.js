@@ -154,6 +154,21 @@ export const api = {
     const suffix = query.toString() ? `?${query.toString()}` : "";
     return request(`/devices${suffix}`);
   },
+  getIOSDevices(params = {}) {
+    const query = new URLSearchParams();
+    if (params.ownerUserId) query.set("ownerUserId", String(params.ownerUserId));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request(`/ios/devices${suffix}`);
+  },
+  createIOSDevice(payload) {
+    return request("/ios/devices", { method: "POST", body: JSON.stringify(payload) });
+  },
+  blockIOSDevice(deviceId) {
+    return request(`/ios/devices/${deviceId}/block`, { method: "POST" });
+  },
+  unblockIOSDevice(deviceId) {
+    return request(`/ios/devices/${deviceId}/unblock`, { method: "POST" });
+  },
   createDevice(payload) {
     return request("/devices", {
       method: "POST",
