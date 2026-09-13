@@ -1,0 +1,168 @@
+/* KOVPAY V3 — desktop composition fixes */
+
+/* Give the entire site more breathing room on wide displays */
+.container{
+  width:min(1560px,calc(100% - 72px));
+}
+
+.nav{
+  max-width:1560px;
+}
+
+/* Desktop hero: actual two-column product layout */
+@media (min-width:1440px){
+  .hero{
+    min-height:100vh;
+    height:auto;
+    padding:108px max(42px,calc((100vw - 1640px)/2)) 54px;
+    display:grid;
+    grid-template-columns:minmax(540px,.82fr) minmax(760px,1.18fr);
+    column-gap:54px;
+    align-items:center;
+    background:
+      radial-gradient(circle at 18% 35%,rgba(0,110,255,.22),transparent 32%),
+      radial-gradient(circle at 88% 30%,rgba(46,207,255,.17),transparent 31%),
+      linear-gradient(180deg,#07101c 0%,#05070b 72%);
+  }
+
+  .hero-inner{
+    width:100%;
+    margin:0;
+    padding:0 0 0 8px;
+    text-align:left;
+    position:relative;
+    z-index:10;
+  }
+
+  .hero .eyebrow{
+    margin-bottom:22px;
+  }
+
+  .hero h1{
+    font-size:clamp(72px,5.15vw,104px);
+    line-height:.92;
+    max-width:760px;
+    margin:0;
+    letter-spacing:-.066em;
+  }
+
+  .hero-copy{
+    max-width:650px;
+    margin:28px 0 0;
+    font-size:19px;
+    line-height:1.58;
+  }
+
+  .hero-actions{
+    justify-content:flex-start;
+    margin-top:34px;
+  }
+
+  .btn{
+    padding:17px 24px;
+    font-size:15px;
+  }
+
+  .device-stage{
+    width:100%;
+    height:min(760px,74vh);
+    min-height:650px;
+    margin:0;
+    position:relative;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    perspective:1700px;
+    overflow:visible;
+  }
+
+  .dashboard-shell{
+    width:min(100%,990px);
+    height:auto;
+    aspect-ratio:1.665/1;
+    max-height:610px;
+    border-radius:30px;
+    transform:perspective(1500px) rotateY(-1.2deg) rotateX(1deg);
+    box-shadow:0 60px 150px rgba(0,0,0,.68),0 0 110px rgba(22,135,255,.12);
+  }
+
+  .phone{
+    width:210px;
+    height:430px;
+    border-radius:38px;
+  }
+
+  .phone-screen{
+    border-radius:31px;
+    padding:20px;
+  }
+
+  .phone-left{
+    left:-68px;
+    bottom:16px;
+    transform:rotate(-7deg);
+  }
+
+  .phone-right{
+    right:-62px;
+    bottom:12px;
+    transform:rotate(7deg);
+  }
+
+  .progress-ring{
+    width:112px;
+    height:112px;
+    margin:25px auto 21px;
+  }
+
+  .shield{
+    margin:50px auto 16px;
+  }
+
+  .hero-fade{
+    height:130px;
+  }
+
+  .glow-a{
+    width:660px;
+    height:660px;
+    top:110px;
+    left:-280px;
+  }
+
+  .glow-b{
+    width:700px;
+    height:700px;
+    top:80px;
+    right:-270px;
+  }
+}
+
+/* Large laptops: still broad, but keep the visual stacked to avoid squeezing */
+@media (min-width:1101px) and (max-width:1439px){
+  .container{width:min(1320px,calc(100% - 56px));}
+  .hero{min-height:auto;padding-top:132px;padding-bottom:55px;}
+  .hero h1{font-size:clamp(68px,7.4vw,96px);}
+  .hero-copy{font-size:18px;}
+  .device-stage{margin-top:58px;height:650px;}
+  .dashboard-shell{width:min(960px,82vw);height:auto;aspect-ratio:1.665/1;}
+  .phone-left{left:max(0px,calc(50% - 600px));}
+  .phone-right{right:max(0px,calc(50% - 600px));}
+}
+
+/* Tablet and mobile stay intentionally vertical */
+@media (max-width:1100px){
+  .container{width:min(100% - 32px,980px);}
+  .hero{min-height:auto;padding-top:120px;padding-bottom:40px;}
+  .hero-inner{text-align:center;}
+  .hero-actions{justify-content:center;}
+  .device-stage{margin-top:50px;}
+}
+
+/* Better use of width throughout the content on desktop */
+@media (min-width:1440px){
+  .story-grid{grid-template-columns:.88fr 1.12fr;gap:140px;}
+  .bento-grid{gap:28px;}
+  .ecosystem-grid{gap:28px;}
+  .plan-grid{gap:28px;}
+}
