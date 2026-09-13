@@ -1,177 +1,320 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="KOVPAY: plataforma para gestionar ventas de celulares a crédito, clientes, pagos, cartera y dispositivos." />
+  <meta name="description" content="KOVPAY: software para gestionar clientes, créditos, pagos, cartera y dispositivos asociados a ventas a crédito." />
   <title>KOVPAY — Vende a crédito. Mantén el control.</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="preline-build.css?v=12" />
 </head>
-<body>
-  <div class="noise"></div>
-  <header class="nav-wrap">
-    <nav class="nav container">
-      <a class="brand" href="#inicio" aria-label="KOVPAY inicio">
-        <span class="brand-mark">K</span>
-        <span class="brand-text">KOVPAY</span>
+<body class="bg-white text-slate-950 antialiased selection:bg-sky-300 selection:text-slate-950">
+  <header class="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-5">
+    <nav class="mx-auto flex max-w-[1480px] items-center justify-between rounded-2xl border border-white/10 bg-[#07101a]/85 px-4 py-3 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-6" aria-label="Navegación principal">
+      <a href="#inicio" class="flex items-center gap-3 text-white">
+        <span class="text-lg font-black tracking-[0.08em]">KOVPAY</span>
+        <span class="hidden rounded-full border border-sky-400/20 bg-sky-400/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.15em] text-sky-200 sm:inline">SOFTWARE</span>
       </a>
-      <div class="nav-links">
-        <a href="#producto">Producto</a>
-        <a href="#control">Control</a>
-        <a href="#ecosistema">Android + iPhone</a>
-        <a href="#planes">Planes</a>
+
+      <div class="hidden items-center gap-7 lg:flex">
+        <a class="text-sm font-medium text-slate-300 transition hover:text-white" href="#producto">Producto</a>
+        <a class="text-sm font-medium text-slate-300 transition hover:text-white" href="#operacion">Operación</a>
+        <a class="text-sm font-medium text-slate-300 transition hover:text-white" href="#compatibilidad">Compatibilidad</a>
+        <a class="text-sm font-medium text-slate-300 transition hover:text-white" href="#planes">Planes</a>
       </div>
-      <a class="nav-cta" href="#contacto">Solicitar demo</a>
+
+      <div class="flex items-center gap-2">
+        <a href="#contacto" class="hidden rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-950 shadow-sm transition hover:bg-sky-50 sm:inline-flex">Solicitar demo</a>
+        <button id="menu-toggle" class="inline-flex size-10 items-center justify-center rounded-xl border border-white/10 text-white lg:hidden" aria-label="Abrir menú" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+        </button>
+      </div>
     </nav>
+
+    <div id="mobile-menu" class="mx-auto mt-2 hidden max-w-[1480px] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl lg:hidden">
+      <a class="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" href="#producto">Producto</a>
+      <a class="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" href="#operacion">Operación</a>
+      <a class="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" href="#compatibilidad">Compatibilidad</a>
+      <a class="block rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" href="#planes">Planes</a>
+      <a class="mt-2 flex items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white" href="#contacto">Solicitar demo</a>
+    </div>
   </header>
 
   <main>
-    <section class="hero" id="inicio">
-      <div class="hero-glow glow-a"></div>
-      <div class="hero-glow glow-b"></div>
-      <div class="container hero-inner reveal">
-        <p class="eyebrow">PLATAFORMA PARA VENTAS A CRÉDITO</p>
-        <h1>Vende a crédito.<br><span>Mantén el control.</span></h1>
-        <p class="hero-copy">Gestiona clientes, cuotas, cartera y dispositivos desde una sola plataforma. KOVPAY organiza tu operación y KOVIX potencia el control de equipos compatibles.</p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="#contacto">Solicitar demostración</a>
-          <a class="btn btn-ghost" href="#producto">Ver cómo funciona <span>↓</span></a>
+    <section id="inicio" class="relative isolate overflow-hidden bg-[#05070b] pb-16 pt-32 text-white sm:pb-24 sm:pt-36 lg:min-h-[920px] lg:pt-40">
+      <div class="kov-grid pointer-events-none absolute inset-0"></div>
+      <div class="kov-orb absolute -left-20 top-28 h-80 w-80 rounded-full bg-blue-600"></div>
+      <div class="kov-orb absolute right-0 top-24 h-96 w-96 rounded-full bg-cyan-500/70"></div>
+
+      <div class="relative mx-auto grid max-w-[1480px] items-center gap-12 px-5 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:gap-8 xl:px-10">
+        <div class="reveal max-w-2xl">
+          <div class="mb-7 inline-flex items-center gap-2 rounded-full border border-sky-300/15 bg-sky-300/10 px-3.5 py-2 text-xs font-bold tracking-[0.16em] text-sky-200">
+            <span class="size-2 rounded-full bg-sky-300 shadow-[0_0_14px_rgba(125,211,252,.9)]"></span>
+            SOFTWARE PARA VENTAS A CRÉDITO
+          </div>
+
+          <h1 class="text-[58px] font-black leading-[0.91] tracking-[-0.065em] sm:text-[76px] lg:text-[82px] xl:text-[96px]">
+            Vende a crédito.<br>
+            <span class="bg-gradient-to-r from-white via-cyan-200 to-blue-500 bg-clip-text text-transparent">Mantén el control.</span>
+          </h1>
+
+          <p class="mt-7 max-w-xl text-base leading-8 text-slate-300 sm:text-lg">
+            Centraliza clientes, créditos, cuotas, pagos, cartera y seguimiento de dispositivos en una sola operación comercial.
+          </p>
+
+          <div class="mt-8 flex flex-wrap gap-3">
+            <a href="#contacto" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-400 px-5 py-3.5 text-sm font-extrabold text-white shadow-[0_18px_45px_rgba(22,135,255,.3)] transition hover:-translate-y-0.5">
+              Solicitar demostración
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            </a>
+            <a href="#producto" class="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm font-bold text-white backdrop-blur-xl transition hover:bg-white/10">Ver cómo funciona</a>
+          </div>
+
+          <div class="mt-8 flex flex-wrap gap-2 text-xs font-semibold text-slate-300">
+            <span class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2">Clientes</span>
+            <span class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2">Créditos</span>
+            <span class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2">Pagos</span>
+            <span class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2">Cartera</span>
+            <span class="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2">Control</span>
+          </div>
+        </div>
+
+        <div class="reveal hero-device-stage">
+          <div class="absolute left-[12%] top-[16%] z-10 hidden rounded-2xl border border-white/10 bg-white/[0.055] px-4 py-3 text-xs text-slate-300 backdrop-blur-xl xl:block">
+            <span class="block text-[10px] font-bold tracking-[0.13em] text-sky-300">OPERACIÓN</span>
+            <strong class="mt-1 block text-sm text-white">Todo conectado</strong>
+          </div>
+
+          <div class="hero-laptop">
+            <img src="assets/macbook-pro-space-gray.png" alt="Equipo mostrando una composición visual de KOVPAY">
+            <div class="hero-laptop-screen"></div>
+          </div>
+
+          <div class="hero-phone hero-phone-a">
+            <div class="hero-phone-glow"></div>
+            <img src="assets/phone-ios-transparent.png" alt="Dispositivo móvil decorativo">
+          </div>
+          <div class="hero-phone hero-phone-b">
+            <div class="hero-phone-glow"></div>
+            <img src="assets/phone-android-transparent.png" alt="Dispositivo móvil decorativo">
+          </div>
         </div>
       </div>
 
-      <div class="device-stage container reveal delay-1" aria-label="Vista conceptual de KOVPAY">
-        <div class="phone phone-left">
-          <div class="phone-speaker"></div>
-          <div class="phone-screen ios-screen">
-            <div class="screen-topline"><span>KOVPAY</span><span>●</span></div>
-            <div class="screen-title">Crédito activo</div>
-            <div class="screen-customer">Cliente #0248</div>
-            <div class="progress-ring"><span>72%</span></div>
-            <div class="mini-stat"><span>Próxima cuota</span><strong>$45.00</strong></div>
-            <div class="mini-button">Ver detalle</div>
+      <div class="relative mx-auto mt-10 max-w-[1480px] px-5 sm:px-8 xl:px-10">
+        <div class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-2 text-center backdrop-blur-xl sm:grid-cols-5">
+          <div class="rounded-xl px-4 py-3 text-xs font-semibold text-slate-300">Gestión comercial</div>
+          <div class="rounded-xl px-4 py-3 text-xs font-semibold text-slate-300">Seguimiento de cartera</div>
+          <div class="rounded-xl px-4 py-3 text-xs font-semibold text-slate-300">Documentación</div>
+          <div class="rounded-xl px-4 py-3 text-xs font-semibold text-slate-300">Control operativo</div>
+          <div class="col-span-2 rounded-xl px-4 py-3 text-xs font-semibold text-slate-300 sm:col-span-1">Múltiples tiendas</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="producto" class="bg-white py-20 sm:py-28">
+      <div class="mx-auto max-w-[1320px] px-5 sm:px-8">
+        <div class="reveal mx-auto max-w-3xl text-center">
+          <span class="text-xs font-black tracking-[0.18em] text-blue-600">UNA SOLA PLATAFORMA</span>
+          <h2 class="mt-4 text-4xl font-black tracking-[-0.045em] text-slate-950 sm:text-6xl">Menos herramientas.<br><span class="text-slate-400">Más claridad operativa.</span></h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">KOVPAY reúne el flujo comercial completo para que tu equipo tenga una vista más ordenada de cada venta a crédito.</p>
+        </div>
+
+        <div class="mt-14 grid gap-4 md:grid-cols-3">
+          <article class="reveal group rounded-[28px] border border-slate-200 bg-slate-50 p-7 transition hover:-translate-y-1 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50">
+            <div class="flex size-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+              <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h3 class="mt-6 text-2xl font-extrabold tracking-[-0.03em]">Clientes y créditos</h3>
+            <p class="mt-3 leading-7 text-slate-600">Información, documentos, condiciones de venta y seguimiento asociados a cada cliente.</p>
+          </article>
+
+          <article class="reveal rounded-[28px] border border-slate-200 bg-slate-950 p-7 text-white shadow-2xl shadow-slate-300/40">
+            <div class="flex size-11 items-center justify-center rounded-2xl bg-white/10 text-sky-300 ring-1 ring-white/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+            </div>
+            <h3 class="mt-6 text-2xl font-extrabold tracking-[-0.03em]">Cartera visible</h3>
+            <p class="mt-3 leading-7 text-slate-300">Cuotas próximas, pagos registrados y cuentas que necesitan revisión dentro de una sola vista.</p>
+          </article>
+
+          <article class="reveal group rounded-[28px] border border-slate-200 bg-slate-50 p-7 transition hover:-translate-y-1 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50">
+            <div class="flex size-11 items-center justify-center rounded-2xl bg-cyan-100 text-cyan-700">
+              <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+            </div>
+            <h3 class="mt-6 text-2xl font-extrabold tracking-[-0.03em]">Seguimiento de equipos</h3>
+            <p class="mt-3 leading-7 text-slate-600">Relaciona la operación comercial con el dispositivo asociado, según compatibilidad y método de administración.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="operacion" class="overflow-hidden bg-slate-50 py-20 sm:py-28">
+      <div class="mx-auto grid max-w-[1380px] items-center gap-12 px-5 sm:px-8 lg:grid-cols-[0.72fr_1.28fr]">
+        <div class="reveal max-w-xl">
+          <span class="text-xs font-black tracking-[0.18em] text-blue-600">CENTRO DE CONTROL</span>
+          <h2 class="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Una interfaz pensada para decidir rápido.</h2>
+          <p class="mt-5 text-lg leading-8 text-slate-600">La información importante aparece primero: cartera, próximos cobros, clientes y actividad reciente. Sin saturar la pantalla.</p>
+          <div class="mt-8 space-y-4">
+            <div class="flex gap-4"><span class="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">1</span><div><strong class="block text-slate-950">Prioriza lo urgente</strong><span class="mt-1 block text-sm leading-6 text-slate-600">Identifica qué cobros o cuentas requieren seguimiento.</span></div></div>
+            <div class="flex gap-4"><span class="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">2</span><div><strong class="block text-slate-950">Consulta por cliente</strong><span class="mt-1 block text-sm leading-6 text-slate-600">Crédito, pagos, documentos y equipo dentro del mismo contexto.</span></div></div>
+            <div class="flex gap-4"><span class="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-black text-white">3</span><div><strong class="block text-slate-950">Mantén el historial</strong><span class="mt-1 block text-sm leading-6 text-slate-600">Registra movimientos y actividad para dar seguimiento con más orden.</span></div></div>
           </div>
         </div>
 
-        <div class="dashboard-shell">
-          <div class="dash-top">
-            <div class="dash-logo"><span class="brand-mark small">K</span><strong>KOVPAY</strong></div>
-            <div class="dash-search">Buscar cliente, crédito o equipo...</div>
-            <div class="avatar">BG</div>
+        <div class="reveal dashboard-shell overflow-hidden rounded-[32px] border border-slate-200 bg-white">
+          <div class="flex items-center gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
+            <div class="flex gap-1.5"><span class="size-2.5 rounded-full bg-slate-300"></span><span class="size-2.5 rounded-full bg-slate-300"></span><span class="size-2.5 rounded-full bg-slate-300"></span></div>
+            <div class="ml-2 text-xs font-black tracking-[0.1em] text-slate-950">KOVPAY</div>
+            <div class="ml-auto rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700">VISTA DEMO</div>
           </div>
-          <div class="dash-body">
-            <aside class="dash-side">
-              <span class="active">Resumen</span>
-              <span>Clientes</span>
-              <span>Créditos</span>
-              <span>Cartera</span>
-              <span>Dispositivos</span>
-              <span>Control</span>
+
+          <div class="dashboard-grid grid min-h-[520px] lg:grid-cols-[150px_1fr]">
+            <aside class="hidden border-r border-slate-200 bg-white/80 p-4 lg:block">
+              <div class="rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-bold text-white">Resumen</div>
+              <div class="mt-2 space-y-1 text-xs font-semibold text-slate-500"><div class="rounded-xl px-3 py-2.5">Clientes</div><div class="rounded-xl px-3 py-2.5">Créditos</div><div class="rounded-xl px-3 py-2.5">Cartera</div><div class="rounded-xl px-3 py-2.5">Control</div></div>
             </aside>
-            <div class="dash-main">
-              <div class="dash-heading">
-                <div><small>Buenos días</small><h3>Centro de control</h3></div>
-                <button>+ Nuevo crédito</button>
+
+            <div class="p-5 sm:p-7">
+              <div class="flex flex-wrap items-end justify-between gap-4">
+                <div><span class="text-xs font-semibold text-slate-500">Resumen de operación</span><h3 class="mt-1 text-2xl font-black tracking-[-0.03em]">Centro de control</h3></div>
+                <button class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-200">+ Nuevo crédito</button>
               </div>
-              <div class="kpis">
-                <div class="kpi"><span>Créditos activos</span><strong>128</strong><small>Operación actual</small></div>
-                <div class="kpi"><span>Cobros próximos</span><strong>34</strong><small>Esta semana</small></div>
-                <div class="kpi"><span>Dispositivos</span><strong>96</strong><small>En seguimiento</small></div>
+
+              <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                <div class="kov-ring rounded-2xl bg-white p-4"><span class="text-[11px] font-semibold text-slate-500">Créditos activos</span><strong class="mt-2 block text-3xl font-black">128</strong><span class="mt-1 block text-[10px] text-slate-400">Datos ilustrativos</span></div>
+                <div class="kov-ring rounded-2xl bg-white p-4"><span class="text-[11px] font-semibold text-slate-500">Cobros próximos</span><strong class="mt-2 block text-3xl font-black">34</strong><span class="mt-1 block text-[10px] text-slate-400">Datos ilustrativos</span></div>
+                <div class="kov-ring rounded-2xl bg-white p-4"><span class="text-[11px] font-semibold text-slate-500">Cartera al día</span><strong class="mt-2 block text-3xl font-black">91%</strong><span class="mt-1 block text-[10px] text-slate-400">Datos ilustrativos</span></div>
               </div>
-              <div class="dash-grid">
-                <div class="panel chart-panel">
-                  <div class="panel-title"><span>Comportamiento de cartera</span><span>Últimos 6 meses</span></div>
-                  <div class="chart">
-                    <i style="height:42%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:67%"></i><i style="height:76%"></i><i style="height:88%"></i>
-                  </div>
-                  <div class="chart-labels"><span>Abr</span><span>May</span><span>Jun</span><span>Jul</span><span>Ago</span><span>Sep</span></div>
+
+              <div class="mt-4 grid gap-3 lg:grid-cols-[1.4fr_.8fr]">
+                <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div class="flex items-center justify-between"><strong class="text-sm">Comportamiento de cartera</strong><span class="text-[10px] text-slate-400">6 meses</span></div>
+                  <svg viewBox="0 0 600 210" class="mt-5 h-44 w-full" role="img" aria-label="Gráfico ilustrativo">
+                    <defs><linearGradient id="sparkGradient" x1="0" x2="1"><stop offset="0" stop-color="#1687ff"/><stop offset="1" stop-color="#65d7ff"/></linearGradient></defs>
+                    <path d="M10 158 C75 150, 100 118, 160 130 S250 95, 310 105 S400 70, 460 78 S540 45,590 50" class="sparkline"/>
+                    <path d="M10 190 H590" stroke="#e2e8f0" stroke-width="1"/>
+                  </svg>
                 </div>
-                <div class="panel activity-panel">
-                  <div class="panel-title"><span>Actividad</span><span>Hoy</span></div>
-                  <div class="activity"><b></b><div><strong>Pago registrado</strong><small>Cliente #0248 · $45</small></div></div>
-                  <div class="activity"><b></b><div><strong>Equipo asociado</strong><small>Android · crédito #0312</small></div></div>
-                  <div class="activity"><b></b><div><strong>Documento generado</strong><small>Contrato y cronograma</small></div></div>
+                <div class="rounded-2xl border border-slate-200 bg-slate-950 p-5 text-white">
+                  <div class="flex items-center justify-between"><strong class="text-sm">Actividad</strong><span class="text-[10px] text-slate-500">Hoy</span></div>
+                  <div class="mt-5 space-y-5">
+                    <div class="flex gap-3"><span class="mt-1 size-2 rounded-full bg-sky-400 shadow-[0_0_12px_#38bdf8]"></span><div><strong class="block text-xs">Pago registrado</strong><span class="mt-1 block text-[10px] text-slate-500">Cliente #0248 · $45</span></div></div>
+                    <div class="flex gap-3"><span class="mt-1 size-2 rounded-full bg-blue-500"></span><div><strong class="block text-xs">Crédito creado</strong><span class="mt-1 block text-[10px] text-slate-500">Cliente #0312</span></div></div>
+                    <div class="flex gap-3"><span class="mt-1 size-2 rounded-full bg-cyan-300"></span><div><strong class="block text-xs">Seguimiento actualizado</strong><span class="mt-1 block text-[10px] text-slate-500">Hace 8 min</span></div></div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="phone phone-right">
-          <div class="phone-camera"></div>
-          <div class="phone-screen android-screen">
-            <div class="screen-topline"><span>KOVIX</span><span>09:41</span></div>
-            <div class="shield">✓</div>
-            <div class="screen-title center">Equipo administrado</div>
-            <p class="phone-copy">Vinculado a KOVPAY</p>
-            <div class="control-card"><span>Estado</span><strong>Activo</strong></div>
-            <div class="control-card"><span>Última sincronización</span><strong>Ahora</strong></div>
-          </div>
+    <section class="bg-white py-20 sm:py-28">
+      <div class="mx-auto max-w-[1320px] px-5 sm:px-8">
+        <div class="reveal mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+          <div class="max-w-2xl"><span class="text-xs font-black tracking-[0.18em] text-blue-600">MÓDULOS</span><h2 class="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Todo el flujo,<br><span class="text-slate-400">sin perder el contexto.</span></h2></div>
+          <p class="max-w-md text-base leading-7 text-slate-600">Una arquitectura visual tipo bento para presentar lo que hace KOVPAY sin convertir la web en un catálogo de celulares.</p>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-12">
+          <article class="reveal bento-shine relative overflow-hidden rounded-[30px] bg-slate-950 p-7 text-white lg:col-span-7 lg:min-h-[390px]">
+            <span class="text-[11px] font-black tracking-[0.16em] text-sky-300">CARTERA</span>
+            <h3 class="mt-4 max-w-lg text-3xl font-black tracking-[-0.04em] sm:text-4xl">Lo que necesita seguimiento aparece primero.</h3>
+            <p class="mt-4 max-w-xl leading-7 text-slate-300">Organiza vencimientos, pagos y cuentas que necesitan revisión dentro de una misma experiencia.</p>
+            <div class="relative z-10 mt-9 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] p-4 backdrop-blur-xl">
+              <div class="grid grid-cols-4 gap-2 border-b border-white/10 pb-3 text-[10px] font-bold text-slate-500"><span>CLIENTE</span><span>FECHA</span><span>CUOTA</span><span>ESTADO</span></div>
+              <div class="grid grid-cols-4 gap-2 py-4 text-xs"><span>María P.</span><span class="text-slate-400">14 Sep</span><span>$42</span><span class="text-emerald-300">Al día</span></div>
+              <div class="grid grid-cols-4 gap-2 border-t border-white/10 py-4 text-xs"><span>Carlos R.</span><span class="text-slate-400">15 Sep</span><span>$38</span><span class="text-sky-300">Próxima</span></div>
+            </div>
+          </article>
+
+          <article class="reveal rounded-[30px] border border-slate-200 bg-slate-50 p-7 lg:col-span-5">
+            <span class="text-[11px] font-black tracking-[0.16em] text-blue-600">DOCUMENTOS</span>
+            <h3 class="mt-4 text-3xl font-black tracking-[-0.04em]">Respaldo comercial dentro del flujo.</h3>
+            <p class="mt-4 leading-7 text-slate-600">Contratos, cronogramas y anexos vinculados a la operación correspondiente.</p>
+            <div class="relative mt-8 h-40">
+              <div class="absolute inset-x-8 top-0 h-28 rotate-[-4deg] rounded-2xl border border-slate-200 bg-white shadow-lg"></div>
+              <div class="absolute inset-x-4 top-4 h-28 rotate-[3deg] rounded-2xl border border-slate-200 bg-white shadow-lg"></div>
+              <div class="absolute inset-x-0 top-8 flex h-28 items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 shadow-xl"><div><span class="text-[10px] font-bold tracking-[0.14em] text-slate-400">DOCUMENTO</span><strong class="mt-2 block text-lg">Contrato de venta</strong></div><span class="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">PDF</span></div>
+            </div>
+          </article>
+
+          <article class="reveal rounded-[30px] border border-slate-200 bg-white p-7 shadow-sm lg:col-span-5">
+            <span class="text-[11px] font-black tracking-[0.16em] text-blue-600">CLIENTE</span>
+            <h3 class="mt-4 text-3xl font-black tracking-[-0.04em]">Una vista por persona.</h3>
+            <p class="mt-4 leading-7 text-slate-600">Consulta crédito, pagos, documentos y seguimiento sin saltar entre pantallas desconectadas.</p>
+            <div class="mt-8 flex items-center gap-4 rounded-2xl bg-slate-50 p-4"><span class="flex size-12 items-center justify-center rounded-full bg-blue-600 font-black text-white">AM</span><div><strong class="block">Andrea M.</strong><span class="text-xs text-slate-500">Crédito #0312</span></div><span class="ml-auto rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-bold text-emerald-700">Activo</span></div>
+          </article>
+
+          <article class="reveal bento-shine relative overflow-hidden rounded-[30px] bg-gradient-to-br from-blue-600 via-blue-600 to-cyan-400 p-7 text-white lg:col-span-7">
+            <span class="text-[11px] font-black tracking-[0.16em] text-blue-100">CONTROL</span>
+            <h3 class="mt-4 max-w-lg text-3xl font-black tracking-[-0.04em]">Software primero. Dispositivos como parte de la operación.</h3>
+            <p class="mt-4 max-w-xl leading-7 text-blue-50">KOVPAY mantiene el foco en la venta, la cartera y el seguimiento. El hardware es contexto, no el protagonista.</p>
+            <div class="mt-8 flex flex-wrap gap-2"><span class="rounded-full bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/20">Clientes</span><span class="rounded-full bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/20">Pagos</span><span class="rounded-full bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/20">Cartera</span><span class="rounded-full bg-white/15 px-3 py-2 text-xs font-bold ring-1 ring-white/20">Dispositivos</span></div>
+          </article>
         </div>
       </div>
-      <div class="hero-fade"></div>
     </section>
 
-    <section class="statement section-light" id="producto">
-      <div class="container narrow reveal">
-        <p class="eyebrow dark">TODO EN UN SOLO LUGAR</p>
-        <h2>Tu operación completa.<br><span>Sin perder de vista nada.</span></h2>
-        <p>KOVPAY reúne en una misma experiencia la gestión comercial, el seguimiento de cartera y el control asociado a cada dispositivo financiado.</p>
-      </div>
-      <div class="container feature-strip reveal delay-1">
-        <div class="feature-pill">Clientes</div><div class="feature-pill">Créditos</div><div class="feature-pill">Cuotas</div><div class="feature-pill">Pagos</div><div class="feature-pill">Cartera</div><div class="feature-pill">Contratos</div><div class="feature-pill">Dispositivos</div><div class="feature-pill">Control</div>
-      </div>
-    </section>
-
-    <section class="story section-dark" id="control">
-      <div class="container story-grid">
-        <div class="story-copy reveal">
-          <p class="eyebrow">MENOS FRICCIÓN</p>
-          <h2>Desde que registras al cliente hasta que termina de pagar.</h2>
-          <p>Un flujo simple para que tu equipo venda, documente, cobre y dé seguimiento desde el mismo sistema.</p>
-        </div>
-        <div class="steps reveal delay-1">
-          <article><span>01</span><div><h3>Registra</h3><p>Cliente, documentación, referencias y datos necesarios para la operación.</p></div></article>
-          <article><span>02</span><div><h3>Vende</h3><p>Define entrada, plazo, cuotas y vincula el dispositivo correspondiente.</p></div></article>
-          <article><span>03</span><div><h3>Controla</h3><p>Visualiza pagos, vencimientos, cartera y estado operativo de los equipos.</p></div></article>
+    <section class="bg-[#07101a] py-20 text-white sm:py-28">
+      <div class="mx-auto max-w-[1220px] px-5 sm:px-8">
+        <div class="reveal mx-auto max-w-3xl text-center"><span class="text-xs font-black tracking-[0.18em] text-sky-300">FLUJO DE TRABAJO</span><h2 class="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Del registro al seguimiento.</h2><p class="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-400">Un proceso comercial más claro para que cada operación avance con la información necesaria.</p></div>
+        <div class="mt-14 grid gap-4 md:grid-cols-3">
+          <article class="reveal kov-glass rounded-[28px] p-7"><span class="text-sm font-black text-sky-300">01</span><h3 class="mt-5 text-2xl font-extrabold">Registra</h3><p class="mt-3 leading-7 text-slate-400">Cliente, documentación, referencias y datos de la operación.</p></article>
+          <article class="reveal kov-glass rounded-[28px] p-7"><span class="text-sm font-black text-sky-300">02</span><h3 class="mt-5 text-2xl font-extrabold">Vende</h3><p class="mt-3 leading-7 text-slate-400">Entrada, plazo, cuotas, documentos y dispositivo vinculado.</p></article>
+          <article class="reveal kov-glass rounded-[28px] p-7"><span class="text-sm font-black text-sky-300">03</span><h3 class="mt-5 text-2xl font-extrabold">Controla</h3><p class="mt-3 leading-7 text-slate-400">Pagos, vencimientos, cartera y seguimiento operativo.</p></article>
         </div>
       </div>
     </section>
 
-    <section class="bento section-light">
-      <div class="container bento-grid">
-        <article class="bento-card wide reveal">
-          <div class="bento-copy"><p class="eyebrow dark">CARTERA</p><h3>Lo importante, visible primero.</h3><p>Organiza vencimientos, pagos registrados y cuentas que necesitan seguimiento.</p></div>
-          <div class="calendar-ui"><div class="calendar-head"><strong>Septiembre</strong><span>2026</span></div><div class="calendar-row"><span>Cliente</span><span>Fecha</span><span>Cuota</span><span>Estado</span></div><div class="calendar-row data"><span>María P.</span><span>14 Sep</span><span>$42</span><span class="status ok">Al día</span></div><div class="calendar-row data"><span>Carlos R.</span><span>15 Sep</span><span>$38</span><span class="status due">Próxima</span></div><div class="calendar-row data"><span>Andrea M.</span><span>16 Sep</span><span>$51</span><span class="status warn">Revisar</span></div></div>
-        </article>
-        <article class="bento-card reveal"><p class="eyebrow dark">DOCUMENTOS</p><h3>Genera respaldo comercial.</h3><p>Centraliza contratos, cronogramas y anexos vinculados a cada operación.</p><div class="doc-stack"><div></div><div></div><div><strong>Contrato</strong><span>PDF</span></div></div></article>
-        <article class="bento-card black reveal delay-1"><p class="eyebrow">SEGUIMIENTO</p><h3>Una vista por cliente.</h3><p>Consulta crédito, pagos, documentos y dispositivo sin saltar entre sistemas.</p><div class="profile-ui"><div class="profile-avatar">AM</div><div><strong>Andrea M.</strong><span>Crédito #0312</span></div><b>Activo</b></div></article>
+    <section id="compatibilidad" class="bg-white py-20 sm:py-28">
+      <div class="mx-auto grid max-w-[1320px] items-center gap-10 px-5 sm:px-8 lg:grid-cols-2">
+        <div class="reveal max-w-xl"><span class="text-xs font-black tracking-[0.18em] text-blue-600">COMPATIBILIDAD</span><h2 class="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Una operación.<br><span class="text-slate-400">Distintos ecosistemas.</span></h2><p class="mt-5 text-lg leading-8 text-slate-600">KOVPAY centraliza la operación comercial mientras cada ecosistema de dispositivo utiliza el método técnico que corresponda.</p><p class="mt-5 text-sm leading-6 text-slate-500">La disponibilidad de funciones depende del modelo, versión del sistema operativo, método de enrolamiento y compatibilidad aplicable.</p></div>
+
+        <div class="reveal grid gap-4 sm:grid-cols-2">
+          <article class="relative overflow-hidden rounded-[30px] bg-slate-950 p-6 text-white sm:min-h-[440px]"><span class="text-[11px] font-black tracking-[0.16em] text-sky-300">ANDROID</span><h3 class="mt-3 text-2xl font-black">Control compatible.</h3><p class="mt-3 text-sm leading-6 text-slate-400">Seguimiento del dispositivo conectado con la operación comercial.</p><img src="assets/phone-android-transparent.png" alt="Dispositivo Android decorativo" class="mx-auto mt-8 w-44 drop-shadow-2xl"></article>
+          <article class="relative overflow-hidden rounded-[30px] border border-slate-200 bg-slate-50 p-6 sm:min-h-[440px]"><span class="text-[11px] font-black tracking-[0.16em] text-blue-600">IPHONE</span><h3 class="mt-3 text-2xl font-black">Gestión empresarial.</h3><p class="mt-3 text-sm leading-6 text-slate-600">Integra el seguimiento dentro del ecosistema correspondiente.</p><img src="assets/phone-ios-transparent.png" alt="Dispositivo iPhone decorativo" class="mx-auto mt-8 w-44 drop-shadow-xl"></article>
+        </div>
       </div>
     </section>
 
-    <section class="ecosystem section-dark" id="ecosistema">
-      <div class="container narrow center reveal"><p class="eyebrow">UN ECOSISTEMA, DOS CAMINOS</p><h2>Android + iPhone.<br><span>Cada uno con su tecnología.</span></h2><p>KOVPAY centraliza la operación comercial y se integra con mecanismos de administración diferenciados según el ecosistema del dispositivo.</p></div>
-      <div class="container ecosystem-grid">
-        <article class="platform-card android reveal"><div class="platform-top"><span class="platform-dot"></span><strong>ANDROID</strong></div><h3>Potenciado por KOVIX.</h3><p>Gestión y control para equipos Android compatibles, integrados con la operación de crédito de KOVPAY.</p><div class="platform-phone android-device"><div class="camera-hole"></div><div class="platform-screen"><span>KOVIX</span><b>Control conectado</b><small>Dispositivo vinculado</small></div></div></article>
-        <article class="platform-card ios reveal delay-1"><div class="platform-top"><span class="platform-dot"></span><strong>IPHONE</strong></div><h3>Gestión dentro del ecosistema Apple.</h3><p>Integra la administración de dispositivos Apple mediante los mecanismos empresariales correspondientes.</p><div class="platform-phone iphone-device"><div class="dynamic-island"></div><div class="platform-screen"><span>KOVPAY</span><b>iPhone administrado</b><small>Operación sincronizada</small></div></div></article>
-      </div>
-      <p class="compatibility-note container">La disponibilidad de funciones depende del modelo, versión del sistema operativo, método de enrolamiento y compatibilidad técnica aplicable.</p>
-    </section>
+    <section id="planes" class="bg-slate-50 py-20 sm:py-28">
+      <div class="mx-auto max-w-[1260px] px-5 sm:px-8">
+        <div class="reveal mx-auto max-w-3xl text-center"><span class="text-xs font-black tracking-[0.18em] text-blue-600">PLANES</span><h2 class="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-6xl">Crece según tu operación.</h2><p class="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-600">Elige el nivel de gestión y control que mejor encaje con tu volumen de ventas y puntos de atención.</p></div>
 
-    <section class="plans section-light" id="planes">
-      <div class="container narrow center reveal"><p class="eyebrow dark">CRECE A TU RITMO</p><h2>Planes pensados para tiendas que venden a crédito.</h2><p>La estructura comercial puede adaptarse al número de dispositivos y a las funciones que tu operación necesite.</p></div>
-      <div class="container plan-grid reveal delay-1">
-        <article class="plan-card"><span class="plan-label">INICIO</span><h3>Starter</h3><p>Para empezar a organizar clientes, créditos y pagos.</p><ul><li>Gestión de clientes</li><li>Créditos y cuotas</li><li>Registro de pagos</li><li>Documentos comerciales</li></ul><a href="#contacto">Consultar plan</a></article>
-        <article class="plan-card featured"><span class="plan-label">RECOMENDADO</span><h3>Control</h3><p>Para tiendas que ya financian equipos y necesitan seguimiento operativo.</p><ul><li>Todo lo de Starter</li><li>Gestión de cartera</li><li>Vinculación de dispositivos</li><li>Centro de control</li></ul><a href="#contacto">Solicitar demo</a></article>
-        <article class="plan-card"><span class="plan-label">ESCALA</span><h3>Business</h3><p>Para operaciones con mayor volumen, equipos y puntos de venta.</p><ul><li>Todo lo de Control</li><li>Usuarios y roles</li><li>Múltiples tiendas</li><li>Configuración comercial</li></ul><a href="#contacto">Hablar con ventas</a></article>
+        <div class="mt-14 grid gap-4 lg:grid-cols-3">
+          <article class="reveal rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm"><span class="text-[11px] font-black tracking-[0.15em] text-slate-400">INICIO</span><h3 class="mt-3 text-3xl font-black">Starter</h3><p class="mt-3 leading-7 text-slate-600">Para comenzar a ordenar clientes, créditos y pagos.</p><ul class="mt-7 space-y-3 text-sm text-slate-700"><li>✓ Gestión de clientes</li><li>✓ Créditos y cuotas</li><li>✓ Registro de pagos</li><li>✓ Documentación comercial</li></ul><a href="#contacto" class="mt-8 flex justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold">Consultar plan</a></article>
+          <article class="reveal relative rounded-[28px] bg-slate-950 p-7 text-white shadow-2xl shadow-slate-300"><span class="absolute right-5 top-5 rounded-full bg-blue-600 px-3 py-1.5 text-[10px] font-black tracking-[0.12em]">RECOMENDADO</span><span class="text-[11px] font-black tracking-[0.15em] text-sky-300">CONTROL</span><h3 class="mt-3 text-3xl font-black">Control</h3><p class="mt-3 leading-7 text-slate-400">Para tiendas que necesitan cartera y seguimiento operativo.</p><ul class="mt-7 space-y-3 text-sm text-slate-200"><li>✓ Todo lo de Starter</li><li>✓ Gestión de cartera</li><li>✓ Vinculación de dispositivos</li><li>✓ Centro de control</li></ul><a href="#contacto" class="mt-8 flex justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-sky-400 px-4 py-3 text-sm font-bold">Solicitar demo</a></article>
+          <article class="reveal rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm"><span class="text-[11px] font-black tracking-[0.15em] text-slate-400">ESCALA</span><h3 class="mt-3 text-3xl font-black">Business</h3><p class="mt-3 leading-7 text-slate-600">Para operaciones con mayor volumen y varios puntos de venta.</p><ul class="mt-7 space-y-3 text-sm text-slate-700"><li>✓ Todo lo de Control</li><li>✓ Usuarios y roles</li><li>✓ Múltiples tiendas</li><li>✓ Configuración comercial</li></ul><a href="#contacto" class="mt-8 flex justify-center rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold">Hablar con ventas</a></article>
+        </div>
       </div>
     </section>
 
-    <section class="final-cta" id="contacto">
-      <div class="final-glow"></div><div class="container narrow center reveal"><p class="eyebrow">KOVPAY</p><h2>Vende con más orden.<br><span>Opera con más control.</span></h2><p>Conoce cómo KOVPAY puede integrarse a tu proceso de ventas a crédito.</p><div class="hero-actions centered"><a class="btn btn-primary" href="mailto:ventas@kovixec.com">Solicitar demostración</a><a class="btn btn-ghost" href="#inicio">Volver arriba ↑</a></div></div>
+    <section id="contacto" class="relative overflow-hidden bg-[#05070b] py-24 text-white sm:py-32">
+      <div class="kov-orb absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600"></div>
+      <div class="relative mx-auto max-w-4xl px-5 text-center sm:px-8">
+        <div class="reveal rounded-[36px] border border-white/10 bg-white/[0.055] px-6 py-12 backdrop-blur-2xl sm:px-12 sm:py-16">
+          <span class="text-xs font-black tracking-[0.18em] text-sky-300">KOVPAY</span>
+          <h2 class="mt-4 text-4xl font-black tracking-[-0.055em] sm:text-6xl">Vende con más orden.<br><span class="text-slate-400">Opera con más control.</span></h2>
+          <p class="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">Conoce cómo KOVPAY puede adaptarse a tu proceso de ventas a crédito.</p>
+          <div class="mt-8 flex flex-wrap justify-center gap-3"><a href="mailto:ventas@kovixec.com" class="rounded-2xl bg-white px-5 py-3.5 text-sm font-black text-slate-950">Solicitar demostración</a><a href="#inicio" class="rounded-2xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm font-bold">Volver arriba</a></div>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer><div class="container footer-grid"><div><div class="brand footer-brand"><span class="brand-mark">K</span><span class="brand-text">KOVPAY</span></div><p>Tecnología KOVIX para operaciones de venta a crédito.</p></div><div class="footer-links"><a href="#producto">Producto</a><a href="#control">Cómo funciona</a><a href="#ecosistema">Compatibilidad</a><a href="#planes">Planes</a></div><div class="footer-end"><span>© 2026 KOVPAY</span><span>Ecuador</span></div></div></footer>
-  <script src="script.js"></script>
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
+      <div><strong class="text-base font-black tracking-[0.08em]">KOVPAY</strong><p class="mt-1 text-sm text-slate-500">Software para operaciones de venta a crédito.</p></div>
+      <div class="flex flex-wrap gap-5 text-sm font-semibold text-slate-500"><a href="#producto">Producto</a><a href="#operacion">Operación</a><a href="#compatibilidad">Compatibilidad</a><a href="#planes">Planes</a></div>
+      <div class="text-sm text-slate-400">© 2026 KOVPAY · Ecuador</div>
+    </div>
+  </footer>
+
+  <script src="node_modules/preline/dist/preline.js"></script>
+  <script src="script.js?v=12"></script>
 </body>
 </html>
