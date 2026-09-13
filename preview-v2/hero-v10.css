@@ -1,0 +1,31 @@
+/* KOVPAY V10 — clean hardware composition, no device names */
+.hero-media{min-height:650px;display:flex;align-items:center;justify-content:center}
+.hero-device-stage-clean{position:relative;width:min(100%,980px);min-height:640px;display:flex;align-items:center;justify-content:center}
+.hero-macbook-card.software-frame{position:relative;width:min(100%,900px);z-index:2;filter:drop-shadow(0 38px 82px rgba(0,0,0,.46))}
+.hero-macbook-screen.hero-empty-screen{background:radial-gradient(circle at 50% 38%,rgba(33,112,190,.12),transparent 32%),linear-gradient(180deg,#090d14 0%,#05070b 100%)}
+.hero-empty-screen::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.025),transparent 26%,transparent 74%,rgba(72,177,255,.025));pointer-events:none}
+.hero-phone{position:absolute;z-index:4;filter:drop-shadow(0 30px 42px rgba(0,0,0,.42));pointer-events:none}
+.hero-phone img{display:block;width:100%;height:auto;position:relative;z-index:2}
+.phone-left-clean{width:205px;left:2%;bottom:45px;transform:rotate(-8deg)}
+.phone-right-clean{width:218px;right:1%;bottom:28px;transform:rotate(8deg)}
+.phone-screen-fill{position:absolute;z-index:1;border-radius:28px;overflow:hidden}
+.phone-left-clean .phone-screen-fill{left:7.5%;right:7.5%;top:3.6%;bottom:3.6%}
+.phone-right-clean .phone-screen-fill{left:7%;right:7%;top:3.2%;bottom:3.2%}
+.phone-screen-blue{background:radial-gradient(circle at 35% 20%,#4fd5ff 0%,#197fff 28%,#0a1420 70%,#05070b 100%)}
+.phone-screen-cyan{background:radial-gradient(circle at 68% 24%,#8ae8ff 0%,#1c8fff 27%,#0b1724 68%,#05070b 100%)}
+.hero-chip,.hero-data-card,.hero-s26-card{display:none!important}
+
+@media(max-width:1180px){
+  .hero-device-stage-clean{min-height:600px}
+  .hero-macbook-card.software-frame{width:min(100%,820px)}
+  .phone-left-clean{width:175px;left:3%;bottom:50px}
+  .phone-right-clean{width:185px;right:2%;bottom:34px}
+}
+@media(max-width:760px){
+  .hero-media{min-height:390px}
+  .hero-device-stage-clean{min-height:360px}
+  .hero-macbook-card.software-frame{width:100%}
+  .phone-left-clean{width:82px;left:0;bottom:28px;transform:rotate(-7deg)}
+  .phone-right-clean{width:88px;right:0;bottom:18px;transform:rotate(7deg)}
+  .phone-screen-fill{border-radius:12px}
+}
