@@ -1,10 +1,10 @@
 {
-  "version": 2,
+  "version": 3,
   "assets": [
     {
       "id": "macbook-pro-frame",
       "filename": "assets/macbook-pro-space-gray.png",
-      "role": "Hero principal: marco realista de MacBook Pro para colocar KOVPAY en pantalla",
+      "role": "Hero principal: marco de laptop para presentación visual",
       "sourceType": "open-source-mockup",
       "sourcePage": "https://github.com/alyssaxuu/animockup",
       "license": "MIT",
@@ -26,9 +26,33 @@
       "minBytes": 150000
     },
     {
+      "id": "phone-ios-transparent",
+      "filename": "assets/phone-ios-transparent.png",
+      "role": "Hero: teléfono decorativo transparente sin branding visible",
+      "sourceType": "open-source-mockup",
+      "sourcePage": "https://github.com/alyssaxuu/animockup",
+      "license": "MIT",
+      "urls": [
+        "https://raw.githubusercontent.com/alyssaxuu/animockup/master/src/assets/mockups/iphone-13.png"
+      ],
+      "minBytes": 100000
+    },
+    {
+      "id": "phone-android-transparent",
+      "filename": "assets/phone-android-transparent.png",
+      "role": "Hero: teléfono Android decorativo transparente sin branding visible",
+      "sourceType": "open-source-mockup",
+      "sourcePage": "https://github.com/alyssaxuu/animockup",
+      "license": "MIT",
+      "urls": [
+        "https://raw.githubusercontent.com/alyssaxuu/animockup/master/src/assets/mockups/samsung-galaxy-s21.png"
+      ],
+      "minBytes": 100000
+    },
+    {
       "id": "galaxy-s26-ultra-black",
       "filename": "assets/galaxy-s26-ultra-black.jpg",
-      "role": "Hero: Galaxy S26 Ultra real con cámaras visibles",
+      "role": "Referencia de producto",
       "sourceType": "manufacturer-hosted-reference",
       "sourcePage": "https://www.samsung.com/latin_en/smartphones/galaxy-s26-ultra/specs/",
       "license": "Samsung-owned product imagery; use as product identification/reference only",
@@ -42,7 +66,7 @@
     {
       "id": "iphone-18-pro-burgundy",
       "filename": "assets/iphone-18-pro-burgundy.jpg",
-      "role": "Sección blanca premium: iPhone 18 Pro / Pro Max",
+      "role": "Referencia visual de producto premium",
       "sourceType": "manufacturer-newsroom",
       "sourcePage": "https://www.apple.com/es/newsroom/2026/09/apple-debuts-iphone-18-pro-and-iphone-18-pro-max/",
       "license": "Apple-owned newsroom imagery; use as product identification/reference only",
@@ -54,7 +78,7 @@
     {
       "id": "iphone-18-pro-lineup",
       "filename": "assets/iphone-18-pro-lineup.jpg",
-      "role": "Sección de ecosistema / vitrina de producto",
+      "role": "Referencia visual de producto premium",
       "sourceType": "manufacturer-newsroom",
       "sourcePage": "https://www.apple.com/es/newsroom/2026/09/apple-debuts-iphone-18-pro-and-iphone-18-pro-max/",
       "license": "Apple-owned newsroom imagery; use as product identification/reference only",
@@ -66,7 +90,7 @@
     {
       "id": "macbook-pro-current-reference",
       "filename": "assets/macbook-pro-m5-reference.jpg",
-      "role": "Referencia visual actual 2026; no usar como marco de pantalla",
+      "role": "Referencia visual actual 2026",
       "sourceType": "manufacturer-newsroom",
       "sourcePage": "https://www.apple.com/la/newsroom/2026/03/apple-introduces-macbook-pro-with-all-new-m5-pro-and-m5-max/",
       "license": "Apple-owned newsroom imagery; use as product identification/reference only",
