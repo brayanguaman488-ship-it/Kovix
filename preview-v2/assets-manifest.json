@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "assets": [
     {
       "id": "macbook-pro-frame",
@@ -33,11 +33,11 @@
       "sourcePage": "https://www.samsung.com/latin_en/smartphones/galaxy-s26-ultra/specs/",
       "license": "Samsung-owned product imagery; use as product identification/reference only",
       "urls": [
-        "https://r1.community.samsung.com/t5/image/serverpage/image-id/11384485iFB80522E2924719C/image-size/medium?px=1200&v=v2",
-        "https://r1.community.samsung.com/t5/image/serverpage/image-id/11384485iFB80522E2924719C/image-size/medium?px=800&v=v2",
-        "https://images.samsung.com/is/image/samsung/assets/latin_en/s2602/specs/Galaxy-S26-Ultra_Black_163x346.jpg?$163_346_PNG$="
+        "https://r1.community.samsung.com/t5/image/serverpage/image-id/11384485iFB80522E2924719C/image-size/original?v=v2",
+        "https://r1.community.samsung.com/t5/image/serverpage/image-id/11384485iFB80522E2924719C/image-size/large?px=1600&v=v2",
+        "https://r1.community.samsung.com/t5/image/serverpage/image-id/11384485iFB80522E2924719C/image-size/medium?px=1200&v=v2"
       ],
-      "minBytes": 15000
+      "minBytes": 40000
     },
     {
       "id": "iphone-18-pro-burgundy",
@@ -49,7 +49,7 @@
       "urls": [
         "https://www.apple.com/newsroom/images/2026/09/apple-debuts-iphone-18-pro-and-iphone-18-pro-max/geo/Apple-iPhone-18-Pro-2up-Geo-260909_inline.jpg.large.jpg"
       ],
-      "minBytes": 50000
+      "minBytes": 30000
     },
     {
       "id": "iphone-18-pro-lineup",
