@@ -1,5 +1,5 @@
 const baseCss=document.createElement('link');baseCss.rel='stylesheet';baseCss.href='commercial-v6.css?v=6';document.head.appendChild(baseCss);
-const cleanCss=document.createElement('link');cleanCss.rel='stylesheet';cleanCss.href='clean-v8.css?v=9';document.head.appendChild(cleanCss);
+const cleanCss=document.createElement('link');cleanCss.rel='stylesheet';cleanCss.href='clean-v8.css?v=10';document.head.appendChild(cleanCss);
 
 const hero=document.querySelector('.hero');
 if(hero){hero.innerHTML=`
@@ -17,40 +17,21 @@ if(hero){hero.innerHTML=`
       <div class="hero-trust"><span>Clientes</span><span>Créditos</span><span>Cartera</span><span>Control</span></div>
     </div>
 
-    <div class="hero-media reveal delay-1" aria-label="Vista del software KOVPAY">
-      <div class="hero-macbook-card software-frame">
-        <img class="hero-macbook-frame" src="assets/macbook-pro-space-gray.png" alt="Vista del software KOVPAY en una pantalla">
-        <div class="hero-macbook-screen">
-          <div class="risk-board">
-            <div class="risk-topbar">
-              <div class="risk-brand"><strong>KOVPAY</strong></div>
-              <span class="risk-badge">Resumen ejecutivo</span>
-            </div>
-            <div class="risk-content">
-              <div class="risk-copy">
-                <span class="risk-eyebrow">Indicador principal</span>
-                <h3>Menos riesgo.</h3>
-                <p>Visualiza el comportamiento de tu cartera y detecta tendencias antes de que se conviertan en un problema.</p>
-              </div>
-              <div class="risk-chart-card">
-                <div class="risk-chart-head"><strong>Riesgo de cartera</strong><small>Últimos 6 meses</small></div>
-                <div class="risk-line-wrap">
-                  <svg class="risk-line-chart" viewBox="0 0 520 220" role="img" aria-label="Tendencia descendente del riesgo de cartera">
-                    <defs>
-                      <linearGradient id="riskArea" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#45c8ff" stop-opacity=".34"/>
-                        <stop offset="100%" stop-color="#1687ff" stop-opacity="0"/>
-                      </linearGradient>
-                    </defs>
-                    <path class="risk-area" d="M10 45 C90 55,110 78,170 88 S255 110,310 128 S400 150,510 178 L510 210 L10 210 Z"/>
-                    <path class="risk-path" d="M10 45 C90 55,110 78,170 88 S255 110,310 128 S400 150,510 178"/>
-                    <circle cx="510" cy="178" r="7" class="risk-dot"/>
-                  </svg>
-                  <div class="risk-axis"><span>Abr</span><span>May</span><span>Jun</span><span>Jul</span><span>Ago</span><span>Sep</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div class="hero-media reveal delay-1" aria-label="Composición comercial de KOVPAY">
+      <div class="hero-device-stage-clean">
+        <div class="hero-macbook-card software-frame">
+          <img class="hero-macbook-frame" src="assets/macbook-pro-space-gray.png" alt="Laptop con pantalla vacía">
+          <div class="hero-macbook-screen hero-empty-screen"></div>
+        </div>
+
+        <div class="hero-phone phone-left-clean">
+          <div class="phone-screen-fill phone-screen-blue"></div>
+          <img src="assets/phone-ios-transparent.png" alt="Teléfono decorativo">
+        </div>
+
+        <div class="hero-phone phone-right-clean">
+          <div class="phone-screen-fill phone-screen-cyan"></div>
+          <img src="assets/phone-android-transparent.png" alt="Teléfono decorativo">
         </div>
       </div>
     </div>
