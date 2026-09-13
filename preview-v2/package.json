@@ -6,6 +6,7 @@
     "start": "node fetch-assets.mjs && serve -s . -l $PORT"
   },
   "dependencies": {
+    "preline": "5.0.0",
     "serve": "14.2.4"
   }
 }
