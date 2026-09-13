@@ -1,5 +1,5 @@
 const baseCss=document.createElement('link');baseCss.rel='stylesheet';baseCss.href='commercial-v6.css?v=6';document.head.appendChild(baseCss);
-const cleanCss=document.createElement('link');cleanCss.rel='stylesheet';cleanCss.href='clean-v8.css?v=8';document.head.appendChild(cleanCss);
+const cleanCss=document.createElement('link');cleanCss.rel='stylesheet';cleanCss.href='clean-v8.css?v=9';document.head.appendChild(cleanCss);
 
 const hero=document.querySelector('.hero');
 if(hero){hero.innerHTML=`
@@ -9,82 +9,116 @@ if(hero){hero.innerHTML=`
     <div class="hero-inner">
       <p class="eyebrow">PLATAFORMA PARA VENTAS A CRÉDITO</p>
       <h1>Vende a crédito.<br><span>Mantén el control.</span></h1>
-      <p class="hero-copy">Gestiona clientes, cuotas, cartera y dispositivos desde una sola plataforma. KOVPAY organiza tu operación y KOVIX potencia el control de equipos compatibles.</p>
+      <p class="hero-copy">Gestiona clientes, cuotas, cartera y dispositivos desde una sola plataforma. KOVPAY organiza tu operación para que puedas vender con más control y dar seguimiento a cada crédito.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#contacto">Solicitar demostración</a>
         <a class="btn btn-ghost" href="#producto">Ver cómo funciona <span>↓</span></a>
       </div>
-      <div class="hero-trust"><span>Clientes</span><span>Créditos</span><span>Cartera</span><span>Dispositivos</span></div>
+      <div class="hero-trust"><span>Clientes</span><span>Créditos</span><span>Cartera</span><span>Control</span></div>
     </div>
 
-    <div class="hero-media reveal delay-1" aria-label="KOVPAY en MacBook Pro con indicador de menor riesgo y Galaxy S26 Ultra">
-      <div class="hero-chip chip-top">MacBook Pro + KOVPAY</div>
-      <div class="hero-macbook-card">
-        <img class="hero-macbook-frame" src="assets/macbook-pro-space-gray.png" alt="MacBook Pro">
+    <div class="hero-media reveal delay-1" aria-label="Vista del software KOVPAY">
+      <div class="hero-macbook-card software-frame">
+        <img class="hero-macbook-frame" src="assets/macbook-pro-space-gray.png" alt="Vista del software KOVPAY en una pantalla">
         <div class="hero-macbook-screen">
           <div class="risk-board">
             <div class="risk-topbar">
-              <div class="risk-brand"><span class="brand-mark small" aria-hidden="true"></span><strong>KOVPAY</strong></div>
-              <span class="risk-badge">Vista ejecutiva</span>
+              <div class="risk-brand"><strong>KOVPAY</strong></div>
+              <span class="risk-badge">Resumen ejecutivo</span>
             </div>
             <div class="risk-content">
               <div class="risk-copy">
                 <span class="risk-eyebrow">Indicador principal</span>
                 <h3>Menos riesgo.</h3>
-                <p>Visualiza la tendencia de cartera y toma decisiones con más claridad.</p>
+                <p>Visualiza el comportamiento de tu cartera y detecta tendencias antes de que se conviertan en un problema.</p>
               </div>
               <div class="risk-chart-card">
                 <div class="risk-chart-head"><strong>Riesgo de cartera</strong><small>Últimos 6 meses</small></div>
-                <div class="risk-chart"><i style="height:84%"></i><i style="height:74%"></i><i style="height:63%"></i><i style="height:52%"></i><i style="height:41%"></i><i style="height:30%"></i></div>
-                <div class="risk-labels"><span>Abr</span><span>May</span><span>Jun</span><span>Jul</span><span>Ago</span><span>Sep</span></div>
+                <div class="risk-line-wrap">
+                  <svg class="risk-line-chart" viewBox="0 0 520 220" role="img" aria-label="Tendencia descendente del riesgo de cartera">
+                    <defs>
+                      <linearGradient id="riskArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#45c8ff" stop-opacity=".34"/>
+                        <stop offset="100%" stop-color="#1687ff" stop-opacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    <path class="risk-area" d="M10 45 C90 55,110 78,170 88 S255 110,310 128 S400 150,510 178 L510 210 L10 210 Z"/>
+                    <path class="risk-path" d="M10 45 C90 55,110 78,170 88 S255 110,310 128 S400 150,510 178"/>
+                    <circle cx="510" cy="178" r="7" class="risk-dot"/>
+                  </svg>
+                  <div class="risk-axis"><span>Abr</span><span>May</span><span>Jun</span><span>Jul</span><span>Ago</span><span>Sep</span></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="hero-s26-card">
-        <div class="hero-s26-badge">Galaxy S26 Ultra</div>
-        <img class="hero-s26-phone" src="assets/galaxy-s26-ultra-black.jpg" alt="Galaxy S26 Ultra negro">
       </div>
     </div>
   </div>
   <div class="hero-fade"></div>`}
 
 const previousPremium=document.querySelector('.commercial-premium');if(previousPremium)previousPremium.remove();
+const previousShowcase=document.querySelector('.premium-showcase');if(previousShowcase)previousShowcase.remove();
 const statement=document.querySelector('.statement');
-if(statement&&!document.querySelector('.premium-showcase')){
+if(statement){
   const premium=document.createElement('section');
-  premium.className='premium-showcase';
+  premium.className='premium-showcase software-showcase';
   premium.innerHTML=`
     <div class="premium-grid">
       <div class="premium-copy reveal">
-        <p class="eyebrow dark">PRESENCIA COMERCIAL</p>
-        <h2>Tu operación también debe verse a otro nivel.</h2>
-        <p>KOVPAY combina gestión comercial, cartera y control de dispositivos con una presentación limpia, clara y mejor adaptada para mostrar a clientes y tiendas.</p>
+        <p class="eyebrow dark">SOFTWARE PARA TU OPERACIÓN</p>
+        <h2>Todo lo importante, en una sola vista.</h2>
+        <p>KOVPAY centraliza la información que tu equipo necesita para vender, cobrar y dar seguimiento sin saltar entre diferentes herramientas.</p>
         <div class="premium-points">
-          <div class="premium-point"><strong>Más claridad</strong><span>Información esencial sin saturar la pantalla.</span></div>
-          <div class="premium-point"><strong>Más presencia</strong><span>Producto visualmente sólido para mostrar a clientes y tiendas.</span></div>
-          <div class="premium-point"><strong>Más confianza</strong><span>Una estética limpia transmite orden y respaldo.</span></div>
+          <div class="premium-point"><strong>Clientes</strong><span>Información, documentos y créditos vinculados a cada persona.</span></div>
+          <div class="premium-point"><strong>Cartera</strong><span>Cuotas próximas, vencidas y pagos registrados en un solo lugar.</span></div>
+          <div class="premium-point"><strong>Control</strong><span>Seguimiento operativo de los dispositivos asociados a cada venta.</span></div>
         </div>
-        <div class="premium-actions"><a class="btn btn-primary" href="#contacto">Solicitar demostración</a><a class="btn-light" href="#ecosistema">Ver compatibilidad</a></div>
+        <div class="premium-actions"><a class="btn btn-primary" href="#contacto">Solicitar demostración</a><a class="btn-light" href="#control">Ver el flujo</a></div>
       </div>
 
-      <div class="premium-gallery reveal delay-1">
-        <article class="premium-device-card large">
-          <div class="premium-tag">iPhone 18 Pro / Pro Max</div>
-          <img src="assets/iphone-18-pro-burgundy.jpg" alt="iPhone 18 Pro y Pro Max">
-        </article>
-        <article class="premium-copy-card">
-          <span>VITRINA PREMIUM</span>
-          <h3>Producto claro.<br>Mensaje claro.</h3>
-          <p>Una sección blanca con más aire, más presencia y un lenguaje visual más limpio.</p>
-        </article>
-        <article class="premium-device-card lineup"><img src="assets/iphone-18-pro-lineup.jpg" alt="Lineup iPhone 18 Pro"></article>
+      <div class="software-product-visual reveal delay-1">
+        <div class="software-window">
+          <div class="software-window-top">
+            <div class="software-wordmark">KOVPAY</div>
+            <div class="software-search">Buscar cliente, crédito o equipo…</div>
+            <div class="software-user">BG</div>
+          </div>
+          <div class="software-window-body">
+            <aside class="software-sidebar">
+              <span class="active">Resumen</span><span>Clientes</span><span>Créditos</span><span>Cartera</span><span>Control</span>
+            </aside>
+            <div class="software-main">
+              <div class="software-heading"><div><small>Resumen de operación</small><h3>Centro de control</h3></div><button>+ Nuevo crédito</button></div>
+              <div class="software-kpis">
+                <div><span>Créditos activos</span><strong>128</strong><small>Operación actual</small></div>
+                <div><span>Cobros próximos</span><strong>34</strong><small>Esta semana</small></div>
+                <div><span>Cartera al día</span><strong>91%</strong><small>Seguimiento actual</small></div>
+              </div>
+              <div class="software-panels">
+                <div class="software-chart-panel">
+                  <div class="software-panel-head"><strong>Comportamiento de cartera</strong><small>Últimos 6 meses</small></div>
+                  <div class="software-bars"><i style="height:48%"></i><i style="height:56%"></i><i style="height:63%"></i><i style="height:72%"></i><i style="height:79%"></i><i style="height:88%"></i></div>
+                </div>
+                <div class="software-activity-panel">
+                  <strong>Actividad reciente</strong>
+                  <div><b></b><span>Pago registrado<small>Cliente #0248 · $45</small></span></div>
+                  <div><b></b><span>Crédito creado<small>Cliente #0312</small></span></div>
+                  <div><b></b><span>Seguimiento actualizado<small>Hace 8 min</small></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="software-floating-card sf-one"><span>Seguimiento</span><strong>34 cobros próximos</strong></div>
+        <div class="software-floating-card sf-two"><span>Cartera</span><strong>91% al día</strong></div>
       </div>
     </div>`;
   statement.insertAdjacentElement('afterend',premium);
 }
+
+const brandMark=document.querySelector('.nav .brand-mark');if(brandMark)brandMark.remove();
+const footerBrandMark=document.querySelector('footer .brand-mark');if(footerBrandMark)footerBrandMark.remove();
 
 const items=document.querySelectorAll('.reveal');
 const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target)}})},{threshold:.12});
