@@ -1,5 +1,6 @@
 const baseCss=document.createElement('link');baseCss.rel='stylesheet';baseCss.href='commercial-v6.css?v=6';document.head.appendChild(baseCss);
 const cleanCss=document.createElement('link');cleanCss.rel='stylesheet';cleanCss.href='clean-v8.css?v=10';document.head.appendChild(cleanCss);
+const heroCss=document.createElement('link');heroCss.rel='stylesheet';heroCss.href='hero-v10.css?v=10';document.head.appendChild(heroCss);
 
 const hero=document.querySelector('.hero');
 if(hero){hero.innerHTML=`
