@@ -1,3 +1,8 @@
+const layoutFix = document.createElement('link');
+layoutFix.rel = 'stylesheet';
+layoutFix.href = 'layout-v3.css?v=3';
+document.head.appendChild(layoutFix);
+
 const items = document.querySelectorAll('.reveal');
 const observer = new IntersectionObserver((entries)=>{
   entries.forEach(entry=>{
