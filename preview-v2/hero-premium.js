@@ -5,7 +5,7 @@
 
   // Keep the current hero intact if the proposed product asset fails to load.
   const devices = new Image();
-  devices.alt = 'Vista conceptual de KOVPAY en un iPhone y un equipo Android.';
+  devices.alt = 'Vista conceptual de KOVPAY en un iPhone borgoña y un Samsung Galaxy blanco, basados en los modelos de referencia.';
   devices.className = 'premium-hero-devices';
   devices.decoding = 'async';
   devices.fetchPriority = 'high';
@@ -34,5 +34,5 @@
     };
     document.head.appendChild(stylesheet);
   };
-  devices.src = 'assets/kovpay-premium-phones.png';
+  devices.src = 'assets/kovpay-reference-phones-v2.png';
 })();
