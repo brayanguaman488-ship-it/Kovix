@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
   commercialCss.href = 'commercial-v4.css?v=4';
   document.head.appendChild(commercialCss);
 
+  const sectionCss = document.createElement('link');
+  sectionCss.rel = 'stylesheet';
+  sectionCss.href = 'section-refinements.css?v=1';
+  document.head.appendChild(sectionCss);
+
   const statement = document.querySelector('.statement');
   if (statement && !document.querySelector('.commercial-premium')) {
     const premium = document.createElement('section');
@@ -30,23 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
 
-        <div class="commercial-visual reveal delay-1" aria-label="Vista conceptual premium de un smartphone administrado por KOVPAY">
+        <div class="commercial-visual commercial-models reveal delay-1" aria-label="Modelos Xiaomi de referencia">
           <div class="commercial-halo"></div>
-          <div class="flagship-phone">
-            <div class="flagship-inner">
-              <div class="flagship-island"></div>
-              <div class="flagship-screen">
-                <span class="flagship-kicker">KOVPAY • Dispositivo administrado</span>
-                <strong class="flagship-title">Control conectado.</strong>
-                <p class="flagship-sub">Operación sincronizada con tu crédito.</p>
-                <div class="flagship-status">
-                  <div><span>Estado</span><strong>Activo</strong></div>
-                  <div><span>Cuota</span><strong>$45</strong></div>
-                  <div><span>Control</span><strong>OK</strong></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <img class="commercial-model-image" src="assets/xiaomi-models-cutout-v1.png" alt="Modelos Xiaomi en acabados grafito, blanco, rosa, azul y rojo, según la referencia proporcionada." width="1536" height="1024" loading="lazy" decoding="async">
           <div class="commercial-float cf-one"><span>Créditos activos</span><strong>128</strong><small>Seguimiento operativo centralizado.</small></div>
           <div class="commercial-float cf-two"><span>Ecosistema</span><strong>Android + iPhone</strong><small>Flujos diferenciados según compatibilidad.</small></div>
           <div class="commercial-float cf-three"><span>Experiencia</span><strong>Premium</strong><small>Diseñada para transmitir más confianza.</small></div>

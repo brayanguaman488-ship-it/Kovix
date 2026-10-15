@@ -1,0 +1,61 @@
+/* Preserve brand and content; tighten the introduction and replace the concept phone. */
+.statement { padding: 76px 0 62px; }
+.statement .narrow { width: min(1120px, calc(100% - 48px)); }
+.statement .eyebrow { margin-bottom: 18px; }
+.statement .feature-strip { margin-top: 30px; }
+.statement .narrow>p:last-child { margin-top: 22px; }
+.commercial-premium { padding-top: 28px; padding-bottom: 90px; }
+.commercial-premium .commercial-grid { width: min(1440px,calc(100% - 64px)); grid-template-columns: minmax(350px,520px) minmax(0,1fr); gap: 52px; }
+.commercial-models { min-height: 680px; }
+.commercial-model-image { display: block; width: 112%; max-width: none; height: auto; position: relative; z-index: 2; }
+.commercial-models .commercial-halo { width: 100%; height: 580px; opacity: .45; }
+.commercial-models .commercial-float { min-width: 0; padding: 17px 20px; border-radius: 24px; }
+.commercial-models .cf-one { top: 8px; left: 0; }
+.commercial-models .cf-two { top: auto; bottom: 24px; right: 0; }
+.commercial-models .cf-three { top: auto; bottom: 24px; right: auto; left: 0; }
+.commercial-models .commercial-float strong { font-size: 25px; }
+
+.contact-footer { background: radial-gradient(ellipse at 10% 0,rgba(22,135,255,.09),transparent 48%),#030406; padding: 65px 0 24px; }
+.contact-footer .footer-grid { width: min(1440px,calc(100% - 64px)); display: grid; grid-template-columns: 1fr .7fr 1.4fr .65fr; gap: 44px; align-items: start; }
+.contact-footer .footer-brand { margin: 0 0 18px; width: fit-content; }
+.contact-footer .brand-text { font-size: 25px; letter-spacing: .08em; }
+.contact-footer .footer-intro p { max-width: 270px; font-size: 14px; line-height: 1.65; color: #99a6b7; margin: 0 0 20px; }
+.footer-demo { display: inline-flex; align-items: center; gap: 12px; color: var(--cyan); font-size: 13px; line-height: 1.5; }
+.footer-column { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 13px; }
+.footer-column h3 { margin: 3px 0 9px; color: #7c8ba0; font-size: 12px; font-weight: 600; }
+.footer-column>a { color: #d9e2ed; font-size: 14px; line-height: 1.5; }
+.footer-emails>a { overflow-wrap: anywhere; }
+.contact-footer a { transition: color .18s ease; }
+.contact-footer a:hover { color: var(--cyan); }
+.contact-footer a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 5px; border-radius: 2px; }
+.contact-footer .footer-bottom { width: min(1440px,calc(100% - 64px)); display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--line); margin-top: 48px; padding-top: 22px; color: #8a98aa; font-size: 12px; }
+@media(max-width:1180px) {
+  .commercial-premium .commercial-grid { grid-template-columns: 1fr; gap: 28px; }
+  .commercial-models { width: min(820px,100%); margin: auto; min-height: 600px; }
+  .commercial-model-image { width: 100%; }
+  .commercial-models .cf-one { left: 12px; top: 8px; }
+  .commercial-models .cf-two { right: 12px; bottom: 0; }
+  .commercial-models .cf-three { left: 12px; right: auto; bottom: 0; transform: none; }
+  .contact-footer .footer-grid { grid-template-columns: 1fr 1fr; gap: 36px 52px; }
+}
+@media(max-width:700px) {
+  .statement { padding: 54px 0 42px; }
+  .statement .narrow { width: calc(100% - 32px); }
+  .statement .feature-strip { margin-top: 26px; gap: 8px; }
+  .statement .feature-pill { padding: 11px 15px; font-size: 13px; }
+  .commercial-premium { padding: 20px 0 60px; }
+  .commercial-premium .commercial-grid { width: calc(100% - 32px); }
+  .commercial-models { min-height: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 0; }
+  .commercial-model-image { width: 100%; grid-column: 1 / -1; }
+  .commercial-models .commercial-float { position: static; margin: 0; max-width: none; padding: 15px; transform: none!important; }
+  .commercial-models .cf-two { grid-column: 1 / -1; grid-row: 3; }
+  .commercial-models .commercial-float strong { font-size: 22px; }
+  .commercial-models .commercial-float small { font-size: 11px; }
+  .commercial-models .commercial-halo { height: 280px; top: 0; }
+  .contact-footer { padding-top: 42px; }
+  .contact-footer .footer-grid { width: calc(100% - 40px); grid-template-columns: 1fr; gap: 30px; }
+  .footer-column { gap: 10px; }
+  .footer-column h3 { margin-bottom: 3px; }
+  .contact-footer .footer-bottom { width: calc(100% - 40px); margin-top: 30px; align-items: flex-start; }
+}
+@media(prefers-reduced-motion:reduce) { .contact-footer a { transition: none; } }
