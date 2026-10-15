@@ -7,6 +7,7 @@
   <title>KOVPAY — Vende a crédito. Mantén el control.</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="preline-build.css?v=15" />
+  <link rel="stylesheet" href="brand-carousel.css?v=1" />
 </head>
 <body>
   <div class="noise"></div>
@@ -151,11 +152,29 @@
 
     <section class="ecosystem section-dark" id="ecosistema">
       <div class="container narrow center reveal"><p class="eyebrow">UN ECOSISTEMA, DOS CAMINOS</p><h2>Android + iPhone.<br><span>Cada uno con su tecnología.</span></h2><p>KOVPAY centraliza la operación comercial y se integra con mecanismos de administración diferenciados según el ecosistema del dispositivo.</p></div>
+      <div class="brand-carousel container" role="region" aria-label="Marcas compatibles" aria-describedby="brand-compatibility-note">
+        <div class="brand-carousel-heading">
+          <h3>Las marcas que ya conoces.</h3>
+          <button class="brand-carousel-toggle" type="button" aria-controls="brand-carousel-track" hidden>Pausar carrusel</button>
+        </div>
+        <div class="brand-carousel-window" tabindex="0" role="group" aria-label="Logos de marcas. Desliza para ver más.">
+          <ul class="brand-carousel-track" id="brand-carousel-track">
+            <li><img src="assets/brands/apple.svg" alt="Apple / iPhone" width="44" height="44" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/samsung.svg" alt="Samsung" width="130" height="44" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/xiaomi.svg" alt="Xiaomi" width="44" height="44" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/motorola.svg" alt="Motorola" width="48" height="48" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/google.svg" alt="Google" width="42" height="42" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/lenovo.svg" alt="Lenovo" width="112" height="40" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/huawei.svg" alt="Huawei" width="52" height="52" loading="lazy" decoding="async"></li>
+            <li><img src="assets/brands/lg.svg" alt="LG" width="78" height="42" loading="lazy" decoding="async"></li>
+          </ul>
+        </div>
+      </div>
       <div class="container ecosystem-grid">
         <article class="platform-card android reveal"><div class="platform-top"><span class="platform-dot"></span><strong>ANDROID</strong></div><h3>Potenciado por KOVIX.</h3><p>Gestión y control para equipos Android compatibles, integrados con la operación de crédito de KOVPAY.</p><div class="platform-phone android-device"><div class="camera-hole"></div><div class="platform-screen"><span>KOVIX</span><b>Control conectado</b><small>Dispositivo vinculado</small></div></div></article>
         <article class="platform-card ios reveal delay-1"><div class="platform-top"><span class="platform-dot"></span><strong>IPHONE</strong></div><h3>Gestión dentro del ecosistema Apple.</h3><p>Integra la administración de dispositivos Apple mediante los mecanismos empresariales correspondientes.</p><div class="platform-phone iphone-device"><div class="dynamic-island"></div><div class="platform-screen"><span>KOVPAY</span><b>iPhone administrado</b><small>Operación sincronizada</small></div></div></article>
       </div>
-      <p class="compatibility-note container">La disponibilidad de funciones depende del modelo, versión del sistema operativo, método de enrolamiento y compatibilidad técnica aplicable.</p>
+      <p class="compatibility-note container" id="brand-compatibility-note">La disponibilidad de funciones depende del modelo, versión del sistema operativo, método de enrolamiento y compatibilidad técnica aplicable.</p>
     </section>
 
     <section class="plans section-light" id="planes">
@@ -176,5 +195,6 @@
   <script src="node_modules/preline/dist/preline.js"></script>
   <script src="script.js?v=15"></script>
   <script src="device-collage-v17.js?v=17"></script>
+  <script src="brand-carousel.js?v=1"></script>
 </body>
 </html>
