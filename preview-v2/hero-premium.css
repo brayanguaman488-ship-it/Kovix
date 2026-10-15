@@ -1,0 +1,47 @@
+/* Proposal: scope every override to the hero; retain existing brand tokens and font. */
+.hero.hero-proposal { isolation: isolate; overflow: hidden; }
+.hero-proposal .premium-hero-stage { position: relative; width: 100%; height: 670px; margin: 24px auto 0; perspective: none; display: block; max-width: 960px; }
+.premium-hero-halo { position: absolute; inset: 15% 0 0; background: radial-gradient(ellipse, rgba(22,135,255,.18), transparent 64%); filter: blur(35px); }
+.premium-hero-panel { position: absolute; top: 0; left: 0; width: 100%; height: 390px; border: 1px solid rgba(157,196,235,.18); border-radius: 26px; background: linear-gradient(145deg, #121c2a, #090e17 75%); box-shadow: 0 32px 80px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.04); overflow: hidden; transform: perspective(1400px) rotateY(-5deg) rotateX(3deg); }
+.premium-hero-panel-top { display: flex; align-items: center; gap: 22px; padding: 16px 25px; border-bottom: 1px solid rgba(255,255,255,.07); color: #8898ad; font-size: 11px; line-height: 1.3; }
+.premium-hero-panel-top>span:first-child { font-weight: 800; letter-spacing: .08em; color: #f7f9fc; }
+.premium-hero-panel-top i { width: 7px; height: 7px; margin-left: auto; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 16px rgba(77,200,255,.4); }
+.premium-hero-panel-title { margin: 18px 25px 12px; font-size: 23px; line-height: 1.2; font-weight: 500; letter-spacing: -.035em; color: var(--text); }
+.premium-hero-metrics { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin: 0 25px; }
+.premium-hero-metrics>div { border-left: 1px solid rgba(255,255,255,.12); padding-left: 16px; }
+.premium-hero-metrics>div:first-child { border: 0; padding-left: 0; }
+.premium-hero-metrics span { color: #9caabd; font-size: 11px; line-height: 1.3; }
+.premium-hero-metrics strong { display: block; margin: 8px 0; font-size: clamp(24px, 2.7vw, 35px); line-height: 1.15; font-weight: 600; letter-spacing: -.045em; color: var(--text); }
+.premium-hero-metrics strong span { font-size: .55em; color: #8293a8; }
+.premium-hero-metrics small { color: #7d8ba0; font-size: 9px; }
+.premium-hero-chart { position: absolute; left: 25px; right: 25px; bottom: 0; height: 125px; display: flex; align-items: end; gap: 17px; opacity: .42; mask-image: linear-gradient(#000, transparent); }
+.premium-hero-chart i { flex: 1; height: var(--bar); border-radius: 6px 6px 0 0; background: linear-gradient(var(--cyan), var(--blue)); }
+.premium-hero-device-wrap { position: absolute; z-index: 2; width: 79%; right: -2%; bottom: -10px; }
+.premium-hero-devices { display: block; width: 100%; height: auto; filter: drop-shadow(0 28px 35px rgba(0,0,0,.4)); }
+@media(min-width:1180px) {
+  .hero.hero-proposal { display: grid; grid-template-columns: minmax(420px,.9fr) minmax(590px,1.1fr); gap: 40px; align-items: center; min-height: min(900px, 100dvh); padding: 86px max(36px,calc((100vw - 1640px)/2)) 55px; }
+  .hero-proposal .hero-inner { width: 100%; padding: 0; margin: 0; text-align: left; }
+  .hero-proposal h1 { margin: 0; max-width: 680px; font-size: clamp(66px,5.1vw,98px); }
+  .hero-proposal .hero-copy { margin: 28px 0 0; font-size: 18px; max-width: 565px; }
+  .hero-proposal .hero-actions { justify-content: flex-start; margin-top: 30px; }
+  .hero-proposal .premium-hero-stage { margin: 0; height: min(680px,76dvh); min-height: 560px; }
+  .premium-hero-panel { top: 0; }
+  .premium-hero-device-wrap { width: 88%; right: -4%; bottom: -15px; }
+}
+@media(min-width:760px) and (max-width:1179px) {
+  .hero-proposal .premium-hero-stage { width: min(820px,calc(100% - 50px)); height: 660px; margin-top: 50px; }
+}
+@media(max-width:759px) {
+  .hero.hero-proposal { padding-bottom: 30px; }
+  .hero-proposal .premium-hero-stage { width: calc(100% - 32px); height: 430px; margin-top: 35px; }
+  .premium-hero-panel { height: 250px; border-radius: 17px; transform: none; }
+  .premium-hero-panel-top { padding: 13px; gap: 16px; font-size: 8px; }
+  .premium-hero-panel-title { font-size: 18px; margin: 16px 13px; }
+  .premium-hero-metrics { margin: 0 13px; gap: 8px; grid-template-columns: 1.3fr 1fr 1fr; }
+  .premium-hero-metrics>div { padding-left: 8px; }
+  .premium-hero-metrics span { font-size: 8px; }
+  .premium-hero-metrics strong { font-size: 22px; margin: 7px 0; }
+  .premium-hero-metrics small { display: none; }
+  .premium-hero-chart { left: 13px; right: 13px; height: 75px; gap: 10px; }
+  .premium-hero-device-wrap { width: 100%; right: -2%; bottom: -12px; max-width: 440px; }
+}
